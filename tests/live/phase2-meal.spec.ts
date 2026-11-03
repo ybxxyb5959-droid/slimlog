@@ -19,10 +19,10 @@ test('식단: 공용 음식 서버 검색 + 내 음식 등록 → 한 끼 저장
   await quickOnboarding(page)
   const uid = (await userIdOf(email))!
 
-  // 사진은 서버 연결 전이라 막힘 (목업 결과로 실제 기록을 만들지 않음)
+  // 실서비스에서 예시(가짜) 사진으로는 기록을 만들지 않음
   await page.goto('/record/meal/new')
   await page.getByRole('button', { name: '예시 사진' }).click()
-  await expect(page.getByText('사진 인식은 서버 연결 후 열려요')).toBeVisible()
+  await expect(page.getByText('예시 사진은 목업 모드에서만 쓸 수 있어요')).toBeVisible()
   await expect(page).toHaveURL('/record/meal/new')
 
   // 공용 음식: 서버에서 검색 → 1인분 바로 담기

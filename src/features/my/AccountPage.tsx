@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ProviderMark } from '@/features/auth/ProviderMark'
 import type { ProviderId } from '@/features/auth/providers'
-import { isLive } from '@/lib/supabase'
+import { api, apiReady } from '@/lib/api'
+import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 
 const PROVIDER_NAME: Record<string, string> = { kakao: '카카오', google: 'Google', apple: 'Apple', naver: '네이버', email: '이메일(개발용)' }
@@ -40,10 +41,10 @@ export function AccountPage() {
           <p className="text-[13px] leading-relaxed text-text-muted">
             탈퇴하면 서버에 저장된 모든 기록과 게시글이 삭제돼요. 이 기기의 눈바디 사진은 따로 지워야 해요.
           </p>
-          <Button variant="outline" className="mt-2 text-danger hover:bg-danger-soft hover:text-danger" onClick={() => setWithdraw(true)} disabled={isLive}>
+          <Button variant="outline" className="mt-2 text-danger hover:bg-danger-soft hover:text-danger" onClick={() => setWithdraw(true)} disabled={isLive && !apiReady}>
             회원 탈퇴
           </Button>
-          {isLive && <p className="text-[12px] text-text-subtle">준비 중 · 탈퇴는 서버(FastAPI) 연결 후 열려요. 사진 파일까지 함께 지워야 해서 앱에서 바로 처리하지 않아요.</p>}
+          {isLive && !apiReady && <p className="text-[12px] text-text-subtle">준비 중 · 탈퇴는 서버(FastAPI) 연결 후 열려요. 사진 파일까지 함께 지워야 해서 앱에서 바로 처리하지 않아요.</p>}
         </Card>
       </div>
       <ConfirmDialog
@@ -53,9 +54,19 @@ export function AccountPage() {
         description="모든 기록이 삭제되고 되돌릴 수 없어요."
         confirmLabel="탈퇴"
         tone="danger"
-        onConfirm={() => {
-          toast('목업: 탈퇴 처리 화면 (실제 삭제 없음)')
-          navigate('/login')
+        onConfirm={async () => {
+          if (!isLive) {
+            toast('목업: 탈퇴 처리 화면 (실제 삭제 없음)')
+            return navigate('/login')
+          }
+          try {
+            await api('/me', { method: 'DELETE' }) // 서버: 사진 파일 → 계정 삭제 (기록은 함께 삭제)
+            await useAuthStore.getState().signOut()
+            toast('탈퇴했어요. 그동안 고마웠어요.')
+            navigate('/login', { replace: true })
+          } catch (e) {
+            toast.error('탈퇴하지 못했어요', { description: (e as Error).message || dbErrorMessage(e) })
+          }
         }}
       />
     </>

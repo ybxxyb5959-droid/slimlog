@@ -12,10 +12,12 @@ import { EmptyState } from '@/components/common/StateViews'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { toDateTimeLocalValue } from '@/lib/date'
+import { localInputToIso, toDateTimeLocalValue } from '@/lib/date'
 import { amountLabel, fmtG, sumNutrients } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
-import { isLive } from '@/lib/supabase'
+import { apiReady } from '@/lib/api'
+import { dbErrorMessage, isLive } from '@/lib/supabase'
+import { confirmPhotoMeal } from '@/services/live/meals'
 import { getFood } from '@/services/foodCatalog'
 import { makeItem, useMealStore } from '@/stores/mealStore'
 import { isPhotoItem, useMealDraftStore, type DraftItem } from '@/stores/mealDraftStore'
@@ -87,10 +89,23 @@ export function MealReviewPage() {
     d.replaceItem(item.id, { ...makeItem(food, food.servingGrams, { fromPhoto: isPhotoItem(item), ai: item.ai, corrected }), id: item.id })
   }
 
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
     const items = d.items as MealItem[]
-    const base = { mealType: d.mealType, eatenAt: new Date(d.eatenAt).toISOString(), source: (d.photoId && photoItems ? 'photo' : 'manual') as 'photo' | 'manual', photoId: photoItems ? (d.photoId ?? undefined) : undefined, items }
-    if (d.editingId) updateRecord({ ...base, id: d.editingId })
+    const base = { mealType: d.mealType, eatenAt: localInputToIso(d.eatenAt), source: (d.photoId && photoItems ? 'photo' : 'manual') as 'photo' | 'manual', photoId: photoItems ? (d.photoId ?? undefined) : undefined, items }
+    if (apiReady && !d.editingId && base.source === 'photo' && d.photoId) {
+      // 실서비스 사진 기록: 서버가 만든 초안(meal_id = photoId)을 확정하고 인식 결과마다 수락·수정·제외를 남긴다
+      setSaving(true)
+      try {
+        const rec = { ...base, id: d.photoId }
+        await confirmPhotoMeal(rec, d.predIds)
+        useMealStore.setState((s) => ({ records: [...s.records, rec] }))
+      } catch (e) {
+        setSaving(false)
+        return void toast.error('식단을 저장하지 못했어요', { description: dbErrorMessage(e) })
+      }
+      setSaving(false)
+    } else if (d.editingId) updateRecord({ ...base, id: d.editingId })
     else addRecord(base)
     toast.success(`${typeLabel} 식단을 ${d.editingId ? '수정' : '저장'}했어요`, { description: isLive ? undefined : '목업 · 이 기기 화면에만 저장돼요.' })
     d.reset()
@@ -198,15 +213,16 @@ export function MealReviewPage() {
                   {ai && (ai.candidates.length > 0 || !it.foodId) && (
                     <div className="mt-3">
                       {!it.foodId &&
-                        (ai.candidates.length ? (
+                        (ai.candidates.some((cid) => getFood(cid)) ? (
                           <p className="mb-2 text-[13px] text-review">사진에 있다면 맞는 음식을 골라 주세요. 없으면 빼면 돼요.</p>
                         ) : (
                           <p className="mb-2 text-[13px] text-review">후보가 없어요. 검색해서 골라 주세요.</p>
                         ))}
-                      {ai.candidates.length > 0 && (
+                      {ai.candidates.some((cid) => getFood(cid)) && (
                         <div role="radiogroup" aria-label={`${it.foodId ? it.name : `확인 필요 ${reviewNo(it)}`} 인식 후보`} className="flex flex-wrap gap-1.5">
                           {ai.candidates.map((cid) => {
-                            const c = getFood(cid)!
+                            const c = getFood(cid)
+                            if (!c) return null // 음식 DB 에 없는 후보는 보여주지 않음 (검색으로 고르기)
                             const active = it.foodId === cid
                             return (
                               <button
@@ -291,7 +307,7 @@ export function MealReviewPage() {
           <p className="tabular min-w-0 flex-1 truncate text-[13px] text-text-muted">
             합계 <b className="text-[16px] text-text">{totals.kcal.toLocaleString()}kcal</b>
           </p>
-          <Button size="lg" disabled={!canSave} onClick={save}>
+          <Button size="lg" disabled={!canSave || saving} onClick={save}>
             <Check size={18} strokeWidth={2} aria-hidden /> {typeLabel} 식단 {d.editingId ? '수정' : '저장'}하기
           </Button>
         </div>

@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { DEFAULT_FAVORITES, FOOD_CATALOG } from '@/fixtures/foodCatalog.mock'
 import { addDays, startOfDay } from '@/lib/date'
 import { nutrientsFor } from '@/lib/nutrition'
+import { api } from '@/lib/api'
 import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { deleteMeal, insertMeal, insertMyFood, updateMeal } from '@/services/live/meals'
 import type { Meal, MealType } from '@/types/domain'
@@ -96,8 +97,10 @@ export const useMealStore = create<MealState>((set, get) => ({
   },
   removeRecord: (id) => {
     const prev = get().records
+    const rec = prev.find((x) => x.id === id)
     set((s) => ({ records: s.records.filter((x) => x.id !== id) }))
-    persist(() => deleteMeal(id), () => set({ records: prev }))
+    // 사진 기록은 Storage 파일까지 지워야 해서 서버 API 로 (앱은 사진 기록을 직접 못 지움)
+    persist(() => (rec?.source === 'photo' ? api(`/meals/${id}`, { method: 'DELETE' }) : deleteMeal(id)), () => set({ records: prev }))
   },
   addCustomFood: (f) => {
     const item: FoodItem = { ...f, id: newId('myfood'), custom: true, category: '내 음식' }

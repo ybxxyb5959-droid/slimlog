@@ -48,6 +48,8 @@ export interface AiLabelMeta {
   modelVersion: string
   /** model = 실제 모델 결과, mock = 시연용 목업 결과 */
   mode: 'model' | 'mock'
+  /** 서버 PREDICTIONS.pred_id — 사용자 피드백(수락·수정·제외)을 이 행에 남긴다 */
+  predId?: string
 }
 
 /** 식사 안의 음식 한 개 — 저장 시점의 이름·영양을 스냅숏으로 보관 */

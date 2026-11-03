@@ -10,6 +10,8 @@
  * 모델이 준비되지 않았으면(model_status: not_loaded) 목업 결과로 시연한다.
  * 목업 결과는 mode: 'mock' 으로 표시되고, 사진 내용과 상관없는 고정 예시다.
  */
+import { api } from '@/lib/api'
+import type { PhotoRecognition } from '@/services/live/meals'
 import type { AiLabelMeta } from '@/types/meal'
 
 export type ModelStatus = 'ready' | 'not_loaded' | 'mock'
@@ -46,4 +48,26 @@ export function getModelStatus(): ModelStatus {
 export async function recognizeMeal(_photo: { kind: 'sample' | 'file'; url?: string }): Promise<RecognitionResult> {
   await new Promise((r) => setTimeout(r, 1100))
   return { mode: 'mock', modelStatus: getModelStatus(), modelVersion: MOCK_MODEL_VERSION, labels: MOCK_LABELS.map((l) => ({ ...l, candidates: [...l.candidates] })) }
+}
+
+// ── 실서비스: 서버(FastAPI)가 EXIF 제거·저장·인식 후 초안 식사(draft)를 만든다 ──
+
+export interface LiveRecognition extends RecognitionResult {
+  mealId: string
+  labels: (RecognizedLabel & { predId: string })[]
+}
+
+export async function recognizeMealLive(file: File, mealType: string, eatenAtIso: string): Promise<LiveRecognition> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('meal_type', mealType)
+  form.append('eaten_at', eatenAtIso)
+  const r = await api<PhotoRecognition>('/meals/photo', { form })
+  return {
+    mealId: r.meal_id,
+    mode: r.mode,
+    modelStatus: r.model_status as ModelStatus,
+    modelVersion: r.model_version,
+    labels: r.labels.map((l) => ({ foodId: l.food_id, status: l.status, score: l.score, threshold: l.threshold, candidates: l.candidates, predId: l.pred_id })),
+  }
 }

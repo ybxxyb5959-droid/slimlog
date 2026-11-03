@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY?: string
   /** '1' 이면 개발용 이메일 로그인 노출 (개발 서버 + 로컬 Supabase 전용) */
   readonly VITE_DEV_LOGIN?: string
+  /** SlimLog API(FastAPI) 주소 — 없으면 서버 기능(사진 인식·커뮤니티 쓰기·탈퇴)은 '준비 중' */
+  readonly VITE_API_URL?: string
   readonly VITE_PREVIEW?: string
 }
 

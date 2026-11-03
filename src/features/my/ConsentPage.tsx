@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { CONSENT_ITEMS, type ConsentId } from '@/fixtures/consents'
+import { apiReady } from '@/lib/api'
 import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { setConsent, withdrawSensitive } from '@/services/live/account'
 import { useAuthStore } from '@/stores/authStore'
@@ -60,9 +61,10 @@ export function ConsentPage() {
       return setPending(null)
     }
     if (pending !== 'sensitive') {
-      // 이용약관·개인정보 철회 = 탈퇴 → 사진 파일까지 지워야 해서 서버 API 필요
-      toast('준비 중 · 이 동의 철회는 회원 탈퇴로 처리돼요. 탈퇴는 서버 연결 후 열려요.')
-      return setPending(null)
+      // 이용약관·개인정보 철회 = 탈퇴 → 사진 파일까지 지워야 해서 서버 API 로
+      setPending(null)
+      if (!apiReady) return void toast('준비 중 · 이 동의 철회는 회원 탈퇴로 처리돼요. 탈퇴는 서버 연결 후 열려요.')
+      return navigate('/my/account')
     }
     setBusy(true)
     try {

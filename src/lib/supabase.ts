@@ -7,14 +7,16 @@ import type { Database } from '@/types/database'
  * - live: VITE_SUPABASE_URL · VITE_SUPABASE_ANON_KEY 가 있으면 실제 Supabase(Auth·DB)를 쓴다.
  * - mock: 없으면 기존 목업(브라우저 메모리)으로 동작한다. 미리보기·기존 화면 테스트용.
  */
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Vite 밖(단위 테스트 등)에서는 import.meta.env 가 없을 수 있다 → 목업 모드
+const env: Partial<ImportMetaEnv> & { DEV?: boolean } = import.meta.env ?? {}
+const url = env.VITE_SUPABASE_URL
+const anonKey = env.VITE_SUPABASE_ANON_KEY
 
 export const DATA_MODE: 'live' | 'mock' = url && anonKey ? 'live' : 'mock'
 export const isLive = DATA_MODE === 'live'
 
 /** 개발용 이메일 로그인 — 개발 서버에서 VITE_DEV_LOGIN=1 일 때만 (운영 빌드에서는 항상 꺼짐) */
-export const devLoginEnabled = isLive && import.meta.env.DEV && import.meta.env.VITE_DEV_LOGIN === '1'
+export const devLoginEnabled = isLive && !!env.DEV && env.VITE_DEV_LOGIN === '1'
 
 export const supabase: SupabaseClient<Database> | null = isLive
   ? createClient<Database>(url!, anonKey!, {

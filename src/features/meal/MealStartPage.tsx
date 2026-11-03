@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { AppIcon } from '@/components/common/AppIcon'
 import { PageHeader } from '@/components/common/PageHeader'
 import { fmtG, nutrientsFor, sumNutrients } from '@/lib/nutrition'
+import { apiReady } from '@/lib/api'
 import { isLive } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { publicFoodCount } from '@/services/live/meals'
@@ -31,21 +32,22 @@ export function MealStartPage() {
   }, [])
   const pendingKcal = sumNutrients(draft.items.filter((i) => i.foodId)).kcal
 
-  const startPhoto = (p: { kind: 'sample' } | { kind: 'file'; url: string }) => {
+  const startPhoto = (p: { kind: 'sample' } | { kind: 'file'; url: string; file: File }) => {
     if (draft.editingId) draft.reset()
     draft.setPhoto(p)
     navigate('/record/meal/photo')
   }
   const pickSource = (id: 'camera' | 'gallery' | 'sample') => {
     // 실서비스: 사진 기록은 서버가 EXIF 제거·저장·인식까지 해야 해서 서버 연결 전에는 막는다 (목업 결과로 실제 기록을 만들지 않음)
-    if (isLive) return void toast('사진 인식은 서버 연결 후 열려요', { description: '지금은 직접 검색해서 기록해 주세요.' })
+    if (isLive && !apiReady) return void toast('사진 인식은 서버 연결 후 열려요', { description: '지금은 직접 검색해서 기록해 주세요.' })
+    if (isLive && id === 'sample') return void toast('예시 사진은 목업 모드에서만 쓸 수 있어요', { description: '카메라나 갤러리에서 실제 사진을 골라 주세요.' })
     if (id === 'camera') camera.current?.click()
     else if (id === 'gallery') gallery.current?.click()
     else startPhoto({ kind: 'sample' })
   }
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
-    if (f) startPhoto({ kind: 'file', url: URL.createObjectURL(f) })
+    if (f) startPhoto({ kind: 'file', url: URL.createObjectURL(f), file: f })
   }
 
   return (
@@ -73,7 +75,7 @@ export function MealStartPage() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[12px] text-text-subtle">{isLive ? '준비 중 · 사진 인식은 서버(FastAPI) 연결 후 열려요. 지금은 직접 검색해서 기록해 주세요.' : '한 상 차림도 사진 한 장으로 음식을 한꺼번에 찾아요.'}</p>
+          <p className="mt-2 text-[12px] text-text-subtle">{isLive && !apiReady ? '준비 중 · 사진 인식은 서버(FastAPI) 연결 후 열려요. 지금은 직접 검색해서 기록해 주세요.' : '한 상 차림도 사진 한 장으로 음식을 한꺼번에 찾아요.'}</p>
         </section>
 
         {publicFoods === 0 && (

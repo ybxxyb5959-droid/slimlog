@@ -124,6 +124,7 @@ export async function fetchMeals(sinceDays = 60): Promise<MealRecord[]> {
     .from('meals')
     .select('meal_id, meal_type, eaten_at, source, photo_path, meal_items(item_id, food_id, name, brand, grams, kcal, carb_g, protein_g, fat_g, from_photo, sort_order)')
     .gte('eaten_at', since)
+    .eq('status', 'confirmed') // 사진 업로드 후 확정 안 한 초안(draft)은 목록에 안 보임
     .order('eaten_at', { ascending: false })
   if (r.error) throw r.error
   return (r.data as unknown as MealRow[]).map(rowToMeal)
@@ -175,4 +176,37 @@ export async function deleteMeal(id: string) {
   const r = await sb().from('meals').delete().eq('meal_id', id).select('meal_id')
   if (r.error) throw r.error
   if (!r.data.length) throw new Error('사진 기록은 서버 연결 후 삭제할 수 있어요.')
+}
+
+// ── 사진 기록 (서버가 만든 draft 를 앱이 확정) ─────────────────
+export interface PhotoRecognition {
+  meal_id: string
+  photo_path: string
+  mode: 'model' | 'mock'
+  model_status: string
+  model_version: string
+  labels: { pred_id: string; food_id: string; status: 'recognized' | 'review'; score: number | null; threshold: number | null; candidates: string[] }[]
+}
+
+/** 사진 기록 확정: 끼니·시간·확정 상태 저장 + 음식 저장 + 인식 결과마다 사용자 행동(수락·수정·제외) 기록 */
+export async function confirmPhotoMeal(r: MealRecord, predIds: string[]) {
+  const db = sb()
+  const m = await db.from('meals').update({ meal_type: r.mealType, eaten_at: r.eatenAt, status: 'confirmed' }).eq('meal_id', r.id)
+  if (m.error) throw m.error
+  const d = await db.from('meal_items').delete().eq('meal_id', r.id)
+  if (d.error) throw d.error
+  if (r.items.length) {
+    const it = await db.from('meal_items').insert(itemRows(r.id, r.items))
+    if (it.error) throw it.error
+  }
+  const now = new Date().toISOString()
+  for (const predId of predIds) {
+    const item = r.items.find((i) => i.ai?.predId === predId)
+    const action = !item ? 'excluded' : item.corrected ? 'corrected' : 'accepted'
+    const p = await db
+      .from('predictions')
+      .update({ user_action: action, corrected_food_id: action === 'corrected' ? item!.foodId : null, meal_item_id: item?.id ?? null, feedback_at: now })
+      .eq('pred_id', predId)
+    if (p.error) throw p.error
+  }
 }
