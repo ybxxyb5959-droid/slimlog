@@ -1,0 +1,7 @@
+# 학습용 (사용자 PC). CPU 만 있어도 됨: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.3
+torchvision>=0.18
+timm>=1.0
+numpy>=1.26
+pillow>=10
+onnx>=1.16
