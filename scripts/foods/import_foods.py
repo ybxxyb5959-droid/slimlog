@@ -46,7 +46,7 @@ CANDIDATES: dict[str, list[str]] = {
     "fat": ["지방(g)", "AMT_NUM4", "지방"],
     "carb": ["탄수화물(g)", "AMT_NUM6", "탄수화물"],
     "sodium": ["나트륨(mg)", "AMT_NUM13", "나트륨"],
-    "serving": ["1회섭취참고량", "1회 섭취참고량", "식품중량", "총내용량", "1회제공량"],
+    "serving": ["1회섭취참고량", "1회 섭취참고량", "식품중량", "총내용량", "1회제공량"],  # 음식 데이터는 '식품중량'이 1인분 무게
     "maker": ["제조사명", "업체명", "MAKER_NM"],
 }
 REQUIRED = ["code", "name", "kcal"]
@@ -59,6 +59,26 @@ GROUP_MAP = [
     (r"과일|과자|빵|떡|아이스|당류|간식|견과", "과일·간식"),
     (r"음료|차|커피|주스|우유|유제품", "음료"),
 ]
+
+
+# 원재료 이름은 '닭고기_가슴(껍질 제거)_삶은것' 형태 → 사람들이 검색하는 말을 앞에 붙인다 (원래 이름은 그대로 뒤에 남김)
+ALIASES = [
+    (r"^닭고기_가슴", "닭가슴살"),
+    (r"^닭고기_안심", "닭안심"),
+    (r"^달걀", "계란"),
+    (r"^돼지고기_안심", "돼지 안심"),
+    (r"^쇠고기|^소고기", "소고기"),
+    (r"^멥쌀_.*_현미", "현미"),
+]
+
+
+def display_name(raw: str) -> str:
+    """'_' 구분 이름을 읽기 좋게: '닭고기_가슴(껍질 제거)_삶은것' → '닭가슴살 · 닭고기 가슴(껍질 제거) 삶은것'"""
+    clean = re.sub(r"\s+", " ", raw.replace("_", " ")).strip()
+    for pat, alias in ALIASES:
+        if re.search(pat, raw) and alias not in clean:
+            return f"{alias} · {clean}"
+    return clean
 
 
 @dataclass
@@ -123,6 +143,11 @@ def grams_of(v: str | None) -> float | None:
     return float(m.group(1)) if m and float(m.group(1)) > 0 else None
 
 
+def unit_of(v: str | None) -> str:
+    """기준량 단위: 'ml' 또는 'g' (모르면 g)"""
+    return "ml" if v and re.search(r"m[lL]|㎖", str(v)) else "g"
+
+
 def category_of(group: str | None) -> str:
     g = group or ""
     for pat, cat in GROUP_MAP:
@@ -131,12 +156,16 @@ def category_of(group: str | None) -> str:
     return "일품"
 
 
-def convert(rows: list[dict[str, str]], cols: dict[str, str | None], source: str) -> tuple[list[Row], list[str]]:
+def convert(rows: list[dict[str, str]], cols: dict[str, str | None], source: str, dedupe_name: bool = False) -> tuple[list[Row], list[str]]:
+    """dedupe_name: 같은 이름(·제조사)이 여러 번이면 처음 것만 — 출처가 달라 값이 조금씩 다른 중복 행 정리"""
     out: list[Row] = []
     skipped: list[str] = []
     seen: set[str] = set()
+    seen_names: set[tuple[str, str]] = set()
     get = lambda r, k: (r.get(cols[k]) if cols.get(k) else None)  # noqa: E731
-    for i, r in enumerate(rows, start=2):
+    # 같은 음식이 g 기준·mL(부피) 기준으로 섞여 있으면 g 기준을 먼저 본다 (앱은 그램으로 계산) — 원래 행 번호는 유지
+    order = sorted(enumerate(rows, start=2), key=lambda x: unit_of(get(x[1], "basis")) == "ml") if dedupe_name else list(enumerate(rows, start=2))
+    for i, r in order:
         code = (get(r, "code") or "").strip()
         name = (get(r, "name") or "").strip()
         kcal = num(get(r, "kcal"))
@@ -150,17 +179,26 @@ def convert(rows: list[dict[str, str]], cols: dict[str, str | None], source: str
         if fid in seen:
             skipped.append(f"{i}행 {name}: 식품코드 중복")
             continue
+        maker = (get(r, "maker") or "").strip()
+        maker = "" if maker in ("해당없음", "-") else maker
+        if dedupe_name:
+            k = (name, maker)
+            if k in seen_names:
+                skipped.append(f"{i}행 {name}: 같은 이름 중복")
+                continue
+            seen_names.add(k)
         seen.add(fid)
         basis = grams_of(get(r, "basis")) or 100.0
         serving = grams_of(get(r, "serving")) or basis
+        unit = unit_of(get(r, "basis"))
         out.append(
             Row(
                 food_id=fid,
-                name=name[:40],
-                brand=(get(r, "maker") or "").strip()[:40] or None,
+                name=display_name(name)[:40],
+                brand=maker[:40] or None,
                 category=category_of(get(r, "group")),
                 basis_grams=basis,
-                basis_label=f"{basis:g}g당",
+                basis_label=f"{basis:g}g당" if unit == "g" else f"{basis:g}mL당(약 {basis:g}g)",
                 serving_g=serving,
                 kcal=kcal,
                 carb_g=num(get(r, "carb")),
@@ -225,6 +263,7 @@ def main(argv=None) -> int:
     ap.add_argument("--rest", action="store_true", help="SUPABASE_URL·SUPABASE_SERVICE_ROLE_KEY 환경변수로 바로 업로드")
     ap.add_argument("--map", action="append", default=[], help="컬럼 직접 지정: key=컬럼명 (예: kcal=에너지(kcal))")
     ap.add_argument("--limit", type=int, default=0, help="앞에서 N 개만 (시험용)")
+    ap.add_argument("--dedupe-name", action="store_true", help="같은 이름(·제조사) 중복 행은 처음 것만")
     a = ap.parse_args(argv)
 
     headers, rows = read_csv(a.csv)
@@ -237,7 +276,7 @@ def main(argv=None) -> int:
         print("파일의 컬럼:", headers, file=sys.stderr)
         print("→ --map name=식품명 처럼 직접 지정해 주세요.", file=sys.stderr)
         return 2
-    data, skipped = convert(rows[: a.limit] if a.limit else rows, cols, f"식약처 식품영양성분 표준데이터 ({a.csv.name})")
+    data, skipped = convert(rows[: a.limit] if a.limit else rows, cols, f"식약처 식품영양성분 표준데이터 ({a.csv.name})", a.dedupe_name)
     print(f"원본 {len(rows)}행 → 변환 {len(data)}개 · 건너뜀 {len(skipped)}개")
     for s in skipped[:10]:
         print("  건너뜀:", s)

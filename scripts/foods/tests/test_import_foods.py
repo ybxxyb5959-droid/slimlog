@@ -62,6 +62,30 @@ class ConvertTest(unittest.TestCase):
         self.assertTrue(sql.strip().endswith("commit;"))
 
 
+class NameTest(unittest.TestCase):
+    def test_display_name_and_alias(self):
+        self.assertEqual(imp.display_name("닭고기_가슴(껍질 제거)_삶은것"), "닭가슴살 · 닭고기 가슴(껍질 제거) 삶은것")
+        self.assertEqual(imp.display_name("달걀_삶은것"), "계란 · 달걀 삶은것")
+        self.assertEqual(imp.display_name("김치찌개_햄"), "김치찌개 햄")
+
+    def test_maker_placeholder_and_dedupe(self):
+        rows = [{"c": "A1", "n": "쌀밥", "k": "300", "m": "해당없음"}, {"c": "A2", "n": "쌀밥", "k": "310", "m": "해당없음"}]
+        cols = {k: None for k in imp.CANDIDATES} | {"code": "c", "name": "n", "kcal": "k", "maker": "m"}
+        data, skipped = imp.convert(rows, cols, "t", dedupe_name=True)
+        self.assertEqual([d.food_id for d in data], ["mfds-A1"])
+        self.assertIsNone(data[0].brand)
+
+
+class UnitTest(unittest.TestCase):
+    def test_prefers_gram_basis_when_deduping(self):
+        rows = [{"c": "M1", "n": "쌀밥", "k": "120", "b": "100ml", "s": "450ml"}, {"c": "G1", "n": "쌀밥", "k": "130", "b": "100g", "s": "210g"}]
+        cols = {k: None for k in imp.CANDIDATES} | {"code": "c", "name": "n", "kcal": "k", "basis": "b", "serving": "s"}
+        data, _ = imp.convert(rows, cols, "t", dedupe_name=True)
+        self.assertEqual([(d.food_id, d.basis_label, d.serving_g) for d in data], [("mfds-G1", "100g당", 210.0)])
+        only_ml, _ = imp.convert(rows[:1], cols, "t", dedupe_name=True)
+        self.assertEqual(only_ml[0].basis_label, "100mL당(약 100g)")
+
+
 class EncodingAndCliTest(unittest.TestCase):
     def test_cp949(self):
         with tempfile.TemporaryDirectory() as t:
