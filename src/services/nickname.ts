@@ -5,7 +5,7 @@ import { generateNickname } from '@/lib/nickname'
  * 실제: GET /nicknames/{name}/availability + 저장 시 DB UNIQUE 제약 (PROFILES.nickname)
  * 확인과 저장 사이에 다른 사람이 먼저 쓰면 저장 단계에서 409 → 다른 닉네임 안내.
  */
-const TAKEN = new Set(['느긋한판다', '용감한고래', '차분한수달', '지원'])
+const TAKEN = new Set(['느긋한판다', '용감한고래', '차분한수달', '산뜻한레몬'])
 /** 목업 시연용: 확인은 통과하지만 저장 순간 다른 사람이 먼저 가져간 경우 */
 const TAKEN_DURING_SAVE = new Set(['졸린복숭아'])
 

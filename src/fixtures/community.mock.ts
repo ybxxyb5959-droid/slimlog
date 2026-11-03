@@ -42,7 +42,7 @@ const at = (d: number, h: number, m = 0) => {
   return x.toISOString()
 }
 
-export const ME = '지원'
+export const ME = '산뜻한레몬'
 
 export const MOCK_POSTS: Post[] = [
   {

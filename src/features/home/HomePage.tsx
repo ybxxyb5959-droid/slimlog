@@ -145,7 +145,7 @@ export function HomePage() {
               {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
             </span>
             <h1 className="text-[15px] font-semibold text-text">
-              {profile.nickname}님, {greetingFor(now)}
+              {profile.givenName ? `${profile.givenName}님, ${greetingFor(now)}` : greetingFor(now)}
             </h1>
             {!data.isNewUser && <MockBadge className="mt-1.5" />}
           </>

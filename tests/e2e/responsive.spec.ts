@@ -633,3 +633,28 @@ test.describe('분석 3탭', () => {
     await expect(page.getByRole('link', { name: /결과지 사진으로 등록/ })).toContainText('준비 중')
   })
 })
+
+test.describe('홈 인사말 이름', () => {
+  test('예시 사용자: 가입 이름에서 성을 뺀 이름 (닉네임 아님)', async ({ page }) => {
+    await page.goto('/home')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^지원님, /)
+    await expect(page.getByRole('heading', { level: 1 })).not.toContainText('산뜻한레몬')
+  })
+
+  test('이메일 가입 이름 → 온보딩 → 홈에 성 뺀 이름', async ({ page }) => {
+    await page.goto('/signup')
+    await page.getByLabel(/^이름/).fill('이민호')
+    await page.getByLabel('이메일').fill('minho@example.com')
+    await page.getByLabel('비밀번호', { exact: true }).fill('abc12345')
+    await page.getByLabel('비밀번호 확인').fill('abc12345')
+    await page.getByRole('button', { name: '다음' }).click()
+    await page.getByRole('checkbox', { name: /전체 동의/ }).click()
+    await page.getByRole('button', { name: '동의하고 시작하기' }).click()
+    await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+    await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
+    await page.getByRole('button', { name: '나중에 입력' }).click()
+    await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
+    await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^민호님, /)
+  })
+})

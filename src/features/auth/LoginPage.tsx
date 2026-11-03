@@ -10,12 +10,18 @@ import { AuthShell } from './AuthShell'
 import { ProviderButton } from './ProviderMark'
 import { PROVIDERS } from './providers'
 
+/** 목업 소셜 계정 이름 */
+const MOCK_SOCIAL_NAME = '박서연'
+
 export function LoginPage() {
   const navigate = useNavigate()
   const go = (label: string) => {
     toast(`목업: ${label} — 실제 로그인 없이 다음 화면으로 이동해요`)
+    const o = useOnboardingStore.getState()
+    // 목업: 소셜 계정 프로필의 이름을 받았다고 가정 (실제: 카카오 프로필·Google given_name·Apple 최초 로그인 이름)
+    if (!o.completedAt && !o.name) o.set({ name: MOCK_SOCIAL_NAME })
     // 온보딩을 마친 사용자는 바로 홈, 처음이면 동의 → 온보딩
-    navigate(useOnboardingStore.getState().completedAt ? '/home' : '/consent')
+    navigate(o.completedAt ? '/home' : '/consent')
   }
 
   return (

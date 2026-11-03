@@ -10,6 +10,8 @@ export type OnboardingStep = 'nickname' | 'body' | 'medication'
 
 export interface OnboardingState {
   step: OnboardingStep
+  /** 가입 시 이름 (소셜 계정 또는 이메일 가입 입력값, 비공개) */
+  name: string
   nickname: string
   nicknameSaved: boolean
   heightCm: string
@@ -50,6 +52,7 @@ const safeStorage: StateStorage = {
 
 const INITIAL = {
   step: 'nickname' as OnboardingStep,
+  name: '',
   nickname: '',
   nicknameSaved: false,
   heightCm: '',

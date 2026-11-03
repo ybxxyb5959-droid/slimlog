@@ -148,6 +148,9 @@ export interface ResidualPoint {
 }
 
 export interface UserProfile {
+  /** 가입 시 이름(비공개) — 홈 인사말에 성을 빼고 사용 */
+  name: string
+  /** 커뮤니티 공개 닉네임 */
   nickname: string
   startWeightKg: number
   goalWeightKg: number

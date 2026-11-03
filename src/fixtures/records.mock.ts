@@ -21,7 +21,8 @@ const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 export const MOCK_PROFILE: UserProfile = {
-  nickname: '지원',
+  name: '김지원',
+  nickname: '산뜻한레몬',
   startWeightKg: 90.0,
   goalWeightKg: 75.0,
   medicationId: 'mounjaro',

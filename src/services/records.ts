@@ -9,6 +9,7 @@ import {
 } from '@/fixtures/records.mock'
 
 import { parseMeasure, RANGES } from '@/lib/measure'
+import { givenNameOf } from '@/lib/personName'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
 import { mockResponse } from './mock'
@@ -19,7 +20,8 @@ import { isNewUser } from './session'
  * 연결 예정 API: GET /body-logs, GET /timeline?from&to&types, PUT /daily-checks/{date}
  */
 export interface HomeSummary {
-  profile: { nickname: string; startWeightKg: number | null; goalWeightKg: number | null }
+  /** givenName: 가입 시 이름에서 성을 뺀 값 (없으면 null) */
+  profile: { givenName: string | null; nickname: string; startWeightKg: number | null; goalWeightKg: number | null }
   bodyLogs: typeof MOCK_BODY_LOGS
   todayMeals: typeof MOCK_TODAY_MEALS
   todayCheck: typeof MOCK_TODAY_CHECK
@@ -36,7 +38,7 @@ export function getHomeSummary(): Promise<HomeSummary> {
     const w = o.bodySkipped ? null : parseMeasure(o.weightKg, RANGES.weight.min, RANGES.weight.max, 'kg').value
     const g = o.bodySkipped ? null : parseMeasure(o.goalKg, RANGES.weight.min, RANGES.weight.max, 'kg').value
     return mockResponse({
-      profile: { nickname: o.nickname, startWeightKg: w, goalWeightKg: g },
+      profile: { givenName: givenNameOf(o.name), nickname: o.nickname, startWeightKg: w, goalWeightKg: g },
       // 최초 체중 1건만 (온보딩 입력값) — 감량량·그래프를 만들지 않는다
       bodyLogs: w !== null ? [{ id: 'baseline', measuredAt: o.baselineSavedAt ?? new Date().toISOString(), weightKg: w, source: 'MANUAL' as const, isVerified: true }] : [],
       todayMeals: [],
@@ -49,7 +51,7 @@ export function getHomeSummary(): Promise<HomeSummary> {
   }
   return mockResponse({
     isNewUser: false,
-    profile: { nickname: MOCK_PROFILE.nickname, startWeightKg: MOCK_PROFILE.startWeightKg, goalWeightKg: MOCK_PROFILE.goalWeightKg },
+    profile: { givenName: givenNameOf(MOCK_PROFILE.name), nickname: MOCK_PROFILE.nickname, startWeightKg: MOCK_PROFILE.startWeightKg, goalWeightKg: MOCK_PROFILE.goalWeightKg },
     bodyLogs: MOCK_BODY_LOGS,
     todayMeals: MOCK_TODAY_MEALS,
     todayCheck: MOCK_TODAY_CHECK,

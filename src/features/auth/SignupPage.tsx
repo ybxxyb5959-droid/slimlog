@@ -7,17 +7,19 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+import { useOnboardingStore } from '@/stores/onboardingStore'
+
 import { AuthShell } from './AuthShell'
 
 export function SignupPage() {
   const navigate = useNavigate()
-  const [f, setF] = useState({ email: '', password: '', confirm: '', nickname: '' })
+  const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' })
   const [touched, setTouched] = useState(false)
   const errors = {
     email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email) ? null : '이메일 형식을 확인해 주세요.',
     password: f.password.length >= 8 && /\d/.test(f.password) && /[a-zA-Z]/.test(f.password) ? null : '영문과 숫자를 섞어 8자 이상 입력해 주세요.',
     confirm: f.confirm && f.confirm === f.password ? null : '비밀번호가 같지 않아요.',
-    nickname: f.nickname.trim().length >= 2 ? null : '닉네임은 2자 이상이에요.',
+    name: /^[가-힣a-zA-Z ]{2,20}$/.test(f.name.trim()) ? null : '이름을 2~20자로 입력해 주세요. (한글·영문)',
   }
   const valid = Object.values(errors).every((e) => !e)
   const field = (key: keyof typeof f, label: string, type = 'text', autoComplete?: string) => (
@@ -48,13 +50,15 @@ export function SignupPage() {
         onSubmit={(e) => {
           e.preventDefault()
           setTouched(true)
-          if (valid) navigate('/consent')
+          if (!valid) return
+          useOnboardingStore.getState().set({ name: f.name.trim() })
+          navigate('/consent')
         }}
       >
+        {field('name', '이름 (홈에서 성을 빼고 불러드려요 · 공개되지 않아요)', 'text', 'name')}
         {field('email', '이메일', 'email', 'email')}
         {field('password', '비밀번호', 'password', 'new-password')}
         {field('confirm', '비밀번호 확인', 'password', 'new-password')}
-        {field('nickname', '닉네임 (커뮤니티에 보여요)', 'text', 'nickname')}
         <Button type="submit" size="lg" className="mt-2 w-full">
           다음
         </Button>
