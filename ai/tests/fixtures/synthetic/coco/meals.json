@@ -1,0 +1,15 @@
+{
+  "images": [
+    {"id": 1, "file_name": "c_001.jpg", "width": 640, "height": 480},
+    {"id": 2, "file_name": "c_002.jpg", "width": 640, "height": 480},
+    {"id": 3, "file_name": "c_003.jpg", "width": 640, "height": 480}
+  ],
+  "categories": [{"id": 10, "name": "쌀밥"}, {"id": 11, "name": "제육볶음"}, {"id": 12, "name": "배추김치"}],
+  "annotations": [
+    {"id": 1, "image_id": 1, "category_id": 10, "bbox": [0, 0, 10, 10]},
+    {"id": 2, "image_id": 1, "category_id": 11, "bbox": [20, 0, 10, 10]},
+    {"id": 3, "image_id": 1, "category_id": 12, "bbox": [40, 0, 10, 10]},
+    {"id": 4, "image_id": 2, "category_id": 10, "bbox": [0, 0, 10, 10]},
+    {"id": 5, "image_id": 2, "category_id": 99, "bbox": [0, 0, 10, 10]}
+  ]
+}
