@@ -109,7 +109,7 @@ export function HomePage() {
       icon: Utensils,
       title: '식단',
       done: todayMeals.length > 0,
-      sub: todayMeals.length > 0 ? `${todayMeals.length}끼 · ${kcal.toLocaleString()}kcal` : '식사 기록하기',
+      sub: todayMeals.length > 0 ? `${new Set(todayMeals.map((m) => m.mealType)).size}끼 · ${kcal.toLocaleString()}kcal` : '식사 기록하기',
     },
     {
       to: '/record/daily',

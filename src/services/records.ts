@@ -12,6 +12,8 @@ import { parseMeasure, RANGES } from '@/lib/measure'
 import { givenNameOf } from '@/lib/personName'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
+import { useMealStore } from '@/stores/mealStore'
+
 import { mockResponse } from './mock'
 import { isNewUser } from './session'
 
@@ -19,6 +21,9 @@ import { isNewUser } from './session'
  * 기록 조회 서비스 — 현재는 fixtures를 돌려준다.
  * 연결 예정 API: GET /body-logs, GET /timeline?from&to&types, PUT /daily-checks/{date}
  */
+/** 오늘 식단 — 식단 화면에서 추가한 기록까지 반영 */
+const todayMeals = () => useMealStore.getState().meals.filter((m) => new Date(m.eatenAt).toDateString() === new Date().toDateString())
+
 export interface HomeSummary {
   /** givenName: 가입 시 이름에서 성을 뺀 값 (없으면 null) */
   profile: { givenName: string | null; nickname: string; startWeightKg: number | null; goalWeightKg: number | null }
@@ -41,7 +46,7 @@ export function getHomeSummary(): Promise<HomeSummary> {
       profile: { givenName: givenNameOf(o.name), nickname: o.nickname, startWeightKg: w, goalWeightKg: g },
       // 최초 체중 1건만 (온보딩 입력값) — 감량량·그래프를 만들지 않는다
       bodyLogs: w !== null ? [{ id: 'baseline', measuredAt: o.baselineSavedAt ?? new Date().toISOString(), weightKg: w, source: 'MANUAL' as const, isVerified: true }] : [],
-      todayMeals: [],
+      todayMeals: todayMeals(),
       todayCheck: { ...MOCK_TODAY_CHECK, waterCups: 0, proteinG: 0, supplementTaken: false },
       symptoms: [],
       timeline: [],
@@ -53,7 +58,7 @@ export function getHomeSummary(): Promise<HomeSummary> {
     isNewUser: false,
     profile: { givenName: givenNameOf(MOCK_PROFILE.name), nickname: MOCK_PROFILE.nickname, startWeightKg: MOCK_PROFILE.startWeightKg, goalWeightKg: MOCK_PROFILE.goalWeightKg },
     bodyLogs: MOCK_BODY_LOGS,
-    todayMeals: MOCK_TODAY_MEALS,
+    todayMeals: todayMeals(),
     todayCheck: MOCK_TODAY_CHECK,
     symptoms: MOCK_SYMPTOMS,
     timeline: MOCK_TIMELINE.slice(-7),

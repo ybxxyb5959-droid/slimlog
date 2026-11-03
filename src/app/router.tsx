@@ -2,6 +2,8 @@ import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } f
 
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ModerationPage } from '@/features/admin/ModerationPage'
+import { MealListPage } from '@/features/meal/MealListPage'
+import { MealPhotoPage } from '@/features/meal/MealPhotoPage'
 import { OnboardingRoute } from '@/features/onboarding/OnboardingRoute'
 import { ConsentSignupPage } from '@/features/auth/ConsentSignupPage'
 import { LoginPage } from '@/features/auth/LoginPage'
@@ -52,8 +54,8 @@ const routes: RouteObject[] = [
       { path: 'record/medication', element: <MedicationListPage /> },
       { path: 'record/medication/new', element: <MedicationNewPage /> },
       { path: 'record/medication/:id', element: <MedicationDetailPage /> },
-      soon('record/meal', 'AI 식단'),
-      soon('record/meal/new', '식단 기록하기'),
+      { path: 'record/meal', element: <MealListPage /> },
+      { path: 'record/meal/new', element: <MealPhotoPage /> },
       soon('record/body', '체중 · 체성분'),
       soon('record/inbody', '인바디 OCR'),
       soon('record/eyebody', '눈바디'),
@@ -108,6 +110,7 @@ const PREVIEW_START: Record<string, string> = {
   'weight-cards': '/preview/weight-cards',
   analysis: '/analysis',
   brand: '/preview/brand',
+  meal: '/record/meal/new',
   login: '/login',
   onboarding: '/onboarding',
   community: '/community',

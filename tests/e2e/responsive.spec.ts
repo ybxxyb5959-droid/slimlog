@@ -668,3 +668,43 @@ test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {
   await page.goto('/analysis')
   await expect(page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })).toBeVisible()
 })
+
+test.describe('식단 AI (목업)', () => {
+  test('한 상 차림: 영역 여러 개 → 영역별 인식 → 후보 선택·인분 → 기록 → 목록·홈 반영', async ({ page }) => {
+    await page.goto('/record/meal/new')
+    await page.getByRole('button', { name: /예시 한 상 차림/ }).click()
+    // 손으로 영역 그리기
+    const c = (await page.getByRole('application').boundingBox())!
+    await page.mouse.move(c.x + c.width * 0.12, c.y + c.height * 0.12)
+    await page.mouse.down()
+    await page.mouse.move(c.x + c.width * 0.48, c.y + c.height * 0.56, { steps: 5 })
+    await page.mouse.up()
+    await expect(page.getByRole('button', { name: '1개 인식하기' })).toBeVisible()
+    await page.getByRole('button', { name: '1번 영역 지우기' }).click()
+    await page.getByRole('button', { name: '예시 영역 5개 넣어 보기' }).click()
+    await page.getByRole('button', { name: '5개 인식하기' }).click()
+    await expect(page.getByText('5개 영역을 인식하고 있어요')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '음식 5가지' })).toBeVisible()
+    // 확신 낮음 2개는 선택 전까지 기록 불가
+    const save = page.getByRole('button', { name: '기록하기' })
+    await expect(save).toBeDisabled()
+    await page.getByRole('radiogroup', { name: '3번째 음식 후보' }).getByRole('radio', { name: '시금치나물' }).click()
+    await page.getByRole('radiogroup', { name: '4번째 음식 후보' }).getByRole('radio', { name: '계란말이' }).click()
+    await page.getByRole('radiogroup', { name: '쌀밥 먹은 양' }).getByRole('radio', { name: '0.5인분' }).click()
+    await page.getByRole('radio', { name: '저녁' }).click()
+    await save.click()
+    await expect(page).toHaveURL('/record/meal')
+    await expect(page.getByText('사진 1장')).toBeVisible()
+    await expect(page.getByText('시금치나물')).toBeVisible()
+  })
+
+  test('사진 없이 검색해서 기록', async ({ page }) => {
+    await page.goto('/record/meal/new')
+    await page.getByRole('button', { name: /사진 없이 검색해서 기록/ }).click()
+    const sheet = page.getByRole('dialog', { name: '음식 검색' })
+    await sheet.getByLabel('음식 이름 검색').fill('비빔')
+    await sheet.getByRole('button', { name: /비빔밥/ }).click()
+    await expect(page.getByText('직접 추가')).toBeVisible()
+    await expect(page.getByRole('button', { name: '기록하기' })).toBeEnabled()
+  })
+})

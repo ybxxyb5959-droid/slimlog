@@ -108,6 +108,10 @@ export interface Meal {
   carbG: number
   fatG: number
   sodiumMg: number
+  /** 같은 사진에서 나온 음식 묶음 */
+  photoGroupId?: string
+  /** 사용자가 AI 제안을 고쳤는지 (PREDICTIONS.corrected_food_id) */
+  corrected?: boolean
 }
 
 export type SymptomType = 'nausea' | 'fatigue' | 'constipation' | 'headache' | 'heartburn' | 'low_appetite'

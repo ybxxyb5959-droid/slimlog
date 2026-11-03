@@ -1,6 +1,7 @@
 import { combineDateTime, type FirstDoseDraft } from '@/features/record/first-dose/firstDoseDraft'
 import { MOCK_DOSES } from '@/fixtures/records.mock'
 import { useIntakeStore } from '@/stores/intakeStore'
+import { useMealStore } from '@/stores/mealStore'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
@@ -14,6 +15,7 @@ export const isNewUser = () => !!useOnboardingStore.getState().completedAt || us
 export function beginNewUser() {
   useMockRecordStore.setState({ doses: [] })
   useIntakeStore.getState().resetEmpty()
+  useMealStore.getState().resetEmpty()
 }
 
 export function saveOnboardingDose(d: FirstDoseDraft) {
@@ -38,4 +40,5 @@ export function resetToDemoUser() {
   useOnboardingStore.getState().reset()
   useMockRecordStore.setState({ doses: MOCK_DOSES })
   useIntakeStore.getState().resetDemo()
+  useMealStore.getState().resetDemo()
 }
