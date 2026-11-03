@@ -9,6 +9,19 @@ const PAGES = [
   { path: '/analysis/medication', heading: '참고용 잔존량' },
   { path: '/onboarding/first-dose', heading: '어떤 약을 맞으셨나요?' },
   { path: '/preview/brand', heading: '로고 시안' },
+  { path: '/community', heading: '커뮤니티' },
+  { path: '/community/p1', heading: '6주차, 단백질 챙기려고 계란을 늘렸어요' },
+  { path: '/community/write', heading: '글쓰기' },
+  { path: '/admin/moderation', heading: '관리자 검토' },
+  { path: '/my', heading: '마이' },
+  { path: '/my/consent', heading: '동의 관리' },
+  { path: '/my/settings', heading: '기록 · 알림 설정' },
+  { path: '/my/eyebody-data', heading: '눈바디 로컬 데이터' },
+  { path: '/my/account', heading: '계정 관리' },
+  { path: '/my/profile', heading: '프로필' },
+  { path: '/login', heading: 'SlimLog 로그인' },
+  { path: '/signup', heading: '이메일로 가입' },
+  { path: '/consent', heading: '약관 동의' },
 ]
 
 const NOTICE_KEY = 'slimlog:notice:analysis-pk'
@@ -296,4 +309,121 @@ test('브랜드: 파비콘·PWA 매니페스트·아이콘 제공', async ({ req
   expect(manifest.short_name).toBe('SlimLog')
   for (const icon of manifest.icons) expect((await request.get(icon.src)).ok()).toBeTruthy()
   expect((await request.get('/favicon.svg')).ok()).toBeTruthy()
+})
+
+test.describe('커뮤니티', () => {
+  test('목록: REVIEW 글은 전체 목록에 없고 내 글에서만 검토 중으로 보인다', async ({ page }) => {
+    await page.goto('/community')
+    await expect(page.getByText('용량 올리는 시기 경험 공유')).toHaveCount(0)
+    await page.getByRole('tab', { name: '내 글' }).click()
+    await expect(page.getByText('용량 올리는 시기 경험 공유')).toBeVisible()
+    await expect(page.getByText('검토 중 · 나만 보임')).toBeVisible()
+  })
+
+  test('글쓰기: 띄어쓴 "양 도"도 BLOCKED, 게시 버튼 비활성', async ({ page }) => {
+    await page.goto('/community/write')
+    await page.getByRole('radio', { name: '자유' }).click()
+    await page.getByLabel('제목').fill('남은 펜')
+    await page.getByLabel('내용').fill('필요하신 분 양 도해요. 쪽지 주세요')
+    await page.getByRole('button', { name: '검사해 보기' }).click()
+    await expect(page.getByText('게시할 수 없는 내용이 있어요 (BLOCKED)')).toBeVisible()
+    await expect(page.locator('mark').first()).toContainText('양 도')
+    await expect(page.getByRole('button', { name: '게시하기' })).toBeDisabled()
+  })
+
+  test('글쓰기: 용량 권유는 REVIEW → 게시 후 검토 중 안내', async ({ page }) => {
+    await page.goto('/community/write')
+    await page.getByRole('radio', { name: '질문' }).click()
+    await page.getByLabel('제목').fill('증량 질문')
+    await page.getByLabel('내용').fill('다들 몇 mg부터 올리세요? 궁금해요')
+    await page.getByRole('button', { name: '게시하기' }).click()
+    await expect(page.getByText('관리자 검토 중이에요')).toBeVisible()
+  })
+
+  test('상세: 좋아요·댓글·신고', async ({ page }) => {
+    await page.goto('/community/p1')
+    const like = page.getByRole('button', { name: /좋아요 \d+/ })
+    await expect(like).toHaveText(/좋아요 24/)
+    await like.click()
+    await expect(like).toHaveText(/좋아요 25/)
+    await page.getByLabel('댓글', { exact: true }).fill('좋은 정보 감사해요')
+    await page.getByRole('button', { name: '등록' }).click()
+    await expect(page.getByText('좋은 정보 감사해요')).toBeVisible()
+    await page.getByRole('button', { name: '신고' }).click()
+    const dlg = page.getByRole('dialog', { name: '신고하기' })
+    await expect(dlg.getByRole('button', { name: '신고 접수' })).toBeDisabled()
+    await dlg.getByRole('radio', { name: '광고·홍보' }).click()
+    await dlg.getByRole('button', { name: '신고 접수' }).click()
+    await expect(page.getByText('목업: 신고가 접수됐어요')).toBeVisible()
+  })
+
+  test('내 글: 수정(재검사)·삭제', async ({ page }) => {
+    await page.goto('/community/p5')
+    await page.getByRole('button', { name: '글 메뉴' }).click()
+    await page.getByRole('link', { name: '수정' }).click()
+    await expect(page.getByRole('heading', { name: '글 수정' })).toBeVisible()
+    await page.getByLabel('내용').fill('진료 때 물어볼 내용을 정리했어요.')
+    await page.getByRole('button', { name: '다시 검사 후 저장' }).click()
+    await expect(page.getByText('진료 때 물어볼 내용을 정리했어요.')).toBeVisible()
+    await page.getByRole('button', { name: '글 메뉴' }).click()
+    await page.getByRole('button', { name: '삭제' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '삭제', exact: true }).click()
+    await expect(page).toHaveURL('/community')
+  })
+
+  test('관리자: 사유 없이는 조치 저장 불가, 저장 시 감사 로그 추가', async ({ page }) => {
+    await page.goto('/admin/moderation')
+    await page.getByRole('radio', { name: '반려' }).click()
+    const save = page.getByRole('button', { name: '조치 저장' })
+    await expect(save).toBeDisabled()
+    await page.getByLabel('사유 (필수)').fill('용량 권유 문구 포함')
+    await save.click()
+    await expect(page.getByText('관리자1 · 용량 권유 문구 포함')).toBeVisible()
+    await expect(page.getByText('검토 대기 2건')).toBeVisible()
+  })
+})
+
+test.describe('로그인·가입', () => {
+  test('소셜 로그인(목업) → 동의: 필수 미동의면 시작 불가 → 첫 투약', async ({ page }) => {
+    await page.goto('/login')
+    await expect(page.getByRole('button', { name: '네이버 로그인' })).toHaveCount(0)
+    await page.getByRole('button', { name: '카카오 로그인' }).click()
+    await expect(page).toHaveURL('/consent')
+    const start = page.getByRole('button', { name: '동의하고 시작하기' })
+    await expect(start).toBeDisabled()
+    await page.getByRole('checkbox', { name: '필수 서비스 이용약관' }).click()
+    await page.getByRole('checkbox', { name: '필수 개인정보 수집·이용' }).click()
+    await expect(start).toBeDisabled()
+    await page.getByRole('checkbox', { name: '필수 민감정보(건강정보) 처리' }).click()
+    await expect(start).toBeEnabled()
+    await start.click()
+    await expect(page).toHaveURL('/onboarding/first-dose')
+  })
+
+  test('이메일 가입: 형식 검증', async ({ page }) => {
+    await page.goto('/signup')
+    await page.getByLabel('이메일').fill('abc')
+    await page.getByLabel('비밀번호', { exact: true }).fill('1234')
+    await page.getByRole('button', { name: '다음' }).click()
+    await expect(page.getByText('이메일 형식을 확인해 주세요.')).toBeVisible()
+    await expect(page.getByText('영문과 숫자를 섞어 8자 이상 입력해 주세요.')).toBeVisible()
+    await expect(page).toHaveURL('/signup')
+  })
+})
+
+test.describe('마이', () => {
+  test('민감정보 동의 철회는 경고 후 처리', async ({ page }) => {
+    await page.goto('/my/consent')
+    await page.getByRole('switch', { name: /민감정보/ }).click()
+    await expect(page.getByText('철회하면 저장된 투약·증상·체성분 기록이 삭제되고')).toBeVisible()
+    await page.getByRole('button', { name: '취소' }).click()
+    await expect(page.getByRole('switch', { name: /민감정보/ })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  test('로그아웃 → 로그인 화면', async ({ page }) => {
+    await page.goto('/my')
+    await page.getByRole('button', { name: '로그아웃' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '로그아웃' }).click()
+    await expect(page).toHaveURL('/login')
+  })
 })

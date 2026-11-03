@@ -1,6 +1,19 @@
 import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } from 'react-router'
 
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ModerationPage } from '@/features/admin/ModerationPage'
+import { ConsentSignupPage } from '@/features/auth/ConsentSignupPage'
+import { LoginPage } from '@/features/auth/LoginPage'
+import { SignupPage } from '@/features/auth/SignupPage'
+import { CommunityListPage } from '@/features/community/CommunityListPage'
+import { PostDetailPage } from '@/features/community/PostDetailPage'
+import { PostWritePage } from '@/features/community/PostWritePage'
+import { AccountPage } from '@/features/my/AccountPage'
+import { ConsentPage } from '@/features/my/ConsentPage'
+import { EyebodyDataPage } from '@/features/my/EyebodyDataPage'
+import { MyPage } from '@/features/my/MyPage'
+import { ProfilePage } from '@/features/my/ProfilePage'
+import { SettingsPage } from '@/features/my/SettingsPage'
 import { AnalysisHubPage } from '@/features/analysis/AnalysisHubPage'
 import { AnalysisSection } from '@/features/analysis/AnalysisSection'
 import { MedicationAnalysisPage } from '@/features/analysis/MedicationAnalysisPage'
@@ -54,16 +67,22 @@ const routes: RouteObject[] = [
         ],
       },
 
-      soon('community', '커뮤니티'),
-      soon('community/write', '글쓰기'),
-      soon('community/:id', '게시글'),
-      soon('admin/moderation', '관리자 검토'),
-      soon('my', '마이'),
+      { path: 'community', element: <CommunityListPage /> },
+      { path: 'community/write', element: <PostWritePage /> },
+      { path: 'community/:id', element: <PostDetailPage /> },
+      { path: 'community/:id/edit', element: <PostWritePage /> },
+      { path: 'admin/moderation', element: <ModerationPage /> },
+      { path: 'my', element: <MyPage /> },
+      { path: 'my/profile', element: <ProfilePage /> },
+      { path: 'my/consent', element: <ConsentPage /> },
+      { path: 'my/settings', element: <SettingsPage /> },
+      { path: 'my/eyebody-data', element: <EyebodyDataPage /> },
+      { path: 'my/account', element: <AccountPage /> },
     ],
   },
-  soonBrand('login', '로그인'),
-  soonBrand('signup', '회원가입'),
-  soonBrand('consent', '개인정보 동의'),
+  { path: 'login', element: <LoginPage /> },
+  { path: 'signup', element: <SignupPage /> },
+  { path: 'consent', element: <ConsentSignupPage /> },
   soonBrand('onboarding', '시작하기'),
   { path: '*', element: <NotFoundPage /> },
 ]
@@ -74,6 +93,9 @@ const PREVIEW_START: Record<string, string> = {
   'weight-cards': '/preview/weight-cards',
   analysis: '/analysis',
   brand: '/preview/brand',
+  login: '/login',
+  community: '/community',
+  my: '/my',
 }
 
 /** 미리보기 배포(VITE_PREVIEW=1)는 주소창을 쓸 수 없는 환경이라 메모리 라우터 사용 */
