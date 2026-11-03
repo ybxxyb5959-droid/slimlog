@@ -27,7 +27,7 @@ export async function devEmailLogin(email: string, password: string) {
   const signIn = await db.auth.signInWithPassword({ email, password })
   if (!signIn.error) return
   if (!/invalid login credentials/i.test(signIn.error.message)) throw signIn.error
-  const signUp = await db.auth.signUp({ email, password, options: { data: { full_name: '테스트사용자' } } })
+  const signUp = await db.auth.signUp({ email, password, options: { data: { full_name: '김테스트' } } })
   if (signUp.error) throw signUp.error
   if (!signUp.data.session) throw new Error('이메일 확인이 켜져 있어 바로 로그인할 수 없어요 (로컬 Supabase 설정 확인)')
 }
