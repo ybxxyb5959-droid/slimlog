@@ -1,5 +1,5 @@
 import { CircleAlert, Plus, Search, Star } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { BottomSheet } from '@/components/common/BottomSheet'
@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { amountLabel, fmtG, nutrientsFor, type NutrientTotals } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
-import { searchFoods, SEARCH_EXAMPLES } from '@/services/foodCatalog'
+import { isLive } from '@/lib/supabase'
+import { searchFoods, searchFoodsLive, SEARCH_EXAMPLES, useFoodCache } from '@/services/foodCatalog'
 import { useMealStore } from '@/stores/mealStore'
 import type { FoodItem, Nutrients } from '@/types/meal'
 
@@ -189,6 +190,14 @@ export function FoodSearchPanel({
 }) {
   const [q, setQ] = useState(initialQuery)
   useMealStore((s) => s.customFoods) // 내 음식 등록 시 다시 그리기
+  useFoodCache((s) => s.foods) // 서버 검색 결과가 오면 다시 그리기
+  const searching = useFoodCache((s) => s.searching)
+  // 실서비스: 입력이 멈추면 서버에서 검색 (목업은 바로 화면에서 걸러 냄)
+  useEffect(() => {
+    if (!isLive || !q.trim()) return
+    const t = setTimeout(() => void searchFoodsLive(q).catch(() => {}), 250)
+    return () => clearTimeout(t)
+  }, [q])
   const results = searchFoods(q)
   return (
     <div className="space-y-3">
@@ -212,6 +221,10 @@ export function FoodSearchPanel({
             </button>
           ))}
         </div>
+      ) : results.length === 0 && searching ? (
+        <p className="py-6 text-center text-[13px] text-text-muted" role="status">
+          검색 중…
+        </p>
       ) : results.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border px-4 py-7 text-center">
           <p className="text-[15px] font-semibold">찾으시는 음식이 없나요?</p>
@@ -229,7 +242,9 @@ export function FoodSearchPanel({
           ))}
         </ul>
       )}
-      <p className="text-[11px] text-text-subtle">영양 값은 목업 예시예요. 실제 제품·식약처 DB 수치가 아니에요.</p>
+      <p className="text-[11px] text-text-subtle">
+        {isLive ? '영양 값: 공용 음식은 식약처 식품영양성분 DB, 내 음식은 직접 입력한 값이에요.' : '영양 값은 목업 예시예요. 실제 제품·식약처 DB 수치가 아니에요.'}
+      </p>
     </div>
   )
 }

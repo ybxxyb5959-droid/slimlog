@@ -51,3 +51,20 @@ export async function userIdOf(email: string) {
   const json = (await res.json()) as { users: { id: string; email: string }[] }
   return json.users.find((u) => u.email === email)?.id ?? null
 }
+
+/** 서버(service_role)로 행 넣기/지우기 — 공용 음식처럼 앱이 직접 못 넣는 데이터 준비용 */
+export async function adminInsert(table: string, row: Record<string, unknown>) {
+  const url = process.env.LIVE_SUPABASE_URL!
+  const key = process.env.LIVE_SUPABASE_SERVICE_KEY!
+  const res = await fetch(`${url}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify(row),
+  })
+  if (!res.ok) throw new Error(`${table} insert ${res.status} ${await res.text()}`)
+}
+export async function adminDelete(table: string, query: string) {
+  const url = process.env.LIVE_SUPABASE_URL!
+  const key = process.env.LIVE_SUPABASE_SERVICE_KEY!
+  await fetch(`${url}/rest/v1/${table}?${query}`, { method: 'DELETE', headers: { apikey: key, Authorization: `Bearer ${key}` } })
+}

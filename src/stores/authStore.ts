@@ -3,9 +3,11 @@ import { create } from 'zustand'
 
 import { isLive, supabase } from '@/lib/supabase'
 import { fetchDoses, loadAccount, type LiveAccount } from '@/services/live/account'
+import { fetchFoodsByIds, fetchMeals, fetchMyFoods } from '@/services/live/meals'
 import { fetchBodyLogs, fetchDailyChecks, fetchIntake, fetchSymptoms } from '@/services/live/records'
+import { cacheFoods, useFoodCache } from '@/services/foodCatalog'
 import { useIntakeStore } from '@/stores/intakeStore'
-import { useMealStore } from '@/stores/mealStore'
+import { loadFavorites, setFavoritesUser, useMealStore } from '@/stores/mealStore'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
 import { useOnboardingStore, type OnboardingStep } from '@/stores/onboardingStore'
 import { useRecordsStore } from '@/stores/recordsStore'
@@ -43,8 +45,13 @@ async function hydrate(account: LiveAccount) {
     step: STEP_BY_NUMBER[Math.min(account.onboardingStep, 2)] ?? 'nickname',
     completedAt: account.onboardingCompletedAt,
   })
-  // 아직 서버에 연결하지 않은 기록(식단)은 예시 데이터 대신 빈 상태로
-  useMealStore.getState().resetEmpty()
+  // 식단: 최근 60일 식사 + 내 음식 + 기록에 쓰인 공용 음식(섭취량 단위 표시용)
+  const [meals, myFoods] = await Promise.all([fetchMeals(), fetchMyFoods(account.userId)])
+  setFavoritesUser(account.userId)
+  useMealStore.setState({ records: meals, customFoods: myFoods, favorites: loadFavorites(account.userId) })
+  useFoodCache.setState({ foods: [] })
+  const usedIds = [...new Set(meals.flatMap((m) => m.items.map((i) => i.foodId)).filter((id) => id && !myFoods.some((f) => f.id === id)))]
+  cacheFoods(await fetchFoodsByIds(usedIds))
   // 섭취 관리 (물·영양제는 일반, 복용약은 RLS 로 동의자만)
   const intake = await fetchIntake()
   useIntakeStore.setState({
@@ -62,6 +69,8 @@ async function hydrate(account: LiveAccount) {
 }
 
 function clearLocal() {
+  setFavoritesUser(null)
+  useFoodCache.setState({ foods: [] })
   useOnboardingStore.getState().reset()
   useMockRecordStore.setState({ doses: [] })
   useRecordsStore.setState({ bodyLogs: [], symptoms: [], daily: [] })

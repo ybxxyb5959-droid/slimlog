@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { toDateTimeLocalValue } from '@/lib/date'
 import { amountLabel, fmtG, sumNutrients } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
+import { isLive } from '@/lib/supabase'
 import { getFood } from '@/services/foodCatalog'
 import { makeItem, useMealStore } from '@/stores/mealStore'
 import { isPhotoItem, useMealDraftStore, type DraftItem } from '@/stores/mealDraftStore'
@@ -91,7 +92,7 @@ export function MealReviewPage() {
     const base = { mealType: d.mealType, eatenAt: new Date(d.eatenAt).toISOString(), source: (d.photoId && photoItems ? 'photo' : 'manual') as 'photo' | 'manual', photoId: photoItems ? (d.photoId ?? undefined) : undefined, items }
     if (d.editingId) updateRecord({ ...base, id: d.editingId })
     else addRecord(base)
-    toast.success(`${typeLabel} 식단을 ${d.editingId ? '수정' : '저장'}했어요`, { description: '목업 · 이 기기 화면에만 저장돼요.' })
+    toast.success(`${typeLabel} 식단을 ${d.editingId ? '수정' : '저장'}했어요`, { description: isLive ? undefined : '목업 · 이 기기 화면에만 저장돼요.' })
     d.reset()
     navigate('/record/meal')
   }
@@ -102,7 +103,7 @@ export function MealReviewPage() {
         title={d.editingId ? '식단 수정' : '오늘의 식단'}
         description={`${new Date(d.eatenAt).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })} · ${d.editingId ? '기록 수정 중' : '식단 작성 중'}`}
         back="/record/meal/new"
-        actions={<MockBadge label="예시 목업" />}
+        actions={isLive ? undefined : <MockBadge label="예시 목업" />}
       />
       <div className="space-y-5 pb-44 md:max-w-lg">
         {/* 끼니 · 시간 */}

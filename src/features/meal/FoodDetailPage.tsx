@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/StateViews'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { amountLabel, fmtG } from '@/lib/nutrition'
+import { isLive } from '@/lib/supabase'
 import { getFood, lastGramsOf } from '@/services/foodCatalog'
 import { makeItem, useMealStore } from '@/stores/mealStore'
 import { useMealDraftStore } from '@/stores/mealDraftStore'
@@ -53,7 +54,7 @@ export function FoodDetailPage() {
       <div className="space-y-4 pb-28 md:max-w-lg">
         <Card className="p-4">
           <p className="text-[13px] text-text-muted">
-            영양 기준 <b className="text-text">{food.basisLabel}</b> <span className="text-text-subtle">· 목업 예시 값</span>
+            영양 기준 <b className="text-text">{food.basisLabel}</b> <span className="text-text-subtle">· {isLive ? (food.custom ? '직접 등록한 값' : '식약처 식품영양성분 DB') : '목업 예시 값'}</span>
           </p>
           <dl className="tabular mt-2 grid grid-cols-4 gap-1 text-center">
             {(

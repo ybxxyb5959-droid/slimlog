@@ -1,16 +1,45 @@
+import { create } from 'zustand'
+
 import { FOOD_CATALOG } from '@/fixtures/foodCatalog.mock'
+import { isLive } from '@/lib/supabase'
+import { searchFoodsRemote } from '@/services/live/meals'
 import { useMealStore } from '@/stores/mealStore'
 import type { FoodItem } from '@/types/meal'
 
 /**
- * 음식 사전 데이터 접근 계층 — 화면은 이 함수들만 쓴다.
- * 지금: 목업 샘플 + 사용자 등록 음식(화면 상태)
- * 연결 시: 식약처 식품영양성분 DB(공공데이터) 검색 API + USER_FOODS 테이블로 교체
+ * 음식 사전 데이터 접근 계층 — 화면은 이 함수들만 쓴다 (동기 함수).
+ * - 목업: 예시 샘플 56종 + 사용자 등록 음식(화면 상태)
+ * - 실서비스: DB foods 테이블. 검색할 때마다 서버에서 찾아 이 캐시에 쌓고, 화면은 캐시에서 읽는다.
+ *   공용 음식은 식약처 식품영양성분 DB 를 넣은 뒤부터 검색된다 (scripts/import_foods.py)
  */
 const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase()
 
+export const useFoodCache = create<{ foods: FoodItem[]; searching: boolean }>(() => ({ foods: [], searching: false }))
+
+export function cacheFoods(list: FoodItem[]) {
+  if (!list.length) return
+  useFoodCache.setState((s) => {
+    const map = new Map(s.foods.map((f) => [f.id, f]))
+    for (const f of list) map.set(f.id, f)
+    return { foods: [...map.values()] }
+  })
+}
+
+/** 서버 검색 → 캐시에 추가 (실서비스 전용) */
+export async function searchFoodsLive(query: string) {
+  if (!isLive || !query.trim()) return
+  useFoodCache.setState({ searching: true })
+  try {
+    cacheFoods(await searchFoodsRemote(query))
+  } finally {
+    useFoodCache.setState({ searching: false })
+  }
+}
+
 export function allFoods(): FoodItem[] {
-  return [...useMealStore.getState().customFoods, ...FOOD_CATALOG]
+  const mine = useMealStore.getState().customFoods
+  if (isLive) return [...mine, ...useFoodCache.getState().foods.filter((f) => !mine.some((m) => m.id === f.id))]
+  return [...mine, ...FOOD_CATALOG]
 }
 
 export function getFood(id: string | null | undefined): FoodItem | undefined {

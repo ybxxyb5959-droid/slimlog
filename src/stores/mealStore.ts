@@ -1,17 +1,23 @@
+import { toast } from 'sonner'
 import { create } from 'zustand'
 
 import { DEFAULT_FAVORITES, FOOD_CATALOG } from '@/fixtures/foodCatalog.mock'
 import { addDays, startOfDay } from '@/lib/date'
 import { nutrientsFor } from '@/lib/nutrition'
+import { dbErrorMessage, isLive } from '@/lib/supabase'
+import { deleteMeal, insertMeal, insertMyFood, updateMeal } from '@/services/live/meals'
 import type { Meal, MealType } from '@/types/domain'
 import type { FoodItem, MealItem, MealRecord } from '@/types/meal'
 
 /**
- * 식단 기록 — 목업 상태(화면에만 저장, 새로고침 시 초기화).
+ * 식단 기록 — 목업: 화면에만 저장 / 실서비스: meals·meal_items·foods 에 저장 (화면 먼저 반영, 실패 시 되돌림)
+ * 즐겨찾기는 DB 칸이 없어 이 기기에만 저장한다 (사용자별 localStorage).
  * 식사 기록(MealRecord.id)과 음식 항목(MealItem.id)은 서로 다른 식별자를 가진다.
  */
 let seq = 0
-export const newId = (p: string) => `${p}-${Date.now().toString(36)}-${(seq++).toString(36)}`
+/** 실서비스: DB 의 uuid 칸에 바로 넣을 수 있게 uuid 를 쓴다 (내 음식 id 는 'myfood-' + uuid) */
+export const newId = (p: string) =>
+  isLive ? (p === 'myfood' ? `myfood-${crypto.randomUUID()}` : crypto.randomUUID()) : `${p}-${Date.now().toString(36)}-${(seq++).toString(36)}`
 
 const food = (id: string) => FOOD_CATALOG.find((f) => f.id === id)!
 export function makeItem(f: FoodItem, grams: number, extra: Partial<MealItem> = {}): MealItem {
@@ -52,24 +58,65 @@ interface MealState {
   resetDemo: () => void
 }
 
-export const useMealStore = create<MealState>((set) => ({
+/** 실서비스 저장 — 실패하면 화면 변경을 되돌리고 알린다 */
+function persist(run: () => Promise<unknown>, undo: () => void) {
+  if (!isLive) return
+  run().catch((e) => {
+    undo()
+    toast.error('식단을 저장하지 못했어요', { description: dbErrorMessage(e) })
+  })
+}
+
+const favKey = (uid: string) => `slimlog:favorites:${uid}`
+export function loadFavorites(uid: string): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(favKey(uid)) ?? '[]') as string[]
+  } catch {
+    return []
+  }
+}
+let favUser: string | null = null
+export const setFavoritesUser = (uid: string | null) => (favUser = uid)
+
+export const useMealStore = create<MealState>((set, get) => ({
   records: demoRecords(),
   customFoods: [],
   favorites: DEFAULT_FAVORITES,
   addRecord: (r) => {
     const id = newId('rec')
-    set((s) => ({ records: [...s.records, { ...r, id }] }))
+    const rec = { ...r, id }
+    set((s) => ({ records: [...s.records, rec] }))
+    persist(() => insertMeal(rec), () => set((s) => ({ records: s.records.filter((x) => x.id !== id) })))
     return id
   },
-  updateRecord: (r) => set((s) => ({ records: s.records.map((x) => (x.id === r.id ? r : x)) })),
-  removeRecord: (id) => set((s) => ({ records: s.records.filter((x) => x.id !== id) })),
+  updateRecord: (r) => {
+    const prev = get().records
+    set((s) => ({ records: s.records.map((x) => (x.id === r.id ? r : x)) }))
+    persist(() => updateMeal(r), () => set({ records: prev }))
+  },
+  removeRecord: (id) => {
+    const prev = get().records
+    set((s) => ({ records: s.records.filter((x) => x.id !== id) }))
+    persist(() => deleteMeal(id), () => set({ records: prev }))
+  },
   addCustomFood: (f) => {
     const item: FoodItem = { ...f, id: newId('myfood'), custom: true, category: '내 음식' }
     set((s) => ({ customFoods: [...s.customFoods, item] }))
+    if (isLive && favUser) {
+      const uid = favUser
+      persist(() => insertMyFood(uid, item), () => set((s) => ({ customFoods: s.customFoods.filter((x) => x.id !== item.id) })))
+    }
     return item
   },
-  toggleFavorite: (foodId) =>
-    set((s) => ({ favorites: s.favorites.includes(foodId) ? s.favorites.filter((x) => x !== foodId) : [...s.favorites, foodId] })),
+  toggleFavorite: (foodId) => {
+    set((s) => ({ favorites: s.favorites.includes(foodId) ? s.favorites.filter((x) => x !== foodId) : [...s.favorites, foodId] }))
+    if (isLive && favUser)
+      try {
+        localStorage.setItem(favKey(favUser), JSON.stringify(get().favorites))
+      } catch {
+        /* 저장 못 해도 이번 화면에서는 유지 */
+      }
+  },
   resetEmpty: () => set({ records: [], customFoods: [], favorites: [] }),
   resetDemo: () => set({ records: demoRecords(), customFoods: [], favorites: DEFAULT_FAVORITES }),
 }))

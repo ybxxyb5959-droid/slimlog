@@ -1,11 +1,14 @@
 import { Camera, ChevronRight, Image as ImageIcon, Search, Sparkles, Star } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { toast } from 'sonner'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { PageHeader } from '@/components/common/PageHeader'
 import { fmtG, nutrientsFor, sumNutrients } from '@/lib/nutrition'
+import { isLive } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { publicFoodCount } from '@/services/live/meals'
 import { getFood, recentFoods } from '@/services/foodCatalog'
 import { useMealDraftStore } from '@/stores/mealDraftStore'
 import { useMealStore } from '@/stores/mealStore'
@@ -22,6 +25,10 @@ export function MealStartPage() {
   const recents = recentFoods()
   const favFoods = favorites.map((id) => getFood(id)).filter((f) => !!f)
   const pending = draft.items.length > 0
+  const [publicFoods, setPublicFoods] = useState<number | null>(null)
+  useEffect(() => {
+    if (isLive) publicFoodCount().then(setPublicFoods).catch(() => setPublicFoods(null))
+  }, [])
   const pendingKcal = sumNutrients(draft.items.filter((i) => i.foodId)).kcal
 
   const startPhoto = (p: { kind: 'sample' } | { kind: 'file'; url: string }) => {
@@ -30,6 +37,8 @@ export function MealStartPage() {
     navigate('/record/meal/photo')
   }
   const pickSource = (id: 'camera' | 'gallery' | 'sample') => {
+    // 실서비스: 사진 기록은 서버가 EXIF 제거·저장·인식까지 해야 해서 서버 연결 전에는 막는다 (목업 결과로 실제 기록을 만들지 않음)
+    if (isLive) return void toast('사진 인식은 서버 연결 후 열려요', { description: '지금은 직접 검색해서 기록해 주세요.' })
     if (id === 'camera') camera.current?.click()
     else if (id === 'gallery') gallery.current?.click()
     else startPhoto({ kind: 'sample' })
@@ -64,8 +73,14 @@ export function MealStartPage() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[12px] text-text-subtle">한 상 차림도 괜찮아요. 음식마다 영역을 지정해 따로 분석해요.</p>
+          <p className="mt-2 text-[12px] text-text-subtle">{isLive ? '준비 중 · 사진 인식은 서버(FastAPI) 연결 후 열려요. 지금은 직접 검색해서 기록해 주세요.' : '한 상 차림도 사진 한 장으로 음식을 한꺼번에 찾아요.'}</p>
         </section>
+
+        {publicFoods === 0 && (
+          <p className="rounded-2xl bg-review-soft px-4 py-3 text-[13px] leading-relaxed text-review">
+            공용 음식 DB(식약처 영양성분)가 아직 비어 있어요. 지금은 <b>직접 등록한 음식</b>만 검색돼요.
+          </p>
+        )}
 
         {/* B. 직접 검색 */}
         <section aria-labelledby="sec-search">
