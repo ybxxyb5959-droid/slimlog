@@ -1,7 +1,7 @@
 """
 SlimLog API (FastAPI)
 앱이 Supabase 에 직접 할 수 있는 일(RLS 보호)은 여기서 하지 않는다.
-여기서 하는 일: 검사(커뮤니티 금칙어·관리자 권한), 계산(참고 곡선), 파일(사진 EXIF 제거·저장·삭제), 추론(음식 인식), 탈퇴
+여기서 하는 일: 검사(커뮤니티 금칙어·관리자 권한·인바디 OCR 확정값), 계산(참고 곡선), 파일(사진 EXIF 제거·저장·삭제), 추론(음식 인식), 탈퇴
 실행: uvicorn app.main:app --reload --port 8000
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings
 from .recognizer import Recognizer
-from .routers import community, core, meals
+from .routers import body, community, core, meals
 
 app = FastAPI(title="SlimLog API", version="0.1.0")
 _settings = Settings()
@@ -42,3 +42,4 @@ def validation_error(_: Request, exc: RequestValidationError):
 app.include_router(core.router)
 app.include_router(community.router)
 app.include_router(meals.router)
+app.include_router(body.router)

@@ -129,3 +129,25 @@ def test_delete_me_removes_files_and_all_rows(client, make_user):
     assert admin_rest("GET", "users", params={"user_id": f"eq.{a.id}"}).json() == []
     assert admin_rest("GET", "doses", params={"user_id": f"eq.{a.id}"}).json() == []
     assert httpx.get(f"{URL}/storage/v1/object/authenticated/meal-photos/{j['photo_path']}", headers=H).status_code >= 400
+
+
+def test_inbody_ocr_save_validation_and_duplicate(client, make_user):
+    a = make_user("ocr")
+    when = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    body = {"measured_at": when, "weight_kg": 72.4, "skeletal_muscle_kg": 30.1, "body_fat_kg": 18.3, "body_fat_pct": 25.3, "ocr_confidence": 0.82}
+    r = client.post("/body-logs/ocr", json=body, headers=a.h)
+    assert r.status_code == 201, r.text
+    log = admin_rest("GET", "body_logs", params={"log_id": f"eq.{r.json()['log_id']}", "select": "source,is_verified,source_id"}).json()[0]
+    assert log["source"] == "INBODY_OCR" and log["is_verified"] is True and log["source_id"]
+    # 같은 시간대 같은 체중 → 409, force 로 저장 가능
+    assert client.post("/body-logs/ocr", json=body, headers=a.h).json()["detail"]["code"] == "DUPLICATE_SUSPECTED"
+    assert client.post("/body-logs/ocr", json={**body, "force": True}, headers=a.h).status_code == 201
+    # 교차 검증·범위
+    assert client.post("/body-logs/ocr", json={**body, "body_fat_pct": 10}, headers=a.h).json()["detail"]["code"] == "CROSS_CHECK"
+    assert client.post("/body-logs/ocr", json={**body, "weight_kg": 500}, headers=a.h).status_code == 422
+
+
+def test_inbody_ocr_requires_consent(client, make_user):
+    b = make_user("ocr-noconsent", consent=False)
+    r = client.post("/body-logs/ocr", json={"measured_at": datetime.now(timezone.utc).isoformat(), "weight_kg": 70}, headers=b.h)
+    assert r.status_code == 403 and r.json()["detail"]["code"] == "NO_CONSENT"

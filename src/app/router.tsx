@@ -35,7 +35,6 @@ import { AnalysisHubPage } from '@/features/analysis/AnalysisHubPage'
 import { BodyChangePage, ConsultPage, NutritionPage, TimelinePage } from '@/features/analysis/AnalysisDetailPages'
 import { AnalysisSection } from '@/features/analysis/AnalysisSection'
 import { MedicationAnalysisPage } from '@/features/analysis/MedicationAnalysisPage'
-import { ComingSoonPage } from '@/features/common/ComingSoonPage'
 import { BrandPreview } from '@/features/dev/BrandPreview'
 import { WeightCardGallery } from '@/features/dev/WeightCardGallery'
 import { FirstDosePage } from '@/features/record/first-dose/FirstDosePage'
@@ -48,9 +47,8 @@ import { MedicationNewPage } from '@/features/record/medication/MedicationNewPag
 import { RecordHubPage } from '@/features/record/RecordHubPage'
 import { EyebodyComparePage, EyebodyPage } from '@/features/record/eyebody/EyebodyPages'
 import { BodyLogEditPage, BodyLogListPage } from '@/features/record/body/BodyLogPages'
+import { InbodyOcrPage } from '@/features/record/body/InbodyOcrPage'
 import { SymptomEditPage, SymptomPage } from '@/features/record/symptom/SymptomPages'
-
-const soon = (path: string, title: string) => ({ path, element: <ComingSoonPage title={title} /> })
 
 const routes: RouteObject[] = [
   {
@@ -80,7 +78,7 @@ const routes: RouteObject[] = [
       { path: 'record/body', element: <BodyLogListPage /> },
       { path: 'record/body/new', element: <BodyLogEditPage /> },
       { path: 'record/body/:id', element: <BodyLogEditPage /> },
-      soon('record/inbody', '인바디 OCR'),
+      { path: 'record/inbody', element: <InbodyOcrPage /> },
       { path: 'record/eyebody', element: <EyebodyPage /> },
       { path: 'record/eyebody/compare', element: <EyebodyComparePage /> },
       { path: 'record/symptom', element: <SymptomPage /> },

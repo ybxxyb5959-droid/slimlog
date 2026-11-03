@@ -630,7 +630,7 @@ test.describe('분석 3탭', () => {
     await expect(page.getByRole('tab', { name: '체중 변화' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  test('인바디: 여러 회 → 최근 2회 비교·추이, 1회 → 단일 결과, 없음 → 등록 안내(OCR 준비 중)', async ({ page }) => {
+  test('인바디: 여러 회 → 최근 2회 비교·추이, 1회 → 단일 결과, 없음 → 등록 안내(결과지 등록 화면으로)', async ({ page }) => {
     await page.goto('/analysis?tab=inbody')
     await expect(page.getByText('예시 데이터 · 실제 기록 아님')).toBeVisible()
     await expect(page.getByRole('heading', { name: '최근 2회 비교' })).toBeVisible()
@@ -640,7 +640,9 @@ test.describe('분석 3탭', () => {
     await expect(page.getByRole('img', { name: '골격근량·체지방량 추이 그래프' })).toHaveCount(0)
     await page.getByRole('radio', { name: '기록 없음' }).click()
     await expect(page.getByText('첫 인바디 기록을 남겨 보세요')).toBeVisible()
-    await expect(page.getByRole('link', { name: /결과지 사진으로 등록/ })).toContainText('준비 중')
+    await page.getByRole('link', { name: /결과지 사진으로 등록/ }).click()
+    await expect(page).toHaveURL('/record/inbody')
+    await expect(page.getByText('어디에도 올리지 않아요', { exact: false })).toBeVisible()
   })
 })
 

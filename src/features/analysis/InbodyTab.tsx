@@ -5,7 +5,6 @@ import { Link } from 'react-router'
 import { BodyCompositionChart } from '@/components/charts/BodyCompositionChart'
 import { AppIcon } from '@/components/common/AppIcon'
 import { MockBadge } from '@/components/common/MockBadge'
-import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { formatFullDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
@@ -70,7 +69,6 @@ function EmptyInbody() {
       <div className="mt-6 grid w-full max-w-sm gap-2">
         <Link to="/record/inbody" className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface text-[15px] font-semibold hover:bg-surface-muted">
           <AppIcon icon={ScanText} size="sm" /> 결과지 사진으로 등록
-          <Badge tone="review" className="ml-1">준비 중</Badge>
         </Link>
         <Link to="/record/body" className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface text-[15px] font-semibold hover:bg-surface-muted">
           <AppIcon icon={ClipboardPen} size="sm" /> 수치 직접 입력
