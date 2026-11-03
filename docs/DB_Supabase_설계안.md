@@ -1,6 +1,6 @@
 # Supabase 적용 전 최종 점검 보고서 v1.0
 
-작성일: 2026-11-03 · 상태: **클라우드 Supabase 미적용** (로컬 Supabase 에서만 검증)
+작성일: 2026-11-03 · 상태: **클라우드 Supabase 적용 완료 (2026-11-03)** · RLS 테스트 클라우드 45/45 통과 · Auth·Storage 통합 테스트는 클라우드 미실행
 
 | 문서·파일 | 내용 |
 |---|---|
@@ -198,3 +198,21 @@ bash supabase/tests/run_local.sh
 1. 이 마이그레이션 4개를 클라우드 Supabase(서울, Free)에 적용해도 되는지
 2. 가입 동의 화면 민감정보 문구 수정 (식단 빼고 키·복용약 넣기) — `DB_동의_삭제정책.md` 2번
 3. 카카오 이메일 문제 대응: 비즈 앱 전환 / `email_optional` 중 선택 (키 발급할 때 확인)
+
+## 10. 클라우드 적용 기록 (2026-11-03)
+
+| 항목 | 결과 |
+|---|---|
+| 프로젝트 | slimlog (조직 Capstone1), Free 플랜 |
+| 적용 방법 | 이 컨테이너는 네트워크 정책상 `api.supabase.com`, `*.supabase.co` 접속이 막혀 있음 → 사용자가 대시보드 SQL Editor 에 `supabase/sql_editor_적용용_합본.sql`(001~004 한 트랜잭션)을 붙여넣어 실행 |
+| 적용 확인 | public 테이블 22개, RLS 켜진 테이블 22개 |
+| RLS 테스트 | `supabase/tests/rls_test_sql_editor.sql` → **45 PASS / 0 FAIL** (테스트 데이터는 스스로 삭제) |
+| Auth·Storage 통합 테스트 | **클라우드 미실행** — 네트워크 허용 후 `integration.mjs` 실행 필요 |
+| 리전 | 대시보드에서 서울인지 사용자 확인 필요 (API 로 확인하지 못함) |
+
+### 후속 처리
+- **마이그레이션 기록 맞추기:** SQL Editor 로 넣어서 `supabase_migrations` 기록이 없음. 나중에 CLI 를 쓰기 전에
+  `npx supabase migration repair --status applied 20261103000001 20261103000002 20261103000003 20261103000004` 실행
+  (안 하면 `db push` 가 같은 파일을 다시 넣으려다 실패함)
+- **열쇠 교체:** 작업 중 액세스 토큰·DB 비밀번호가 채팅에 노출됨 → 토큰 삭제, DB 비밀번호 재설정 필요
+- **통합 테스트 30개:** 환경 네트워크에 `api.supabase.com`, `*.supabase.co`, `*.supabase.com` 허용 후 실행, 또는 사용자 PC 에서 실행
