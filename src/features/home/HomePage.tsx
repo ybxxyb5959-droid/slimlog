@@ -1,9 +1,11 @@
 import {
   Activity,
-  CalendarClock,
   ChevronRight,
-  GlassWater,
-  Pill,
+  CircleCheck,
+  CirclePlus,
+  Droplets,
+  HeartPulse,
+  type LucideIcon,
   Scale,
   Syringe,
   Utensils,
@@ -12,30 +14,49 @@ import { Link } from 'react-router'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { MockBadge } from '@/components/common/MockBadge'
-import { Notice, TIMELINE_DISCLAIMER } from '@/components/common/Notice'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
 import { SYMPTOM_LABEL } from '@/fixtures/records.mock'
 import { addDays, daysBetween, formatShortDateWithDay, formatTime, greetingFor } from '@/lib/date'
 import { useAsync } from '@/lib/useAsync'
-import { cn } from '@/lib/utils'
 import { useDoses } from '@/services/doses'
 import { getHomeSummary } from '@/services/records'
 
-import { HomeTimeline } from './HomeTimeline'
 import { WeightAnalogyCard } from './WeightAnalogyCard'
 
-const CONDITION_LABEL = ['', '많이 힘듦', '조금 힘듦', '보통', '좋음', '아주 좋음'] as const
+const MEAL_LABEL = { breakfast: '아침', lunch: '점심', dinner: '저녁', snack: '간식' } as const
+const monthDay = (iso: string) => {
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`
+}
 
-const QUICK = [
-  { to: '/record/meal/new', label: '식단', icon: Utensils },
-  { to: '/record/body', label: '체중', icon: Scale },
-  { to: '/record/symptom', label: '증상', icon: Activity },
-  { to: '/record/medication/new', label: '투약', icon: Syringe },
-]
+interface TodayTile {
+  to: string
+  icon: LucideIcon
+  title: string
+  done: boolean
+  /** 기록했으면 값, 아니면 할 일 */
+  sub: string
+}
+
+function TodayTileCard({ tile }: { tile: TodayTile }) {
+  return (
+    <Link
+      to={tile.to}
+      className="flex min-h-[120px] flex-col rounded-card border border-border bg-surface p-4 transition-colors hover:bg-surface-muted/60"
+      aria-label={`${tile.title}: ${tile.done ? '기록함' : '기록 전'}, ${tile.sub}`}
+    >
+      <div className="flex items-start justify-between">
+        <AppIcon icon={tile.icon} size="md" />
+        <AppIcon icon={tile.done ? CircleCheck : CirclePlus} size="sm" tone={tile.done ? 'success' : 'muted'} />
+      </div>
+      <p className="mt-auto pt-4 text-[16px] font-bold text-text">{tile.title}</p>
+      <p className="mt-0.5 truncate text-[13px] text-text-muted">{tile.sub}</p>
+    </Link>
+  )
+}
 
 export function HomePage() {
   const { data, loading, error, reload } = useAsync(getHomeSummary)
@@ -46,23 +67,57 @@ export function HomePage() {
   if (error || !data)
     return <ErrorState description="잠시 후 다시 시도해 주세요." action={<Button onClick={reload}>다시 불러오기</Button>} />
 
-  const { profile, bodyLogs, todayMeals, todayCheck, symptoms, timeline, weeklyStatus } = data
+  const { profile, bodyLogs, todayMeals, todayCheck, symptoms } = data
   const sortedLogs = [...bodyLogs].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
   const latest = sortedLogs[sortedLogs.length - 1]
   const kcal = todayMeals.reduce((a, m) => a + m.kcal, 0)
-  const carb = todayMeals.reduce((a, m) => a + m.carbG, 0)
-  const fat = todayMeals.reduce((a, m) => a + m.fatG, 0)
-  const proteinPct = Math.min(100, Math.round((todayCheck.proteinG / todayCheck.proteinGoalG) * 100))
 
   const lastDose = doses[0]
   const nextDue = lastDose ? addDays(new Date(lastDose.administeredAt), 7) : null
   const nextIn = nextDue ? daysBetween(now, nextDue) : null
-  const recentSymptoms = [...symptoms].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)).slice(0, 3)
+  const dosedToday = !!lastDose && daysBetween(new Date(lastDose.administeredAt), now) === 0
+  const conditionDone = false // 예시: 오늘 컨디션 미입력 상태
+
+  const tiles: TodayTile[] = [
+    {
+      to: '/record/medication',
+      icon: Syringe,
+      title: '투약',
+      done: dosedToday,
+      sub: dosedToday ? '오늘 기록함' : nextDue ? `다음 예정 ${formatShortDateWithDay(nextDue)}` : '투약 기록하기',
+    },
+    {
+      to: '/record/meal',
+      icon: Utensils,
+      title: '식단',
+      done: todayMeals.length > 0,
+      sub: todayMeals.length > 0 ? `${todayMeals.length}끼 · ${kcal.toLocaleString()}kcal` : '식사 기록하기',
+    },
+    {
+      to: '/record/daily',
+      icon: Droplets,
+      title: '수분',
+      done: todayCheck.waterCups >= todayCheck.waterGoalCups,
+      sub: todayCheck.waterCups > 0 ? `${todayCheck.waterCups} / ${todayCheck.waterGoalCups}컵` : '섭취량 기록',
+    },
+    { to: '/record/symptom', icon: HeartPulse, title: '컨디션', done: conditionDone, sub: '오늘 상태 입력' },
+  ]
+
+  const lastMeal = [...todayMeals].sort((a, b) => b.eatenAt.localeCompare(a.eatenAt))[0]
+  const lastSymptom = [...symptoms].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))[0]
+  const activity = [
+    latest && { at: latest.measuredAt, icon: Scale, title: '체중 기록', sub: `${monthDay(latest.measuredAt)} · ${latest.weightKg}kg` },
+    lastMeal && { at: lastMeal.eatenAt, icon: Utensils, title: '식단 기록', sub: `${monthDay(lastMeal.eatenAt)} · ${MEAL_LABEL[lastMeal.mealType]} ${lastMeal.foodName}` },
+    lastSymptom && { at: lastSymptom.recordedAt, icon: Activity, title: '증상 기록', sub: `${monthDay(lastSymptom.recordedAt)} · ${SYMPTOM_LABEL[lastSymptom.type]}` },
+    lastDose && { at: lastDose.administeredAt, icon: Syringe, title: '투약 기록', sub: `${monthDay(lastDose.administeredAt)} · ${MEDICATIONS[lastDose.medicationId].name} ${lastDose.doseMg}mg` },
+  ]
+    .filter((x): x is { at: string; icon: LucideIcon; title: string; sub: string } => !!x)
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 3)
 
   return (
-    <div className="space-y-4">
-      {/* 인사 */}
-      <header className="flex items-end justify-between gap-3 pb-1">
+    <div className="space-y-5">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <p className="text-[13px] font-medium text-text-muted">
             {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
@@ -71,191 +126,91 @@ export function HomePage() {
             {profile.nickname}님, {greetingFor(now)}
           </h1>
         </div>
-        <MockBadge />
       </header>
 
-      {/* 빠른 기록 */}
-      <nav aria-label="빠른 기록" className="grid grid-cols-4 gap-2 md:max-w-xl">
-        {QUICK.map((q) => (
-          <Link
-            key={q.to}
-            to={q.to}
-            className="flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-card border border-border bg-surface text-[13px] font-medium text-text transition-colors hover:bg-surface-muted"
-          >
-            <AppIcon icon={q.icon} size="md" bg="soft" className="size-9 rounded-[10px]" />
-            {q.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        {/* 오늘의 기록 */}
+        <section aria-labelledby="today-title">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 id="today-title" className="text-[20px] font-bold tracking-tight">
+              오늘의 기록
+            </h2>
+            <MockBadge label="예시 상태" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {tiles.map((t) => (
+              <TodayTileCard key={t.title} tile={t} />
+            ))}
+          </div>
+        </section>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {/* 체중 — 일상 물건 비유 */}
-        <WeightAnalogyCard startKg={profile.startWeightKg} latestKg={latest.weightKg} to="/analysis" />
+        {/* 체중 변화 (비유) */}
+        <section aria-label="체중 변화" className="lg:pt-[44px]">
+          <WeightAnalogyCard startKg={profile.startWeightKg} latestKg={latest.weightKg} to="/analysis" />
+        </section>
+      </div>
 
-        {/* 오늘 섭취 */}
-        <Link to="/record/meal" className="group">
-          <Card className="h-full transition-colors group-hover:bg-surface-muted/40">
-            <CardHeader className="mb-1">
-              <CardTitle className="flex items-center gap-2 font-medium text-text-muted">
-                <AppIcon icon={Utensils} size="sm" /> 오늘 섭취
-              </CardTitle>
-              <span className="text-[12px] text-text-subtle">{todayMeals.length}끼 기록</span>
-            </CardHeader>
-            <p className="tabular text-[32px] leading-tight font-bold tracking-tight">
-              {kcal.toLocaleString()}
-              <span className="ml-1 text-base font-semibold text-text-muted">kcal</span>
-            </p>
-            <p className="tabular mt-2 text-[14px]">
-              단백질 <b className="text-primary">{todayCheck.proteinG}g</b>
-              <span className="text-text-muted"> / 목표 {todayCheck.proteinGoalG}g</span>
-            </p>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-muted" role="progressbar" aria-valuenow={proteinPct} aria-valuemin={0} aria-valuemax={100} aria-label="단백질 목표 대비">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${proteinPct}%` }} />
-            </div>
-            <p className="tabular mt-2 text-[12px] text-text-muted">
-              탄 {carb}g · 지 {fat}g
-            </p>
-          </Card>
-        </Link>
-
-        {/* 물 · 영양제 */}
-        <Link to="/record/daily" className="group">
-          <Card className="h-full transition-colors group-hover:bg-surface-muted/40">
-            <CardHeader className="mb-1">
-              <CardTitle className="flex items-center gap-2 font-medium text-text-muted">
-                <AppIcon icon={GlassWater} size="sm" /> 물 · 영양제
-              </CardTitle>
-            </CardHeader>
-            <p className="tabular text-[32px] leading-tight font-bold tracking-tight">
-              {todayCheck.waterCups}
-              <span className="ml-1 text-base font-semibold text-text-muted">/ {todayCheck.waterGoalCups}컵</span>
-            </p>
-            <div className="mt-2.5 flex gap-1" aria-hidden>
-              {Array.from({ length: todayCheck.waterGoalCups }).map((_, i) => (
-                <span key={i} className={cn('h-2 flex-1 rounded-full', i < todayCheck.waterCups ? 'bg-icon' : 'bg-surface-muted')} />
-              ))}
-            </div>
-            <div className="mt-3">
-              {todayCheck.supplementTaken ? (
-                <Badge tone="success">
-                  <Pill size={13} strokeWidth={1.75} aria-hidden /> 영양제 복용 완료
-                </Badge>
-              ) : (
-                <Badge>영양제 미기록</Badge>
-              )}
-            </div>
-          </Card>
-        </Link>
-
-        {/* 투약 */}
-        <Link to="/record/medication" className="group">
-          <Card className="h-full transition-colors group-hover:bg-surface-muted/40">
-            <CardHeader className="mb-1">
-              <CardTitle className="flex items-center gap-2 font-medium text-text-muted">
-                <AppIcon icon={Syringe} size="sm" /> 최근 투약
-              </CardTitle>
+      <div className="grid items-start gap-3 lg:grid-cols-2">
+        {/* 최근 투약 */}
+        <Link to="/record/medication" className="group block">
+          <Card className="transition-colors group-hover:bg-surface-muted/40">
+            <CardHeader>
+              <CardTitle className="text-[16px] font-bold">최근 투약</CardTitle>
+              <AppIcon icon={ChevronRight} size="sm" tone="muted" />
             </CardHeader>
             {lastDose ? (
               <>
-                <p className="text-[20px] leading-snug font-bold">
-                  {MEDICATIONS[lastDose.medicationId].name} {lastDose.doseMg}mg
-                </p>
-                <p className="tabular mt-0.5 text-[13px] text-text-muted">
-                  {formatShortDateWithDay(new Date(lastDose.administeredAt))} {formatTime(new Date(lastDose.administeredAt))} ·{' '}
-                  {siteLabel(lastDose.site)}
-                </p>
-                {nextDue && (
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2">
-                    <AppIcon icon={CalendarClock} size="sm" className="size-[18px]" />
-                    <p className="text-[13px]">
-                      다음 예정 <b className="tabular">{formatShortDateWithDay(nextDue)}</b>
-                      {nextIn !== null && nextIn >= 0 && (
-                        <span className="text-text-muted"> · {nextIn === 0 ? '오늘' : nextIn === 1 ? '내일' : `${nextIn}일 후`}</span>
-                      )}
+                <div className="flex items-center gap-3.5">
+                  <AppIcon icon={Syringe} size="lg" bg="soft" className="size-12" />
+                  <div className="min-w-0">
+                    <p className="text-[17px] font-bold">
+                      {MEDICATIONS[lastDose.medicationId].name} {lastDose.doseMg}mg
+                    </p>
+                    <p className="tabular truncate text-[13px] text-text-muted">
+                      {formatShortDateWithDay(new Date(lastDose.administeredAt))} {formatTime(new Date(lastDose.administeredAt))} ·{' '}
+                      {siteLabel(lastDose.site)} · 예시 데이터
                     </p>
                   </div>
+                </div>
+                {nextDue && (
+                  <p className="tabular mt-3 text-[14px]">
+                    다음 예정 <b>{formatShortDateWithDay(nextDue)}</b>
+                    {nextIn !== null && nextIn >= 0 && (
+                      <span className="text-text-muted"> · {nextIn === 0 ? '오늘' : nextIn === 1 ? '내일' : `${nextIn}일 후`}</span>
+                    )}
+                  </p>
                 )}
-                <p className="mt-1.5 text-[11px] text-text-subtle">마지막 기록 +7일 기준 (사용자 기록 기준)</p>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-subtle">
+                  투약 간격은 기록을 기반으로 표시하며 용량 변경을 권유하지 않습니다.
+                </p>
               </>
             ) : (
               <p className="text-[14px] text-text-muted">아직 투약 기록이 없어요.</p>
             )}
           </Card>
         </Link>
-      </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {/* 컨디션 */}
+        {/* 최근 활동 */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AppIcon icon={Activity} size="sm" /> 최근 컨디션
-            </CardTitle>
-            <Link to="/record/symptom" className="text-[13px] font-medium text-text-muted hover:text-text">
-              기록하기
+            <CardTitle className="text-[16px] font-bold">최근 활동</CardTitle>
+            <Link to="/analysis/timeline" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-semibold text-primary hover:text-primary-hover">
+              전체 보기
             </Link>
           </CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1" aria-label={`컨디션 ${todayCheck.condition}/5`}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <span key={n} className={cn('h-6 w-3 rounded-full', n <= todayCheck.condition ? 'bg-primary' : 'bg-surface-muted')} />
-              ))}
-            </div>
-            <p className="text-[15px] font-semibold">오늘 {CONDITION_LABEL[todayCheck.condition]}</p>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {recentSymptoms.map((s) => (
-              <Badge key={s.id}>
-                {SYMPTOM_LABEL[s.type]} · {formatShortDateWithDay(new Date(s.recordedAt))}
-              </Badge>
+          <ul className="space-y-3.5">
+            {activity.map((a) => (
+              <li key={a.title} className="flex items-center gap-3">
+                <AppIcon icon={a.icon} size="md" tone="muted" />
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold">{a.title}</p>
+                  <p className="tabular truncate text-[13px] text-text-muted">{a.sub}</p>
+                </div>
+              </li>
             ))}
-          </div>
-        </Card>
-
-        {/* 주간 기록 현황 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="whitespace-nowrap">이번 주 기록 현황</CardTitle>
-            <span className="truncate text-[12px] text-text-subtle">하루 5개 항목 기준</span>
-          </CardHeader>
-          <ol className="grid grid-cols-7 gap-1.5">
-            {weeklyStatus.map((d, i) => {
-              const date = new Date(d.date + 'T00:00:00')
-              const full = d.recorded === d.total
-              return (
-                <li key={d.date} className="flex min-w-0 flex-col items-center gap-1.5">
-                  <span
-                    className={cn(
-                      'tabular flex aspect-square w-full max-w-9 items-center justify-center rounded-full text-[12px] font-semibold',
-                      full ? 'bg-primary text-primary-foreground' : 'bg-primary-soft text-primary',
-                    )}
-                    aria-label={`${formatShortDateWithDay(date)} ${d.recorded}/${d.total}개 기록`}
-                  >
-                    {d.recorded}
-                  </span>
-                  <span className={cn('text-[11px]', i === weeklyStatus.length - 1 ? 'font-bold text-text' : 'text-text-subtle')}>
-                    {'일월화수목금토'[date.getDay()]}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
+          </ul>
         </Card>
       </div>
-
-      {/* 통합 타임라인 미리보기 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>최근 7일 통합 타임라인</CardTitle>
-          <Link to="/analysis/timeline" className="inline-flex items-center text-[13px] font-medium text-text-muted hover:text-text">
-            전체 보기 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-          </Link>
-        </CardHeader>
-        <HomeTimeline days={timeline} />
-        <Notice tone="review" className="mt-4">
-          {TIMELINE_DISCLAIMER}
-        </Notice>
-      </Card>
     </div>
   )
 }

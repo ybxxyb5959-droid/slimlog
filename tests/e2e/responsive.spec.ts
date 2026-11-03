@@ -8,7 +8,16 @@ const PAGES = [
   { path: '/analysis', heading: '분석' },
   { path: '/analysis/medication', heading: '참고용 잔존량' },
   { path: '/onboarding/first-dose', heading: '어떤 약을 맞으셨나요?' },
+  { path: '/preview/brand', heading: '로고 시안' },
 ]
+
+const NOTICE_KEY = 'slimlog:notice:analysis-pk'
+
+// 분석 유의사항 테스트가 아니면 '다시 보지 않기' 상태로 시작 (다른 검사를 가리지 않게)
+test.beforeEach(async ({ page }, info) => {
+  if (info.title.includes('유의사항')) return
+  await page.addInitScript((k) => localStorage.setItem(k, JSON.stringify({ version: 1, dismissed: true })), NOTICE_KEY)
+})
 
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/u
 
@@ -122,15 +131,20 @@ test('첫 투약 등록 5단계: 순서대로 진행·이전·요약·확인', a
   await expect(sheet.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
   // STEP 1 → 2
   await sheet.getByRole('radio', { name: /에페/ }).click()
-  await expect(sheet.getByRole('heading', { name: '용량을 선택해 주세요' })).toBeVisible()
-  // 에페 허가 용량만 표시
-  await expect(sheet.getByRole('radio', { name: /mg$/ })).toHaveCount(5)
-  await expect(sheet.getByRole('radio', { name: '2.5mg' })).toHaveCount(0)
+  await expect(sheet.getByRole('heading', { name: '투여한 용량을 선택해 주세요' })).toBeVisible()
+  // 에페 허가 용량(2~10mg, 5단계)만 선택 가능
+  const slider = sheet.getByRole('slider')
+  await expect(slider).toHaveAttribute('aria-valuemax', '4')
+  await expect(slider).toHaveAttribute('aria-valuetext', '2mg')
   // 이전 단계 → 선택 유지
   await sheet.getByRole('button', { name: '이전 단계' }).click()
   await expect(sheet.getByRole('radio', { name: /에페/ })).toHaveAttribute('aria-checked', 'true')
   await sheet.getByRole('radio', { name: /에페/ }).click()
-  await sheet.getByRole('radio', { name: '6mg' }).click()
+  // 다음 버튼·키보드·스와이프로 값 변경
+  await sheet.getByRole('button', { name: '다음 용량' }).click()
+  await sheet.getByRole('slider').press('ArrowRight')
+  await expect(sheet.getByRole('slider')).toHaveAttribute('aria-valuetext', '6mg')
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
   // STEP 3: 에페는 복부만 선택 가능
   await expect(sheet.getByRole('heading', { name: '어디에 맞으셨나요?' })).toBeVisible()
   await expect(sheet.getByRole('button', { name: '다음', exact: true })).toBeDisabled()
@@ -155,7 +169,8 @@ test('첫 투약 등록: 오늘 미래 시간은 다음으로 넘어갈 수 없�
   await page.goto('/onboarding/first-dose')
   const sheet = page.getByRole('dialog')
   await sheet.getByRole('radio', { name: /마운자로/ }).click()
-  await sheet.getByRole('radio', { name: '5mg', exact: true }).click()
+  await sheet.getByRole('slider').press('ArrowRight')
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
   await sheet.getByRole('radio', { name: '배 왼쪽' }).click()
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
   await sheet.getByRole('button', { name: '오늘', exact: true }).click()
@@ -173,5 +188,95 @@ test('첫 투약 등록: 입력 중 닫으면 확인 후 이어서 할 수 있�
   await expect(page.getByText('기록을 잠시 멈출까요?')).toBeVisible()
   await page.getByRole('dialog', { name: '기록을 잠시 멈출까요?' }).getByRole('button', { name: '닫기', exact: true }).first().click()
   await page.getByRole('button', { name: /이어서 기록하기 \(2\/5\)/ }).click()
-  await expect(page.getByRole('dialog').getByRole('heading', { name: '용량을 선택해 주세요' })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('heading', { name: '투여한 용량을 선택해 주세요' })).toBeVisible()
+})
+
+test('용량 선택기: 좌우 스와이프로 값이 바뀐다', async ({ page }) => {
+  await page.goto('/onboarding/first-dose')
+  const sheet = page.getByRole('dialog')
+  await sheet.getByRole('radio', { name: /마운자로/ }).click()
+  const slider = sheet.getByRole('slider')
+  await expect(slider).toHaveAttribute('aria-valuetext', '2.5mg')
+  const box = (await sheet.getByText('1 / 6').boundingBox())!
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y, { steps: 5 })
+  await page.mouse.up()
+  await expect(slider).toHaveAttribute('aria-valuetext', '5mg')
+  await expect(sheet.getByText('2 / 6')).toBeVisible()
+})
+
+test('참고 곡선: 기간 전환·툴팁·약별 기록만 표시', async ({ page }) => {
+  await page.goto('/analysis/medication')
+  await expect(page.getByText('현재 참고 수준')).toBeVisible()
+  for (const label of ['2주', '3개월', '1개월']) {
+    await page.getByRole('radio', { name: label, exact: true }).click()
+    await expect(page.getByRole('radio', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true')
+  }
+  const chart = page.getByRole('img', { name: '참고용 잔존량 상대값 곡선' })
+  const box = (await chart.boundingBox())!
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2)
+  await expect(page.getByText(/최고 시점 대비 \d+%/).first()).toBeVisible()
+  // 위고비는 기록이 없으므로 빈 상태 (마운자로 기록을 섞지 않음)
+  await page.getByRole('radio', { name: '위고비' }).click()
+  await expect(page.getByText('이 기간에 투약 기록이 없어요')).toBeVisible()
+  // mg 단위는 곡선 값에 쓰지 않는다
+  await expect(page.getByText(/잔존량 \d+(\.\d+)?\s?mg/)).toHaveCount(0)
+})
+
+test('참고 곡선 ⓘ: 계산 방식·파라미터·출처 안내', async ({ page }) => {
+  await page.goto('/analysis/medication')
+  await page.getByRole('button', { name: '참고용 잔존량 계산 안내 보기' }).click()
+  const sheet = page.getByRole('dialog', { name: '참고용 잔존량 계산 안내' })
+  await expect(sheet.getByText('mg으로 표시하지 않는 이유')).toBeVisible()
+  await expect(sheet.getByText('약 5일')).toBeVisible()
+  await expect(sheet.getByText('허가자료에 없음')).toBeVisible()
+})
+
+test.describe('분석 유의사항', () => {
+  test('유의사항: 최초 진입 시 자동 표시, 체크 없이 닫으면 재진입 때 다시 표시', async ({ page }) => {
+    await page.goto('/analysis')
+    const notice = page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })
+    await expect(notice).toBeVisible()
+    await notice.getByRole('button', { name: '확인했어요' }).click()
+    await expect(notice).toHaveCount(0)
+    // 분석 하위 화면 이동은 같은 방문 → 다시 안 뜸
+    await page.getByRole('link', { name: /참고용 잔존량/ }).first().click()
+    await expect(page).toHaveURL('/analysis/medication')
+    await expect(notice).toHaveCount(0)
+    // 다른 탭 갔다가 재진입 → 다시 표시
+    await page.goto('/home')
+    await page.getByRole('navigation', { name: '주 메뉴' }).locator('visible=true').getByRole('link', { name: '분석', exact: true }).click()
+    await expect(notice).toBeVisible()
+  })
+
+  test('유의사항: 다시 보지 않기 → 다음 진입부터 표시 안 함, 간단 문구는 유지', async ({ page }) => {
+    await page.goto('/analysis')
+    const notice = page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })
+    await notice.getByRole('checkbox', { name: '다시 보지 않기' }).check()
+    await notice.getByRole('button', { name: '확인했어요' }).click()
+    await page.reload()
+    await expect(page.getByRole('heading', { name: '분석', level: 1 })).toBeVisible()
+    await expect(notice).toHaveCount(0)
+    await expect(page.getByText('참고용 계산값이며 실제 혈중농도 또는 약효를 의미하지 않습니다.').first()).toBeVisible()
+  })
+
+  test('유의사항: ⓘ로 수동 재열기, 닫으면 포커스 복원', async ({ page }) => {
+    await page.addInitScript((k) => localStorage.setItem(k, JSON.stringify({ version: 1, dismissed: true })), NOTICE_KEY)
+    await page.goto('/analysis')
+    const btn = page.getByRole('button', { name: '분석 유의사항 보기' })
+    await btn.click()
+    const notice = page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })
+    await expect(notice).toBeVisible()
+    await expect(notice.getByRole('checkbox', { name: '다시 보지 않기' })).toBeChecked()
+    await page.keyboard.press('Escape')
+    await expect(notice).toHaveCount(0)
+    await expect(btn).toBeFocused()
+  })
+
+  test('유의사항: noticeVersion이 바뀌면 다시 표시', async ({ page }) => {
+    await page.addInitScript((k) => localStorage.setItem(k, JSON.stringify({ version: 0, dismissed: true })), NOTICE_KEY)
+    await page.goto('/analysis')
+    await expect(page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })).toBeVisible()
+  })
 })

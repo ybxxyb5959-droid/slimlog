@@ -18,6 +18,7 @@ import { useDoses } from '@/services/doses'
 import { getBodyLogs } from '@/services/records'
 
 import { ResidualPreviewCard } from '../record/medication/ResidualPreviewCard'
+import { AnalysisNoticeButton } from './AnalysisSection'
 
 export function AnalysisHubPage() {
   const [period, setPeriod] = useState<Period>(30)
@@ -31,7 +32,7 @@ export function AnalysisHubPage() {
 
   return (
     <>
-      <PageHeader title="분석" description="기록을 같은 날짜축에서 비교해 보세요." />
+      <PageHeader title="분석" description="기록을 같은 날짜축에서 비교해 보세요." actions={<AnalysisNoticeButton />} />
       <div className="mb-4 flex items-center justify-between gap-3">
         <PeriodFilter value={period} onChange={setPeriod} />
         <MockBadge />
@@ -56,12 +57,12 @@ export function AnalysisHubPage() {
         </Card>
 
         <div className="min-w-0">
-          <ResidualPreviewCard medication={MEDICATIONS.mounjaro} doses={doses} days={period} compact height={240} />
+          <ResidualPreviewCard medication={MEDICATIONS.mounjaro} doses={doses} height={200} />
           <Link
             to="/analysis/medication"
             className="mt-2 flex h-11 items-center justify-center gap-1 text-[13px] font-medium text-text-muted hover:text-text"
           >
-            출처 · 계산 방식 · 증상 겹쳐 보기 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+            약 바꿔 보기 · 증상 겹쳐 보기 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
           </Link>
         </div>
       </div>

@@ -10,13 +10,31 @@ export interface Medication {
   id: MedicationId
   name: string
   ingredient: string
-  /** 반감기(시간). 출처가 없으면 null → 참고 곡선을 만들지 않는다 (계획서 6.3) */
-  halfLifeHours: number | null
-  halfLifeSource: { label: string; note: string } | null
+  /** 약동학 참고 파라미터 — 약물별로 따로 관리하고 서로 섞어 쓰지 않는다 */
+  pk: PkParams
   /** 선택형 용량 목록(허가 용량). 확인하지 못했으면 null → 직접 입력 */
   doseOptionsMg: number[] | null
   /** 허가 정보 출처 — 용량·주사 부위 */
   approval: MedicationApproval
+}
+
+/** 하나의 파라미터 = 값 + 원문 표현 + 출처 */
+export interface PkValue<T = number> {
+  value: T
+  /** 라벨 원문 표현 (예: '약 5일', '8~72시간') */
+  text: string
+  source: ApprovalSource
+}
+
+export interface PkParams {
+  /** 제거 반감기(시간). null이면 참고 곡선을 만들지 않는다 (계획서 6.3) */
+  halfLifeHours: PkValue | null
+  /** 절대 생체이용률(0~1) */
+  bioavailability: PkValue | null
+  /** 최고농도 도달 시간 범위(시간) */
+  tmaxHours: PkValue<[number, number]> | null
+  /** 흡수 속도 상수(1/h). 허가자료에 없으면 null → 1구획 흡수 모델·mg 표시 비활성 */
+  absorptionRateKa: PkValue | null
 }
 
 export type SourceStatus = 'verified' | 'secondary'

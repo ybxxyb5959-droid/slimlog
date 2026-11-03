@@ -34,6 +34,7 @@
 
   --chart-1: #2f6fe4;
   --chart-2: #12a06e;
+  --chart-residual: #3478f6;
   --chart-grid: #eceef0;
 
   --radius: 16px;
@@ -63,6 +64,7 @@
   --danger-border: #4d2626;
   --chart-1: #6b9bf2;
   --chart-2: #34c68c;
+  --chart-residual: #5b93f8;
   --chart-grid: #2a302d;
 }
 

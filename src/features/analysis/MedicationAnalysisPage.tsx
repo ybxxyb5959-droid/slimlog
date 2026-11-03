@@ -1,34 +1,32 @@
-import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 
 import { ChipGroup } from '@/components/common/ChipGroup'
 import { PageHeader } from '@/components/common/PageHeader'
-import { PeriodFilter, type Period } from '@/components/common/PeriodFilter'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { MEDICATION_LIST, MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
-import { MOCK_SYMPTOMS, SYMPTOM_LABEL } from '@/fixtures/records.mock'
+import { MOCK_SYMPTOMS } from '@/fixtures/records.mock'
 import { formatShortDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { useDoses } from '@/services/doses'
 import type { MedicationId } from '@/types/domain'
 
 import { ResidualPreviewCard } from '../record/medication/ResidualPreviewCard'
+import { AnalysisNoticeButton } from './AnalysisSection'
 
 export function MedicationAnalysisPage() {
   const doses = useDoses()
-  const [period, setPeriod] = useState<Period>(30)
   const [medId, setMedId] = useState<MedicationId>('mounjaro')
   const [showSymptoms, setShowSymptoms] = useState(true)
   const med = MEDICATIONS[medId]
   const symptomTimes = showSymptoms
-    ? MOCK_SYMPTOMS.map((s) => ({ t: new Date(s.recordedAt).getTime(), label: SYMPTOM_LABEL[s.type] }))
+    ? MOCK_SYMPTOMS.map((s) => new Date(s.recordedAt).getTime())
     : []
   const recent = doses.filter((d) => d.medicationId === medId).slice(0, 4)
 
   return (
     <>
-      <PageHeader title="참고용 잔존량" description="투약 기록으로 계산한 상대값 곡선이에요." back="/analysis" />
+      <PageHeader title="참고용 잔존량" description="투약 기록으로 계산한 상대값 곡선이에요." back="/analysis" actions={<AnalysisNoticeButton />} />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <ChipGroup
@@ -39,12 +37,11 @@ export function MedicationAnalysisPage() {
           value={medId}
           onChange={setMedId}
         />
-        <PeriodFilter value={period} onChange={setPeriod} />
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-3">
-          <ResidualPreviewCard medication={med} doses={doses} days={period} symptomTimes={symptomTimes} height={280} />
+          <ResidualPreviewCard key={med.id} medication={med} doses={doses} symptomTimes={symptomTimes} height={260} />
           <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-card border border-border bg-surface px-4 py-3">
             <span>
               <span className="block text-[14px] font-semibold">증상 기록 겹쳐 보기</span>
@@ -84,20 +81,6 @@ export function MedicationAnalysisPage() {
             )}
           </Card>
 
-          <Card className="p-0">
-            <details className="group">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 text-[15px] font-semibold">
-                계산 방식 안내
-                <ChevronDown size={20} strokeWidth={1.75} className="text-text-muted transition-transform group-open:rotate-180" aria-hidden />
-              </summary>
-              <div className="space-y-2 px-5 pb-5 text-[13px] leading-relaxed text-text-muted">
-                <p>각 투약 기록의 용량 × (1/2)^(경과 시간 ÷ 반감기)를 모두 더한 뒤, 표시 기간의 최댓값을 100으로 둔 상대값으로 보여줘요.</p>
-                <p>반감기는 제품 허가사항 출처와 함께 저장하며, 출처가 없는 약은 곡선을 만들지 않아요.</p>
-                <p>흡수 속도, 체중, 개인차는 반영하지 않아요. 진단이나 용량 결정에 쓰지 마세요.</p>
-                <p className="text-text-subtle">현재 화면의 곡선은 예시 데이터로 그린 것이며, 실제 계산은 서버 연결 후 제공돼요.</p>
-              </div>
-            </details>
-          </Card>
         </div>
       </div>
     </>

@@ -2,8 +2,10 @@ import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } f
 
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AnalysisHubPage } from '@/features/analysis/AnalysisHubPage'
+import { AnalysisSection } from '@/features/analysis/AnalysisSection'
 import { MedicationAnalysisPage } from '@/features/analysis/MedicationAnalysisPage'
 import { ComingSoonPage } from '@/features/common/ComingSoonPage'
+import { BrandPreview } from '@/features/dev/BrandPreview'
 import { WeightCardGallery } from '@/features/dev/WeightCardGallery'
 import { FirstDosePage } from '@/features/record/first-dose/FirstDosePage'
 import { NotFoundPage } from '@/features/common/NotFoundPage'
@@ -23,6 +25,7 @@ const routes: RouteObject[] = [
       { path: 'home', element: <HomePage /> },
       { path: 'onboarding/first-dose', element: <FirstDosePage /> },
       { path: 'preview/weight-cards', element: <WeightCardGallery /> },
+      { path: 'preview/brand', element: <BrandPreview /> },
 
       { path: 'record', element: <RecordHubPage /> },
       { path: 'record/medication', element: <MedicationListPage /> },
@@ -37,12 +40,18 @@ const routes: RouteObject[] = [
       soon('record/symptom', '증상 · 컨디션'),
       soon('record/daily', '물 · 단백질 · 영양제'),
 
-      { path: 'analysis', element: <AnalysisHubPage /> },
-      { path: 'analysis/medication', element: <MedicationAnalysisPage /> },
-      soon('analysis/timeline', '통합 타임라인'),
-      soon('analysis/body', '바디 변화'),
-      soon('analysis/nutrition', '식단 · 영양'),
-      soon('analysis/consult', '상담 준비'),
+      {
+        path: 'analysis',
+        element: <AnalysisSection />,
+        children: [
+          { index: true, element: <AnalysisHubPage /> },
+          { path: 'medication', element: <MedicationAnalysisPage /> },
+          soon('timeline', '통합 타임라인'),
+          soon('body', '바디 변화'),
+          soon('nutrition', '식단 · 영양'),
+          soon('consult', '상담 준비'),
+        ],
+      },
 
       soon('community', '커뮤니티'),
       soon('community/write', '글쓰기'),
@@ -63,6 +72,7 @@ const PREVIEW_START: Record<string, string> = {
   'first-dose': '/onboarding/first-dose',
   'weight-cards': '/preview/weight-cards',
   analysis: '/analysis',
+  brand: '/preview/brand',
 }
 
 /** 미리보기 배포(VITE_PREVIEW=1)는 주소창을 쓸 수 없는 환경이라 메모리 라우터 사용 */

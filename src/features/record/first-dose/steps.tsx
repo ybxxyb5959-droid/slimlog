@@ -1,8 +1,8 @@
 import { CalendarDays, Check, ExternalLink, Info } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { Calendar } from '@/components/common/Calendar'
+import { SwipeDosePicker } from '@/components/common/SwipeDosePicker'
 import { BodyMap } from '@/components/illustrations/BodyMap'
 import { doseBandColor, PenIllustration } from '@/components/illustrations/PenIllustration'
 import { Input } from '@/components/ui/input'
@@ -77,46 +77,10 @@ export function StepMedication({ value, onSelect }: { value: MedicationId | null
   )
 }
 
-/* ---------- STEP 2 용량 (좌우 드래그) ---------- */
-const CARD_W = 132
-export function StepDose({
-  medicationId,
-  value,
-  onSelect,
-  onPatch,
-}: {
-  medicationId: MedicationId
-  value: number | null
-  onSelect: (mg: number) => void
-  onPatch: Patch
-}) {
+/* ---------- STEP 2 용량 (단일 값 스와이프 선택기) ---------- */
+export function StepDose({ medicationId, value, onPatch }: { medicationId: MedicationId; value: number | null; onPatch: Patch }) {
   const med = MEDICATIONS[medicationId]
   const options = med.doseOptionsMg
-  const scroller = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
-  const [pad, setPad] = useState(0)
-
-  // 양 끝 카드도 가운데에 올 수 있도록 좌우 여백을 실제 너비로 계산
-  useEffect(() => {
-    const el = scroller.current
-    if (!el) return
-    const update = () => setPad(Math.max(16, (el.clientWidth - CARD_W) / 2))
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  // 선택된 용량(또는 첫 용량)을 가운데로
-  useEffect(() => {
-    const el = scroller.current
-    if (!el || !options) return
-    const idx = Math.max(0, value !== null ? options.indexOf(value) : 0)
-    const card = el.children[idx] as HTMLElement | undefined
-    if (!card) return
-    const target = card.offsetLeft - (el.clientWidth - card.clientWidth) / 2
-    requestAnimationFrame(() => el.scrollTo({ left: target, behavior: 'instant' as ScrollBehavior }))
-  }, [options, value, pad])
 
   if (!options)
     return (
@@ -141,71 +105,15 @@ export function StepDose({
 
   return (
     <div className="space-y-4">
-      <p className="text-center text-[13px] text-text-muted">좌우로 밀어서 찾고, 카드를 눌러 선택하세요</p>
-      <div
-        ref={scroller}
-        role="radiogroup"
-        aria-label={`${med.name} 용량 선택`}
-        className="no-scrollbar relative -mx-5 flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto py-2 select-none active:cursor-grabbing md:-mx-6"
-        style={{ paddingInline: pad }}
-        onPointerDown={(e) => {
-          if (e.pointerType !== 'mouse') return
-          drag.current = { x: e.clientX, left: scroller.current!.scrollLeft, moved: false }
-        }}
-        onPointerMove={(e) => {
-          if (!drag.current) return
-          const dx = e.clientX - drag.current.x
-          if (Math.abs(dx) > 4) drag.current.moved = true
-          scroller.current!.scrollLeft = drag.current.left - dx
-        }}
-        onPointerUp={() => setTimeout(() => (drag.current = null))}
-        onPointerLeave={() => (drag.current = null)}
-        onKeyDown={(e) => {
-          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-          e.preventDefault()
-          const i = value !== null ? options.indexOf(value) : -1
-          const next = options[Math.min(options.length - 1, Math.max(0, i + (e.key === 'ArrowRight' ? 1 : -1)))]
-          onPatch({ doseMg: next })
-          ;(scroller.current?.querySelector(`[data-mg="${next}"]`) as HTMLElement | null)?.focus()
-        }}
-      >
-        {options.map((mg, i) => {
-          const selected = value === mg
-          return (
-            <button
-              key={mg}
-              type="button"
-              role="radio"
-              data-mg={mg}
-              aria-checked={selected}
-              aria-label={`${mg}mg`}
-              tabIndex={selected || (value === null && i === 0) ? 0 : -1}
-              onClick={(e) => {
-                if (drag.current?.moved) return e.preventDefault()
-                onSelect(mg)
-              }}
-              className={cn(
-                'flex w-[132px] shrink-0 snap-center flex-col items-center rounded-2xl border-2 px-3 pt-4 pb-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                selected ? 'border-primary bg-primary-soft' : 'border-border bg-surface hover:bg-surface-muted/60',
-              )}
-            >
-              <PenIllustration band={doseBandColor(i, options.length)} className="h-24" />
-              <span className="tabular mt-3 text-[22px] font-bold text-text">
-                {mg}
-                <span className="ml-0.5 text-[14px] font-semibold text-text-muted">mg</span>
-              </span>
-              <span className="text-[11px] text-text-subtle">{i + 1}단계</span>
-            </button>
-          )
-        })}
-      </div>
-      <div className="flex justify-center gap-1.5" aria-hidden>
-        {options.map((mg) => (
-          <span key={mg} className={cn('h-1.5 rounded-full transition-all', value === mg ? 'w-5 bg-primary' : 'w-1.5 bg-border')} />
-        ))}
-      </div>
+      <p className="text-center text-[13px] text-text-muted">좌우로 밀거나 슬라이더를 움직여 선택하세요</p>
+      <SwipeDosePicker
+        label={`${med.name} 용량`}
+        options={options}
+        value={value ?? options[0]}
+        onChange={(mg) => onPatch({ doseMg: mg })}
+      />
       <p className="rounded-xl bg-surface-muted px-4 py-3 text-[13px] text-text-muted">
-        처방받은 용량을 그대로 골라 주세요. 앱은 용량을 추천하거나 판단하지 않아요.
+        처방받은 용량으로 맞춰 주세요. 앱은 용량을 추천하거나 판단하지 않아요.
       </p>
       <SourceNote label="허가 용량" source={med.approval.doses} />
     </div>

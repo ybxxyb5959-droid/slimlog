@@ -35,6 +35,7 @@ export function BottomSheet({
   const [dragY, setDragY] = useState(0)
   const start = useRef<{ y: number; t: number } | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const returnFocus = useRef<HTMLElement | null>(null)
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (window.matchMedia('(min-width: 768px)').matches) return
@@ -65,7 +66,16 @@ export function BottomSheet({
           onOpenAutoFocus={(e) => {
             // 닫기 버튼에 포커스 링이 먼저 뜨지 않도록 시트 자체에 포커스 (Tab으로 내부 이동)
             e.preventDefault()
+            const active = document.activeElement
+            returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : null
             contentRef.current?.focus()
+          }}
+          onCloseAutoFocus={(e) => {
+            // 닫으면 열기 전 포커스 위치로 복원 (Trigger 없이 열린 경우 포함)
+            if (returnFocus.current?.isConnected) {
+              e.preventDefault()
+              returnFocus.current.focus()
+            }
           }}
           className={cn(
             'sheet-content fixed z-50 flex flex-col bg-surface outline-none',

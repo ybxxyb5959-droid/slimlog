@@ -14,7 +14,7 @@ import { StepDateTime, StepDose, StepMedication, StepSite } from './steps'
 const TOTAL = 5
 const TITLES: Record<number, { title: string; description?: string }> = {
   1: { title: '어떤 약을 맞으셨나요?', description: '처방받은 약을 골라 주세요.' },
-  2: { title: '용량을 선택해 주세요', description: '처방받은 용량 그대로 골라 주세요.' },
+  2: { title: '투여한 용량을 선택해 주세요', description: '처방받은 용량 그대로 골라 주세요.' },
   3: { title: '어디에 맞으셨나요?', description: '그림의 부위를 눌러 선택해 주세요. 좌우는 내 몸 기준이에요.' },
   4: { title: '언제 맞으셨나요?', description: '투약한 날짜와 시간을 골라 주세요.' },
   5: { title: '이대로 기록할까요?', description: '내용을 확인해 주세요.' },
@@ -118,12 +118,17 @@ export function FirstDoseFlow({
           <StepMedication
             value={draft.medicationId}
             onSelect={(id) =>
-              selectAndNext(id === draft.medicationId ? {} : { medicationId: id, doseMg: null, site: null }, 2)
+              selectAndNext(
+                id === draft.medicationId
+                  ? {}
+                  : { medicationId: id, doseMg: MEDICATIONS[id].doseOptionsMg?.[0] ?? null, site: null },
+                2,
+              )
             }
           />
         )}
         {step === 2 && draft.medicationId && (
-          <StepDose medicationId={draft.medicationId} value={draft.doseMg} onPatch={patch} onSelect={(mg) => selectAndNext({ doseMg: mg }, 3)} />
+          <StepDose medicationId={draft.medicationId} value={draft.doseMg} onPatch={patch} />
         )}
         {step === 3 && <StepSite draft={draft} onPatch={patch} />}
         {step === 4 && <StepDateTime draft={draft} onPatch={patch} error={dtError} />}

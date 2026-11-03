@@ -36,22 +36,50 @@ const SRC = {
     checkedAt: '2026-11-03',
     status: 'secondary',
   },
+  mounjaroLabelPk: {
+    title: 'Mounjaro 미국 허가사항(Prescribing Information) 12.3 약동학 — medlibrary 전재본',
+    url: 'https://medlibrary.org/lib/rx/meds/mounjaro/page/4/',
+    checkedAt: '2026-11-03',
+    status: 'secondary',
+  },
+  mounjaroHalfLife: {
+    title: 'Lilly Medical 「What is the half-life of Mounjaro (tirzepatide)?」',
+    url: 'https://medical.lilly.com/us/products/answers/what-is-the-half-life-of-mounjaro-tirzepatide-311137',
+    checkedAt: '2026-11-03',
+    status: 'secondary',
+  },
+  wegovyLabelPk: {
+    title: 'Wegovy 미국 허가사항 12.3 약동학 — medlibrary 전재본',
+    url: 'https://medlibrary.org/lib/rx/meds/wegovy/page/7/',
+    checkedAt: '2026-11-03',
+    status: 'secondary',
+  },
+  wegovyHalfLife: {
+    title: 'Wegovy 미국 허가사항 전재본 (medpath) — 제거 반감기 약 1주',
+    url: 'https://trial.medpath.com/drug/approvals/fda/712ad53e4899f372',
+    checkedAt: '2026-11-03',
+    status: 'secondary',
+  },
 } satisfies Record<string, ApprovalSource>
 
 const ALL_AREAS: BodyArea[] = ['abdomen', 'thigh', 'upper_arm']
 
 /**
- * 약물 메타데이터 (예시).
- * 반감기 수치와 출처는 실제 허가사항 연결 전 화면 예시값이다.
- * 에페는 출처 미등록 상태를 보여주기 위해 halfLifeHours = null.
+ * 약물 메타데이터.
+ * pk: 허가자료(라벨)에서 확인한 값만 넣는다. 확인 못 한 항목은 null — 임의 값 금지.
+ * 에페: 반감기 수치를 허가자료에서 확인하지 못해 halfLifeHours = null → 곡선 미생성.
  */
 export const MEDICATIONS: Record<MedicationId, Medication> = {
   mounjaro: {
     id: 'mounjaro',
     name: '마운자로',
     ingredient: '터제파타이드',
-    halfLifeHours: 5 * 24,
-    halfLifeSource: { label: '제품 허가사항 기준', note: '화면 예시값 · 실제 허가사항 출처 연결 예정' },
+    pk: {
+      halfLifeHours: { value: 5 * 24, text: '약 5일', source: SRC.mounjaroHalfLife },
+      bioavailability: { value: 0.8, text: '80%', source: SRC.mounjaroLabelPk },
+      tmaxHours: { value: [8, 72], text: '8~72시간', source: SRC.mounjaroLabelPk },
+      absorptionRateKa: null,
+    },
     doseOptionsMg: [2.5, 5, 7.5, 10, 12.5, 15],
     approval: { doses: SRC.mounjaroDoses, sites: { areas: ALL_AREAS, source: SRC.mounjaroSites } },
   },
@@ -59,8 +87,12 @@ export const MEDICATIONS: Record<MedicationId, Medication> = {
     id: 'wegovy',
     name: '위고비',
     ingredient: '세마글루타이드',
-    halfLifeHours: 7 * 24,
-    halfLifeSource: { label: '제품 허가사항 기준', note: '화면 예시값 · 실제 허가사항 출처 연결 예정' },
+    pk: {
+      halfLifeHours: { value: 7 * 24, text: '약 1주', source: SRC.wegovyHalfLife },
+      bioavailability: { value: 0.89, text: '89%', source: SRC.wegovyLabelPk },
+      tmaxHours: { value: [24, 72], text: '1~3일', source: SRC.wegovyLabelPk },
+      absorptionRateKa: null,
+    },
     doseOptionsMg: [0.25, 0.5, 1, 1.7, 2.4],
     approval: { doses: SRC.wegovy, sites: { areas: ALL_AREAS, source: SRC.wegovy } },
   },
@@ -68,8 +100,13 @@ export const MEDICATIONS: Record<MedicationId, Medication> = {
     id: 'efpe',
     name: '에페',
     ingredient: '에페글레나타이드',
-    halfLifeHours: null,
-    halfLifeSource: null,
+    pk: {
+      halfLifeHours: null,
+      bioavailability: null,
+      // 항정상태 기준 0~95시간(중앙값 48시간) — 단회 투여 값이 아니므로 모델에는 쓰지 않음
+      tmaxHours: { value: [0, 95], text: '항정상태 0~95시간(중앙값 48시간)', source: SRC.efpeDoses },
+      absorptionRateKa: null,
+    },
     doseOptionsMg: [2, 4, 6, 8, 10],
     approval: { doses: SRC.efpeDoses, sites: { areas: ['abdomen'], source: SRC.efpeSites } },
   },
