@@ -32,6 +32,7 @@ import { SettingsHubPage } from '@/features/my/SettingsHubPage'
 import { SupportPage } from '@/features/my/SupportPage'
 import { TermsPage } from '@/features/my/TermsPage'
 import { AnalysisHubPage } from '@/features/analysis/AnalysisHubPage'
+import { BodyChangePage, ConsultPage, NutritionPage, TimelinePage } from '@/features/analysis/AnalysisDetailPages'
 import { AnalysisSection } from '@/features/analysis/AnalysisSection'
 import { MedicationAnalysisPage } from '@/features/analysis/MedicationAnalysisPage'
 import { ComingSoonPage } from '@/features/common/ComingSoonPage'
@@ -40,10 +41,12 @@ import { WeightCardGallery } from '@/features/dev/WeightCardGallery'
 import { FirstDosePage } from '@/features/record/first-dose/FirstDosePage'
 import { NotFoundPage } from '@/features/common/NotFoundPage'
 import { HomePage } from '@/features/home/HomePage'
+import { IntakePage } from '@/features/intake/IntakePage'
 import { MedicationDetailPage } from '@/features/record/medication/MedicationDetailPage'
 import { MedicationListPage } from '@/features/record/medication/MedicationListPage'
 import { MedicationNewPage } from '@/features/record/medication/MedicationNewPage'
 import { RecordHubPage } from '@/features/record/RecordHubPage'
+import { EyebodyComparePage, EyebodyPage } from '@/features/record/eyebody/EyebodyPages'
 import { BodyLogEditPage, BodyLogListPage } from '@/features/record/body/BodyLogPages'
 import { SymptomEditPage, SymptomPage } from '@/features/record/symptom/SymptomPages'
 
@@ -78,11 +81,11 @@ const routes: RouteObject[] = [
       { path: 'record/body/new', element: <BodyLogEditPage /> },
       { path: 'record/body/:id', element: <BodyLogEditPage /> },
       soon('record/inbody', '인바디 OCR'),
-      soon('record/eyebody', '눈바디'),
-      soon('record/eyebody/compare', '눈바디 비교'),
+      { path: 'record/eyebody', element: <EyebodyPage /> },
+      { path: 'record/eyebody/compare', element: <EyebodyComparePage /> },
       { path: 'record/symptom', element: <SymptomPage /> },
       { path: 'record/symptom/:id', element: <SymptomEditPage /> },
-      soon('record/daily', '물 · 단백질 · 영양제'),
+      { path: 'record/daily', element: <IntakePage /> },
 
       {
         path: 'analysis',
@@ -90,10 +93,10 @@ const routes: RouteObject[] = [
         children: [
           { index: true, element: <AnalysisHubPage /> },
           { path: 'medication', element: <MedicationAnalysisPage /> },
-          soon('timeline', '통합 타임라인'),
-          soon('body', '바디 변화'),
-          soon('nutrition', '식단 · 영양'),
-          soon('consult', '상담 준비'),
+          { path: 'timeline', element: <TimelinePage /> },
+          { path: 'body', element: <BodyChangePage /> },
+          { path: 'nutrition', element: <NutritionPage /> },
+          { path: 'consult', element: <ConsultPage /> },
         ],
       },
 
