@@ -1,0 +1,120 @@
+@import "tailwindcss";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+
+/* ------------------------------------------------------------
+   SlimLog 디자인 토큰
+   의미 규칙 (계획서 7.2): 초록=기록·완료 / 주황=참고·검토 / 빨강=차단
+   아이콘은 --icon(파랑) 하나로 관리 — 색을 바꾸려면 여기만 수정
+   ------------------------------------------------------------ */
+:root {
+  --background: #f6f7f5;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f2;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  --border: #e6e8eb;
+
+  --primary: #12a06e;
+  --primary-hover: #0e8a5e;
+  --primary-soft: #e6f6ef;
+  --primary-foreground: #ffffff;
+
+  --icon: #2f6fe4;
+  --icon-soft: #eaf1fd;
+  --icon-inactive: #94a3b8;
+
+  --review: #b86e00;
+  --review-soft: #fff6e5;
+  --review-border: #f5d9a8;
+
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-border: #f8c9c9;
+
+  --chart-1: #2f6fe4;
+  --chart-2: #12a06e;
+  --chart-grid: #eceef0;
+
+  --radius: 16px;
+}
+
+/* 다크 토큰은 정의만 — 화면 적용은 1차 승인 후 결정 */
+:root[data-theme="dark"] {
+  --background: #121514;
+  --surface: #1a1e1c;
+  --surface-muted: #222725;
+  --text: #e7ecea;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --border: #2a302d;
+  --primary: #34c68c;
+  --primary-hover: #2bb07c;
+  --primary-soft: #1d2b25;
+  --primary-foreground: #0b1410;
+  --icon: #6b9bf2;
+  --icon-soft: #2a2f2d;
+  --icon-inactive: #64748b;
+  --review: #f0a73a;
+  --review-soft: #2b2416;
+  --review-border: #4a3b1d;
+  --danger: #f26b6b;
+  --danger-soft: #2d1a1a;
+  --danger-border: #4d2626;
+  --chart-1: #6b9bf2;
+  --chart-2: #34c68c;
+  --chart-grid: #2a302d;
+}
+
+@theme inline {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-icon: var(--icon);
+  --color-icon-soft: var(--icon-soft);
+  --color-icon-inactive: var(--icon-inactive);
+  --color-review: var(--review);
+  --color-review-soft: var(--review-soft);
+  --color-review-border: var(--review-border);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+
+  --radius-card: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+  }
+  button {
+    cursor: pointer;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
