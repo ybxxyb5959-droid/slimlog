@@ -216,3 +216,9 @@ bash supabase/tests/run_local.sh
   (안 하면 `db push` 가 같은 파일을 다시 넣으려다 실패함)
 - **열쇠 교체:** 작업 중 액세스 토큰·DB 비밀번호가 채팅에 노출됨 → 토큰 삭제, DB 비밀번호 재설정 필요
 - **통합 테스트 30개:** 환경 네트워크에 `api.supabase.com`, `*.supabase.co`, `*.supabase.com` 허용 후 실행, 또는 사용자 PC 에서 실행
+
+### 2026-11-04 추가 적용
+- `supabase/sql_editor_적용용_005_006.sql` (약 3종 시드, 주사 부위 값 보완, `user_health.current_med_id`, 철회 함수·수정 정책 갱신) SQL Editor 로 적용
+- `rls_test_sql_editor.sql` → **46 PASS / 0 FAIL** (클라우드)
+- 마이그레이션 기록 맞추기(나중에 CLI 쓸 때): `npx supabase migration repair --status applied 20261103000001 20261103000002 20261103000003 20261103000004 20261104000005 20261104000006`
+
