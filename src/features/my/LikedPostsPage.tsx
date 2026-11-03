@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CATEGORY_LABEL } from '@/fixtures/community.mock'
 import { relativeTime } from '@/lib/relativeTime'
+import { useCommunityLoad } from '@/features/community/useCommunityLoad'
 import { useCommunityStore } from '@/stores/communityStore'
 
 export function LikedPostsPage() {
   const posts = useCommunityStore((s) => s.posts)
+  useCommunityLoad()
   const liked = posts.filter((p) => p.liked)
   return (
     <>

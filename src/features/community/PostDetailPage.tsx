@@ -8,7 +8,7 @@ import { ChipGroup } from '@/components/common/ChipGroup'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Notice } from '@/components/common/Notice'
 import { PageHeader } from '@/components/common/PageHeader'
-import { EmptyState } from '@/components/common/StateViews'
+import { EmptyState, LoadingState } from '@/components/common/StateViews'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,7 +17,13 @@ import { Input } from '@/components/ui/input'
 import { CATEGORY_LABEL } from '@/fixtures/community.mock'
 import { relativeTime } from '@/lib/relativeTime'
 import { cn } from '@/lib/utils'
+import { apiReady } from '@/lib/api'
+import { dbErrorMessage, isLive } from '@/lib/supabase'
+import { reportPost } from '@/services/live/community'
+import { useAuthStore } from '@/stores/authStore'
 import { useCommunityStore } from '@/stores/communityStore'
+
+import { useCommunityLoad } from './useCommunityLoad'
 
 const REPORT_REASONS = [
   { value: 'trade', label: '의약품 판매·양도' },
@@ -33,12 +39,14 @@ export function PostDetailPage() {
   const navigate = useNavigate()
   const post = useCommunityStore((s) => s.posts.find((p) => p.id === id))
   const { toggleLike, addComment, removeComment, removePost } = useCommunityStore()
+  const { loading } = useCommunityLoad()
   const [comment, setComment] = useState('')
   const [menu, setMenu] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [report, setReport] = useState(false)
   const [reason, setReason] = useState<string | null>(null)
 
+  if (!post && loading) return <LoadingState title="글을 불러오는 중" />
   if (!post)
     return (
       <EmptyState
@@ -168,8 +176,9 @@ export function PostDetailPage() {
         confirmLabel="삭제"
         tone="danger"
         onConfirm={() => {
+          if (isLive && !apiReady) return void toast('글 삭제는 서버 연결 후 열려요')
           removePost(post.id)
-          toast('목업: 화면에서만 삭제됐어요')
+          toast(isLive ? '글을 삭제했어요' : '목업: 화면에서만 삭제됐어요')
           navigate('/community')
         }}
       />
@@ -183,10 +192,17 @@ export function PostDetailPage() {
             className="mt-5 w-full"
             size="lg"
             disabled={!reason}
-            onClick={() => {
+            onClick={async () => {
+              if (isLive) {
+                try {
+                  await reportPost(post.id, useAuthStore.getState().account!.userId, reason!)
+                } catch (e) {
+                  return void toast.error('신고하지 못했어요', { description: (e as Error).message || dbErrorMessage(e) })
+                }
+              }
               setReport(false)
               setReason(null)
-              toast.success('목업: 신고가 접수됐어요', { description: '실제로 전송되지 않아요.' })
+              toast.success(isLive ? '신고가 접수됐어요' : '목업: 신고가 접수됐어요', { description: isLive ? '관리자가 확인해요.' : '실제로 전송되지 않아요.' })
             }}
           >
             신고 접수

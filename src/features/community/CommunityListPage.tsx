@@ -5,13 +5,16 @@ import { Link, useSearchParams } from 'react-router'
 import { AppIcon } from '@/components/common/AppIcon'
 import { MockBadge } from '@/components/common/MockBadge'
 import { PageHeader } from '@/components/common/PageHeader'
-import { EmptyState } from '@/components/common/StateViews'
+import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CATEGORY_LABEL, type PostCategory } from '@/fixtures/community.mock'
 import { relativeTime } from '@/lib/relativeTime'
 import { cn } from '@/lib/utils'
+import { isLive } from '@/lib/supabase'
 import { useCommunityStore } from '@/stores/communityStore'
+
+import { useCommunityLoad } from './useCommunityLoad'
 
 type Filter = 'all' | 'mine' | PostCategory
 const FILTERS: { value: Filter; label: string }[] = [
@@ -22,6 +25,7 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 export function CommunityListPage() {
   const posts = useCommunityStore((s) => s.posts)
+  const { loading, error, retry } = useCommunityLoad()
   const [params] = useSearchParams()
   const [filter, setFilter] = useState<Filter>(params.get('filter') === 'mine' ? 'mine' : 'all')
   // REVIEW·BLOCKED 글은 목록에 노출하지 않고, 작성자 본인의 '내 글'에서만 보인다
@@ -66,10 +70,16 @@ export function CommunityListPage() {
         ))}
       </div>
 
-      <div className="mb-2 flex justify-end">
-        <MockBadge />
-      </div>
-      {visible.length === 0 ? (
+      {!isLive && (
+        <div className="mb-2 flex justify-end">
+          <MockBadge />
+        </div>
+      )}
+      {loading ? (
+        <LoadingState title="글을 불러오는 중" />
+      ) : error ? (
+        <ErrorState description={error} action={<Button onClick={retry}>다시 불러오기</Button>} />
+      ) : visible.length === 0 ? (
         <EmptyState title="아직 글이 없어요" description="첫 글을 남겨 보세요." />
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface md:max-w-3xl">

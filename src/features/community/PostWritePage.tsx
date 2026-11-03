@@ -11,7 +11,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { CATEGORY_LABEL, type PostCategory } from '@/fixtures/community.mock'
 import { checkPost, type SafetyResult } from '@/lib/communitySafety'
-import { useCommunityStore } from '@/stores/communityStore'
+import { ApiError, apiReady } from '@/lib/api'
+import { isLive } from '@/lib/supabase'
+import { createPost, editPost } from '@/services/live/community'
+import { loadCommunity, useCommunityStore } from '@/stores/communityStore'
 
 import { HighlightedText, SafetyResultBox } from './SafetyResultBox'
 
@@ -37,10 +40,28 @@ export function PostWritePage() {
   const result = checked && JSON.stringify(checked) === JSON.stringify(live) ? checked : null
   const canSubmit = !!category && title.trim().length > 1 && body.trim().length > 4
 
-  const submit = () => {
+  const [submitting, setSubmitting] = useState(false)
+  const submit = async () => {
     const r = checkPost(title, body)
     setChecked(r)
     if (r.level === 'BLOCKED') return
+    if (isLive) {
+      // 실서비스: 서버가 같은 규칙으로 다시 검사하고 저장 (화면 검사는 미리보기일 뿐)
+      if (!apiReady) return void toast('글쓰기는 서버 연결 후 열려요')
+      setSubmitting(true)
+      try {
+        const input = { category: category!, title: title.trim(), body: body.trim() }
+        const res = id ? await editPost(id, input) : await createPost(input)
+        await loadCommunity()
+        toast.success(res.risk_level === 'LOW' ? '게시됐어요' : '관리자 검토 후 공개돼요')
+        navigate(`/community/${res.post_id}`)
+      } catch (e) {
+        toast.error(e instanceof ApiError && e.code === 'POST_BLOCKED' ? '올릴 수 없는 글이에요' : '저장하지 못했어요', { description: (e as Error).message })
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
     const newId = savePost({ id, category: category!, title: title.trim(), body: body.trim(), status: r.level })
     toast.success(r.level === 'LOW' ? '목업: 게시됐어요' : '목업: 관리자 검토 후 공개돼요', { description: '화면에만 반영되고 서버에 저장되지 않아요.' })
     navigate(`/community/${newId}`)
@@ -83,7 +104,7 @@ export function PostWritePage() {
             <Button variant="outline" size="lg" onClick={() => setChecked(checkPost(title, body))} disabled={!title && !body}>
               검사해 보기
             </Button>
-            <Button size="lg" onClick={submit} disabled={!canSubmit || result?.level === 'BLOCKED'}>
+            <Button size="lg" onClick={submit} disabled={!canSubmit || submitting || result?.level === 'BLOCKED'}>
               {existing ? '다시 검사 후 저장' : '게시하기'}
             </Button>
           </div>

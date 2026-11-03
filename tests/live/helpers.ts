@@ -68,3 +68,10 @@ export async function adminDelete(table: string, query: string) {
   const key = process.env.LIVE_SUPABASE_SERVICE_KEY!
   await fetch(`${url}/rest/v1/${table}?${query}`, { method: 'DELETE', headers: { apikey: key, Authorization: `Bearer ${key}` } })
 }
+
+export async function adminPatch(table: string, query: string, patch: Record<string, unknown>) {
+  const url = process.env.LIVE_SUPABASE_URL!
+  const key = process.env.LIVE_SUPABASE_SERVICE_KEY!
+  const res = await fetch(`${url}/rest/v1/${table}?${query}`, { method: 'PATCH', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })
+  if (!res.ok) throw new Error(`${table} patch ${res.status}`)
+}
