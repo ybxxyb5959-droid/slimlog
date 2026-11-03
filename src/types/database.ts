@@ -473,17 +473,23 @@ isOneToOne: false
                   ]
                 },"user_health": {
                   Row: {
-                    "birth_year": number | null,"goal_weight_kg": number | null,"height_cm": number | null,"legal_name": string | null,"protein_goal_g": number | null,"start_weight_kg": number | null,"updated_at": string,"user_id": string
+                    "birth_year": number | null,"current_med_id": string | null,"goal_weight_kg": number | null,"height_cm": number | null,"legal_name": string | null,"protein_goal_g": number | null,"start_weight_kg": number | null,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "birth_year"?: number | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id": string
+                    "birth_year"?: number | null,"current_med_id"?: string | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "birth_year"?: number | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id"?: string
+                    "birth_year"?: number | null,"current_med_id"?: string | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "user_health_current_med_id_fkey"
+      columns: ["current_med_id"]
+isOneToOne: false
+      referencedRelation: "medications"
+      referencedColumns: ["med_id"]
+    },{
       foreignKeyName: "user_health_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: true

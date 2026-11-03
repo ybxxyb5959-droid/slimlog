@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { parseMeasure, RANGES } from '@/lib/measure'
+import { isLive } from '@/lib/supabase'
 import { useMyProfile } from '@/services/profile'
-import { isNewUser } from '@/services/session'
+import { isNewUser, saveOnboardingBody } from '@/services/session'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
 /** 신체 정보 · 목표 관리 */
@@ -24,6 +25,7 @@ export function BodyGoalPage() {
   const g = parseMeasure(goal, RANGES.weight.min, RANGES.weight.max, 'kg')
   const diff = s.value !== null && g.value !== null ? Math.round((g.value - s.value) * 10) / 10 : null
   const hasError = !!(h.error || s.error || g.error)
+  const [saving, setSaving] = useState(false)
 
   const fields = [
     { id: 'bodyHeight', label: '키', unit: 'cm', value: height, set: setHeight, err: h.error },
@@ -64,14 +66,21 @@ export function BodyGoalPage() {
         <Button
           size="lg"
           className="w-full"
-          disabled={hasError}
-          onClick={() => {
+          disabled={hasError || saving || (isLive && (s.value === null || g.value === null))}
+          onClick={async () => {
+            if (isLive) {
+              setSaving(true)
+              // 시작 체중을 바꾸면 최초 체중 기록(is_baseline)을 함께 고친다 — 새 기록을 만들지 않음
+              const ok = await saveOnboardingBody({ heightCm: h.value, weightKg: s.value!, goalKg: g.value! })
+              setSaving(false)
+              if (!ok) return
+            }
             if (isNewUser()) setOnboarding({ heightCm: height, weightKg: start, goalKg: goal, bodySkipped: false })
-            toast.success('목업: 화면에만 저장됐어요')
+            toast.success(isLive ? '신체 정보를 저장했어요' : '목업: 화면에만 저장됐어요')
             navigate('/my')
           }}
         >
-          저장
+          {saving ? '저장 중…' : '저장'}
         </Button>
       </div>
     </>

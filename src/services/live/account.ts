@@ -16,6 +16,7 @@ export interface LiveAccount {
   heightCm: number | null
   startWeightKg: number | null
   goalWeightKg: number | null
+  currentMedId: MedicationId | null
   consents: ConsentId[]
 }
 
@@ -40,7 +41,7 @@ export async function loadAccount(user: User): Promise<LiveAccount> {
   const db = sb()
   const [u, h, c] = await Promise.all([
     db.from('users').select('nickname, role, onboarding_step, onboarding_completed_at').eq('user_id', user.id).single(),
-    db.from('user_health').select('legal_name, height_cm, start_weight_kg, goal_weight_kg').eq('user_id', user.id).single(),
+    db.from('user_health').select('legal_name, height_cm, start_weight_kg, goal_weight_kg, current_med_id').eq('user_id', user.id).single(),
     db.from('consents').select('type').eq('user_id', user.id).is('withdrawn_at', null),
   ])
   if (u.error) throw u.error
@@ -68,6 +69,7 @@ export async function loadAccount(user: User): Promise<LiveAccount> {
     heightCm: h.data.height_cm,
     startWeightKg: h.data.start_weight_kg,
     goalWeightKg: h.data.goal_weight_kg,
+    currentMedId: (h.data.current_med_id as MedicationId | null) ?? null,
     consents: [...new Set(c.data.map((r) => r.type as ConsentId))],
   }
 }
@@ -142,4 +144,41 @@ export async function updateDoseRow(d: Dose): Promise<Dose> {
 export async function deleteDoseRow(id: string) {
   const r = await sb().from('doses').delete().eq('dose_id', id)
   if (r.error) throw r.error
+}
+
+// ── 프로필 (마이페이지) ─────────────────────────────────────────
+
+export class NicknameTakenError extends Error {
+  constructor() {
+    super('이미 사용 중인 닉네임이에요.')
+  }
+}
+
+export async function updateNickname(userId: string, nickname: string) {
+  const r = await sb().from('users').update({ nickname }).eq('user_id', userId)
+  if (r.error?.code === '23505') throw new NicknameTakenError()
+  if (r.error) throw r.error
+}
+
+export async function updateHealth(
+  userId: string,
+  patch: Partial<{ height_cm: number | null; start_weight_kg: number | null; goal_weight_kg: number | null; current_med_id: string | null }>,
+) {
+  const r = await sb().from('user_health').update(patch).eq('user_id', userId)
+  if (r.error) throw r.error
+}
+
+/** 선택 동의 켜기/끄기, 민감정보 다시 동의 — 끄는 건 withdrawn_at 기록(이력 보존) */
+export async function setConsent(userId: string, type: ConsentId, on: boolean) {
+  const db = sb()
+  if (on) return saveConsents(userId, [type])
+  const r = await db.from('consents').update({ withdrawn_at: new Date().toISOString() }).eq('user_id', userId).eq('type', type).is('withdrawn_at', null)
+  if (r.error) throw r.error
+}
+
+/** 민감정보 동의 철회 — 투약·증상·체성분·복용약 삭제, 키·체중 등 비움. 지운 건수를 돌려준다 */
+export async function withdrawSensitive(): Promise<Record<string, number>> {
+  const r = await sb().rpc('withdraw_sensitive_consent')
+  if (r.error) throw r.error
+  return (r.data ?? {}) as Record<string, number>
 }

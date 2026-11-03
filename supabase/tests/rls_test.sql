@@ -25,6 +25,7 @@ select pg_temp.ok('01 가입 시 users/user_health 자동 생성', (select count
 set local role authenticated; set local request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
 select pg_temp.fails('02 동의 없이 투약 기록', $$insert into doses (med_id,dose_mg,injected_at) values ('test-med',2.5,now())$$);
 select pg_temp.fails('03 동의 없이 키·체중 입력', $$update user_health set height_cm=170 where user_id=auth.uid()$$);
+select pg_temp.fails('03-1 동의 없이 사용 중인 약 입력', $$update user_health set current_med_id='test-med' where user_id=auth.uid()$$);
 select pg_temp.fails('04 동의 없이 컨디션 기록', $$insert into daily_checks (date,condition) values (current_date,3)$$);
 select pg_temp.fails('05 동의 없이 복용약 등록', $$insert into intake_items (kind,name) values ('medicine','약')$$);
 insert into daily_checks (date, water_cups) values (current_date, 3);
@@ -87,7 +88,7 @@ select pg_temp.fails('34 B 가 A 식사에 음식 끼워넣기', $$insert into m
 update doses set dose_mg=10; delete from meals; update user_health set legal_name='해킹';
 select pg_temp.fails('35 B 가 필터 로그 쓰기', $$insert into filter_logs (target_type,level) values ('post','LOW')$$);
 reset role;
-select pg_temp.ok('36 B 의 수정·삭제 시도 → A 데이터 그대로', (select dose_mg from doses)=2.5 and (select count(*) from meals where user_id='aaaaaaaa-0000-0000-0000-000000000001')=2
+select pg_temp.ok('36 B 의 수정·삭제 시도 → A 데이터 그대로', (select dose_mg from doses where user_id='aaaaaaaa-0000-0000-0000-000000000001')=2.5 and (select count(*) from meals where user_id='aaaaaaaa-0000-0000-0000-000000000001')=2
   and (select legal_name from user_health where user_id='aaaaaaaa-0000-0000-0000-000000000001')='홍길동');
 
 -- ===== 로그인 전 (anon) =====

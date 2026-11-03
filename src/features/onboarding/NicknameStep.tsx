@@ -19,13 +19,18 @@ export function NicknameStep() {
   const navigate = useNavigate()
   const { nickname, set } = useOnboardingStore()
   // 처음 들어오면 자동 닉네임 생성 (이미 있으면 그대로)
-  const [value, setValue] = useState(() => nickname || suggestNickname())
+  const [initial] = useState(() => nickname || suggestNickname())
+  const [value, setValue] = useState(initial)
+  /** 자동 추천한 닉네임 — 이미 누가 쓰고 있으면 사용자가 손대기 전에 조용히 다른 걸로 바꾼다 */
+  const auto = useRef<{ name: string | null; tried: string[] }>({ name: nickname ? null : initial, tried: [] })
   const [state, setState] = useState<NicknameState>({ kind: 'idle' })
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   /** 마지막으로 '사용 가능' 판정을 받은 값 — 입력이 바뀌면 다시 확인해야 한다 */
   const [checkedName, setCheckedName] = useState<string | null>(null)
   const abort = useRef<AbortController | null>(null)
+  /** check 안에서 자기 자신을 다시 부르기 위한 참조 (자동 추천이 겹쳤을 때) */
+  const recheck = useRef<(name: string) => void>(() => {})
   const timer = useRef<number | undefined>(undefined)
 
   const check = useCallback(async (name: string) => {
@@ -38,14 +43,27 @@ export function NicknameStep() {
     try {
       const r = await checkNicknameAvailability(name.trim(), ctrl.signal)
       if (ctrl.signal.aborted) return
+      if (r === 'duplicate' && auto.current.name === name) {
+        // 자동 추천이 겹침 → 5번까지 다른 조합, 그다음엔 숫자를 붙인다
+        const tried = [...auto.current.tried, name]
+        const next = tried.length < 5 ? suggestNickname(tried) : `${name.slice(0, 7)}${Math.floor(Math.random() * 900 + 100)}`
+        auto.current = { name: next, tried }
+        setValue(next)
+        set({ nickname: next, nicknameSaved: false })
+        return void recheck.current(next)
+      }
       setState({ kind: r })
       setCheckedName(r === 'available' ? name.trim() : null)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setState({ kind: 'error' })
     }
-  }, [])
+  }, [set])
+  useEffect(() => {
+    recheck.current = (n) => void check(n)
+  }, [check])
 
-  const change = (name: string, immediate = false) => {
+  const change = (name: string, immediate = false, isAuto = false) => {
+    auto.current = { name: isAuto ? name : null, tried: isAuto ? auto.current.tried : [] }
     // 진행 중인 확인은 버린다 (늦게 온 이전 결과가 새 상태를 덮어쓰지 않게)
     abort.current?.abort()
     setCheckedName(null)
@@ -133,7 +151,7 @@ export function NicknameStep() {
         <Button
           variant="outline"
           className="mt-3 h-12 w-full rounded-2xl"
-          onClick={() => change(suggestNickname([value]), true)}
+          onClick={() => change(suggestNickname([value]), true, true)}
           disabled={saving}
         >
           <RefreshCw size={18} strokeWidth={1.75} aria-hidden /> 다른 닉네임 추천
