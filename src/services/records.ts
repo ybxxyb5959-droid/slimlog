@@ -10,7 +10,10 @@ import {
 
 import { parseMeasure, RANGES } from '@/lib/measure'
 import { givenNameOf } from '@/lib/personName'
+import { isLive } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/authStore'
 import { useOnboardingStore } from '@/stores/onboardingStore'
+import { useRecordsStore } from '@/stores/recordsStore'
 
 import { flattenMeals, useMealStore } from '@/stores/mealStore'
 
@@ -38,6 +41,21 @@ export interface HomeSummary {
 }
 
 export function getHomeSummary(): Promise<HomeSummary> {
+  if (isLive) {
+    // 실서비스: 로그인 때 불러온 실제 기록만 (예시 데이터 없음)
+    const a = useAuthStore.getState().account
+    const r = useRecordsStore.getState()
+    return Promise.resolve({
+      profile: { givenName: givenNameOf(a?.legalName ?? ''), nickname: a?.nickname ?? '', startWeightKg: a?.startWeightKg ?? null, goalWeightKg: a?.goalWeightKg ?? null },
+      bodyLogs: r.bodyLogs,
+      todayMeals: todayMeals(),
+      todayCheck: { ...MOCK_TODAY_CHECK, waterCups: 0, proteinG: 0, supplementTaken: false },
+      symptoms: r.symptoms,
+      timeline: [],
+      weeklyStatus: [],
+      isNewUser: true,
+    })
+  }
   if (isNewUser()) {
     const o = useOnboardingStore.getState()
     const w = o.bodySkipped ? null : parseMeasure(o.weightKg, RANGES.weight.min, RANGES.weight.max, 'kg').value
@@ -67,6 +85,7 @@ export function getHomeSummary(): Promise<HomeSummary> {
 }
 
 export async function getBodyLogs() {
+  if (isLive) return useRecordsStore.getState().bodyLogs
   // 새 사용자는 본인 기록만 (온보딩 최초 체중)
   if (isNewUser()) return (await getHomeSummary()).bodyLogs
   return mockResponse(MOCK_BODY_LOGS)

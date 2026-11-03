@@ -20,7 +20,7 @@ export function ChipGroup<T extends string>({
   onChange: (value: T) => void
   label: string
   /** 지정하면 그리드(같은 폭), 없으면 줄바꿈 칩 */
-  columns?: 2 | 3 | 4
+  columns?: 2 | 3 | 4 | 5
   className?: string
 }) {
   return (
@@ -31,6 +31,7 @@ export function ChipGroup<T extends string>({
         columns ? 'grid gap-2' : 'flex flex-wrap gap-2',
         columns === 2 && 'grid-cols-2',
         columns === 3 && 'grid-cols-3',
+        columns === 5 && 'grid-cols-5',
         columns === 4 && 'grid-cols-2 sm:grid-cols-4',
         className,
       )}

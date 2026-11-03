@@ -3,10 +3,12 @@ import { create } from 'zustand'
 
 import { isLive, supabase } from '@/lib/supabase'
 import { fetchDoses, loadAccount, type LiveAccount } from '@/services/live/account'
+import { fetchBodyLogs, fetchDailyChecks, fetchIntake, fetchSymptoms } from '@/services/live/records'
 import { useIntakeStore } from '@/stores/intakeStore'
 import { useMealStore } from '@/stores/mealStore'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
 import { useOnboardingStore, type OnboardingStep } from '@/stores/onboardingStore'
+import { useRecordsStore } from '@/stores/recordsStore'
 
 /**
  * 로그인 상태 (live 모드 전용)
@@ -41,16 +43,28 @@ async function hydrate(account: LiveAccount) {
     step: STEP_BY_NUMBER[Math.min(account.onboardingStep, 2)] ?? 'nickname',
     completedAt: account.onboardingCompletedAt,
   })
-  // 아직 서버에 연결하지 않은 기록(식단·섭취)은 예시 데이터 대신 빈 상태로 (Phase 2 에서 연결)
-  useIntakeStore.getState().resetEmpty()
+  // 아직 서버에 연결하지 않은 기록(식단)은 예시 데이터 대신 빈 상태로
   useMealStore.getState().resetEmpty()
-  const doses = account.consents.includes('sensitive') ? await fetchDoses() : []
+  // 섭취 관리 (물·영양제는 일반, 복용약은 RLS 로 동의자만)
+  const intake = await fetchIntake()
+  useIntakeStore.setState({
+    water: intake.logs.filter((l) => l.kind === 'water').map((l) => ({ id: l.log_id, ml: l.amount_ml ?? 0, at: l.taken_at })),
+    items: intake.items.map((i) => ({ id: i.item_id, kind: i.kind as 'supplement' | 'medicine', name: i.name })),
+    logs: intake.logs.filter((l) => l.kind !== 'water' && l.item_id).map((l) => ({ id: l.log_id, itemId: l.item_id!, at: l.taken_at })),
+  })
+  // 민감정보(투약·체중·증상·컨디션)는 동의가 있을 때만 불러온다 (없으면 RLS 로도 0건)
+  const sensitive = account.consents.includes('sensitive')
+  const [doses, bodyLogs, symptoms, daily] = sensitive
+    ? await Promise.all([fetchDoses(), fetchBodyLogs(), fetchSymptoms(), fetchDailyChecks()])
+    : [[], [], [], []]
   useMockRecordStore.setState({ doses })
+  useRecordsStore.setState({ bodyLogs, symptoms, daily })
 }
 
 function clearLocal() {
   useOnboardingStore.getState().reset()
   useMockRecordStore.setState({ doses: [] })
+  useRecordsStore.setState({ bodyLogs: [], symptoms: [], daily: [] })
   useIntakeStore.getState().resetEmpty()
   useMealStore.getState().resetEmpty()
 }

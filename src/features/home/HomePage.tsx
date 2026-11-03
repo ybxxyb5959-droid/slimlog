@@ -21,10 +21,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
 import { SYMPTOM_LABEL } from '@/fixtures/records.mock'
-import { addDays, daysBetween, formatShortDateWithDay, formatTime, greetingFor } from '@/lib/date'
+import { addDays, daysBetween, formatShortDateWithDay, formatTime, greetingFor, toDateKey } from '@/lib/date'
 import { useAsync } from '@/lib/useAsync'
 import { useDoses } from '@/services/doses'
 import { getHomeSummary } from '@/services/records'
+import { useRecordsStore } from '@/stores/recordsStore'
 import { formatMl, summarizeIntake, useIntakeStore } from '@/stores/intakeStore'
 import { IntakeSheet } from '@/features/intake/IntakeSheet'
 
@@ -79,6 +80,7 @@ export function HomePage() {
   const waterGoalMl = useIntakeStore((s) => s.waterGoalMl)
   const intake = summarizeIntake({ water, logs: intakeLogs })
   const doses = useDoses()
+  const daily = useRecordsStore((s) => s.daily)
   const now = new Date()
 
   if (loading) return <LoadingState className="min-h-[60vh]" />
@@ -94,7 +96,11 @@ export function HomePage() {
   const nextDue = lastDose ? addDays(new Date(lastDose.administeredAt), 7) : null
   const nextIn = nextDue ? daysBetween(now, nextDue) : null
   const dosedToday = !!lastDose && daysBetween(new Date(lastDose.administeredAt), now) === 0
-  const conditionDone = false // 예시: 오늘 컨디션 미입력 상태
+  const todayKey = toDateKey(now)
+  // 오늘 컨디션을 입력했거나 오늘 증상을 기록했으면 완료 (예시 사용자는 미입력 상태로 보여줌)
+  const todayDaily = daily.find((d) => d.date === todayKey)
+  const todaySymptoms = data.isNewUser ? symptoms.filter((x) => toDateKey(new Date(x.recordedAt)) === todayKey).length : 0
+  const conditionDone = data.isNewUser && (!!todayDaily || todaySymptoms > 0)
 
   const tiles: TodayTile[] = [
     {
@@ -123,7 +129,13 @@ export function HomePage() {
           ? [intake.ml ? `물 ${formatMl(intake.ml)}` : null, intake.taken ? `복용 ${intake.taken}건` : null].filter(Boolean).join(' · ')
           : '물 · 영양제 · 복용약',
     },
-    { to: '/record/symptom', icon: HeartPulse, title: '컨디션', done: conditionDone, sub: '오늘 상태 입력' },
+    {
+      to: '/record/symptom',
+      icon: HeartPulse,
+      title: '컨디션',
+      done: conditionDone,
+      sub: conditionDone ? [todayDaily?.condition ? `컨디션 ${todayDaily.condition}/5` : null, todaySymptoms ? `증상 ${todaySymptoms}건` : null].filter(Boolean).join(' · ') || '오늘 기록함' : '오늘 상태 입력',
+    },
   ]
 
   const lastMeal = [...todayMeals].sort((a, b) => b.eatenAt.localeCompare(a.eatenAt))[0]
@@ -199,7 +211,8 @@ export function HomePage() {
                     </p>
                     <p className="tabular truncate text-[13px] text-text-muted">
                       {formatShortDateWithDay(new Date(lastDose.administeredAt))} {formatTime(new Date(lastDose.administeredAt))} ·{' '}
-                      {siteLabel(lastDose.site)} · 예시 데이터
+                      {siteLabel(lastDose.site)}
+                      {!data.isNewUser && ' · 예시 데이터'}
                     </p>
                   </div>
                 </div>

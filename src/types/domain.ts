@@ -119,9 +119,13 @@ export type SymptomType = 'nausea' | 'fatigue' | 'constipation' | 'headache' | '
 /** SYMPTOMS */
 export interface Symptom {
   id: string
+  /** 증상이 시작된 시각 (SYMPTOMS.started_at) */
   recordedAt: string
   type: SymptomType
-  severity: 1 | 2 | 3
+  /** 1(약함) ~ 5(심함) */
+  severity: number
+  durationH?: number | null
+  memo?: string | null
 }
 
 /** DAILY_CHECKS */

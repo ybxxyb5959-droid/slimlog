@@ -51,3 +51,15 @@ export function greetingFor(date: Date) {
   if (h < 17) return '오늘도 기록해볼까요'
   return '오늘 하루 수고했어요'
 }
+
+/** 로컬 날짜 키 'YYYY-MM-DD' (daily_checks.date 와 같은 형식) */
+export function toDateKey(date: Date) {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
+}
+
+/** datetime-local 값 → ISO. 초가 없어서 '지금(같은 분)'을 고르면 정확한 현재 시각을 쓴다 — 방금 저장한 기록이 가장 최신으로 정렬되게 */
+export function localInputToIso(v: string) {
+  if (!v) return ''
+  return v === toDateTimeLocalValue(new Date()) ? new Date().toISOString() : new Date(v).toISOString()
+}

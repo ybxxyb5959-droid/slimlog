@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/StateViews'
 import { Button } from '@/components/ui/button'
 import { MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
 import { formatShortDateWithDay, formatTime } from '@/lib/date'
+import { isLive } from '@/lib/supabase'
 import { useDoses } from '@/services/doses'
 
 export function MedicationListPage() {
@@ -27,7 +28,7 @@ export function MedicationListPage() {
       />
       <div className="mb-3 flex items-center justify-between">
         <p className="text-[13px] text-text-muted">총 {doses.length}회</p>
-        <MockBadge />
+        {!isLive && <MockBadge />}
       </div>
       {doses.length === 0 ? (
         <EmptyState

@@ -1,14 +1,16 @@
 import { toast } from 'sonner'
 
 import { combineDateTime, type FirstDoseDraft } from '@/features/record/first-dose/firstDoseDraft'
-import { MOCK_DOSES } from '@/fixtures/records.mock'
+import { MOCK_BODY_LOGS, MOCK_DOSES, MOCK_SYMPTOMS } from '@/fixtures/records.mock'
 import { dbErrorMessage, isLive, sb } from '@/lib/supabase'
 import { insertDose } from '@/services/live/account'
+import { fetchBodyLogs } from '@/services/live/records'
 import { useAuthStore } from '@/stores/authStore'
 import { useIntakeStore } from '@/stores/intakeStore'
 import { useMealStore } from '@/stores/mealStore'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
 import { useOnboardingStore } from '@/stores/onboardingStore'
+import { useRecordsStore } from '@/stores/recordsStore'
 
 /**
  * 사용자 세션 · 온보딩 저장
@@ -20,6 +22,7 @@ export const isNewUser = () => isLive || !!useOnboardingStore.getState().complet
 export function beginNewUser() {
   if (isLive) return // 실서비스: 로그인 시 서버 기록으로 채움
   useMockRecordStore.setState({ doses: [] })
+  useRecordsStore.setState({ bodyLogs: [], symptoms: [], daily: [] })
   useIntakeStore.getState().resetEmpty()
   useMealStore.getState().resetEmpty()
 }
@@ -47,6 +50,7 @@ export async function saveOnboardingBody(v: { heightCm: number | null; weightKg:
       ? await db.from('body_logs').update({ weight_kg: v.weightKg }).eq('log_id', base.data.log_id)
       : await db.from('body_logs').insert({ measured_at: new Date().toISOString(), weight_kg: v.weightKg, is_baseline: true, source: 'MANUAL' })
     if (b.error) throw b.error
+    useRecordsStore.setState({ bodyLogs: await fetchBodyLogs() })
     await setOnboardingStep(2)
     useAuthStore.setState({ account: { ...a, heightCm: v.heightCm, startWeightKg: v.weightKg, goalWeightKg: v.goalKg, onboardingStep: Math.max(a.onboardingStep, 2) } })
     return true
@@ -111,6 +115,7 @@ export async function completeOnboarding(choice: 'now' | 'later'): Promise<boole
 export function resetToDemoUser() {
   useOnboardingStore.getState().reset()
   useMockRecordStore.setState({ doses: MOCK_DOSES })
+  useRecordsStore.setState({ bodyLogs: MOCK_BODY_LOGS, symptoms: MOCK_SYMPTOMS, daily: [] })
   useIntakeStore.getState().resetDemo()
   useMealStore.getState().resetDemo()
 }

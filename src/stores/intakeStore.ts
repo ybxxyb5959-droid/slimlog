@@ -1,12 +1,16 @@
+import { toast } from 'sonner'
 import { create } from 'zustand'
 
 import { MOCK_TODAY_CHECK } from '@/fixtures/records.mock'
+import { dbErrorMessage, isLive } from '@/lib/supabase'
+import { deleteIntakeItem, deleteIntakeLog, insertIntakeItem, insertIntakeLog } from '@/services/live/records'
 
 /**
  * 섭취 관리(물·영양제·복용약) — 목업 상태.
  * 기존 DAILY_CHECKS.waterCups(컵 단위) 기록을 mL로 환산해 이어 쓴다 (1컵 = 250mL).
  * GLP-1 주사(마운자로·위고비·에페)는 여기서 다루지 않고 '투약' 기능에서 기록한다.
- * DB 반영은 승인 후 (INTAKE_ITEMS · INTAKE_LOGS 제안).
+ * 실서비스: intake_items · intake_logs 에 저장. 화면은 먼저 반영하고(빠른 반응), 저장에 실패하면 되돌리고 알린다.
+ * 복용약(medicine)은 민감정보 → 동의가 없으면 DB(RLS)가 거절한다.
  */
 export const ML_PER_CUP = 250
 
@@ -64,14 +68,62 @@ const demo = () => ({
 let seq = 0
 const uid = (p: string) => `${p}-${Date.now()}-${seq++}`
 
-export const useIntakeStore = create<IntakeState>((set) => ({
+/** 실서비스 저장: 실패하면 화면 변경을 되돌린다 */
+function persist<T>(run: () => Promise<T>, undo: () => void, onOk?: (v: T) => void) {
+  if (!isLive) return
+  run()
+    .then((v) => onOk?.(v))
+    .catch((e) => {
+      undo()
+      toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
+    })
+}
+
+export const useIntakeStore = create<IntakeState>((set, get) => ({
   ...demo(),
-  addWater: (ml) => set((s) => ({ water: [...s.water, { id: uid('w'), ml, at: new Date().toISOString() }] })),
-  removeWater: (id) => set((s) => ({ water: s.water.filter((w) => w.id !== id) })),
-  addItem: (kind, name) => set((s) => ({ items: [...s.items, { id: uid(kind), kind, name }] })),
-  removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id), logs: s.logs.filter((l) => l.itemId !== id) })),
-  logItem: (itemId, at) => set((s) => ({ logs: [...s.logs, { id: uid('l'), itemId, at }] })),
-  unlog: (logId) => set((s) => ({ logs: s.logs.filter((l) => l.id !== logId) })),
+  addWater: (ml) => {
+    const w = { id: uid('w'), ml, at: new Date().toISOString() }
+    set((s) => ({ water: [...s.water, w] }))
+    persist(
+      () => insertIntakeLog({ kind: 'water', amount_ml: ml, taken_at: w.at }),
+      () => set((s) => ({ water: s.water.filter((x) => x.id !== w.id) })),
+      (dbId) => set((s) => ({ water: s.water.map((x) => (x.id === w.id ? { ...x, id: dbId } : x)) })),
+    )
+  },
+  removeWater: (id) => {
+    const prev = get().water
+    set((s) => ({ water: s.water.filter((w) => w.id !== id) }))
+    persist(() => deleteIntakeLog(id), () => set({ water: prev }))
+  },
+  addItem: (kind, name) => {
+    const item = { id: uid(kind), kind, name }
+    set((s) => ({ items: [...s.items, item] }))
+    persist(
+      () => insertIntakeItem(kind, name),
+      () => set((s) => ({ items: s.items.filter((x) => x.id !== item.id) })),
+      (dbId) => set((s) => ({ items: s.items.map((x) => (x.id === item.id ? { ...x, id: dbId } : x)), logs: s.logs.map((l) => (l.itemId === item.id ? { ...l, itemId: dbId } : l)) })),
+    )
+  },
+  removeItem: (id) => {
+    const prev = { items: get().items, logs: get().logs }
+    set((s) => ({ items: s.items.filter((i) => i.id !== id), logs: s.logs.filter((l) => l.itemId !== id) }))
+    persist(() => deleteIntakeItem(id), () => set(prev))
+  },
+  logItem: (itemId, at) => {
+    const log = { id: uid('l'), itemId, at }
+    const kind = get().items.find((i) => i.id === itemId)?.kind ?? 'supplement'
+    set((s) => ({ logs: [...s.logs, log] }))
+    persist(
+      () => insertIntakeLog({ kind, item_id: itemId, taken_at: at }),
+      () => set((s) => ({ logs: s.logs.filter((x) => x.id !== log.id) })),
+      (dbId) => set((s) => ({ logs: s.logs.map((x) => (x.id === log.id ? { ...x, id: dbId } : x)) })),
+    )
+  },
+  unlog: (logId) => {
+    const prev = get().logs
+    set((s) => ({ logs: s.logs.filter((l) => l.id !== logId) }))
+    persist(() => deleteIntakeLog(logId), () => set({ logs: prev }))
+  },
   resetEmpty: () => set({ water: [], items: [], logs: [], waterGoalMl: MOCK_TODAY_CHECK.waterGoalCups * ML_PER_CUP }),
   resetDemo: () => set(demo()),
 }))

@@ -1,4 +1,4 @@
-import { toDateTimeLocalValue } from '@/lib/date'
+import { localInputToIso, toDateTimeLocalValue } from '@/lib/date'
 import type { DoseInput } from '@/services/doses'
 import type { Dose, InjectionSite, MedicationId } from '@/types/domain'
 
@@ -24,7 +24,7 @@ export function draftToInput(d: DoseDraft): Partial<DoseInput> {
   return {
     medicationId: d.medicationId ?? undefined,
     doseMg: d.doseMg ?? undefined,
-    administeredAt: d.administeredAt ? new Date(d.administeredAt).toISOString() : undefined,
+    administeredAt: d.administeredAt ? localInputToIso(d.administeredAt) : undefined,
     site: d.site ?? undefined,
     memo: d.memo || undefined,
   }
