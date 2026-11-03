@@ -147,7 +147,7 @@ export function HomePage() {
             <h1 className="text-[15px] font-semibold text-text">
               {profile.nickname}님, {greetingFor(now)}
             </h1>
-            <MockBadge className="mt-1.5" />
+            {!data.isNewUser && <MockBadge className="mt-1.5" />}
           </>
         
   )
@@ -172,7 +172,7 @@ export function HomePage() {
           <h2 id="today-title" className="text-[20px] font-bold tracking-tight">
             오늘의 기록
           </h2>
-          <MockBadge label="예시 상태" />
+          {!data.isNewUser && <MockBadge label="예시 상태" />}
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {tiles.map((t) => (

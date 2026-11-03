@@ -59,7 +59,9 @@ export function getHomeSummary(): Promise<HomeSummary> {
   })
 }
 
-export function getBodyLogs() {
+export async function getBodyLogs() {
+  // 새 사용자는 본인 기록만 (온보딩 최초 체중)
+  if (isNewUser()) return (await getHomeSummary()).bodyLogs
   return mockResponse(MOCK_BODY_LOGS)
 }
 

@@ -605,3 +605,31 @@ test.describe('섭취 관리', () => {
     await expect(sheet.getByText('등록한 복용약이 없어요', { exact: false })).toBeVisible()
   })
 })
+
+test.describe('분석 3탭', () => {
+  test('탭 전환 시 선택된 콘텐츠만 표시, 주소에 탭 유지', async ({ page }) => {
+    await page.goto('/analysis')
+    await expect(page.getByRole('tab', { name: '체내 용량' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByText('현재 참고 수준')).toBeVisible()
+    await page.getByRole('tab', { name: '체중 변화' }).click()
+    await expect(page).toHaveURL('/analysis?tab=weight')
+    await expect(page.getByText('현재 참고 수준')).toHaveCount(0)
+    await expect(page.getByRole('radiogroup', { name: '기간' })).toBeVisible()
+    await expect(page.getByRole('img', { name: '체중 변화 그래프' })).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('tab', { name: '체중 변화' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  test('인바디: 여러 회 → 최근 2회 비교·추이, 1회 → 단일 결과, 없음 → 등록 안내(OCR 준비 중)', async ({ page }) => {
+    await page.goto('/analysis?tab=inbody')
+    await expect(page.getByText('예시 데이터 · 실제 기록 아님')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '최근 2회 비교' })).toBeVisible()
+    await expect(page.getByRole('img', { name: '골격근량·체지방량 추이 그래프' })).toBeVisible()
+    await page.getByRole('radio', { name: '1회' }).click()
+    await expect(page.getByRole('heading', { name: '측정 결과' })).toBeVisible()
+    await expect(page.getByRole('img', { name: '골격근량·체지방량 추이 그래프' })).toHaveCount(0)
+    await page.getByRole('radio', { name: '기록 없음' }).click()
+    await expect(page.getByText('첫 인바디 기록을 남겨 보세요')).toBeVisible()
+    await expect(page.getByRole('link', { name: /결과지 사진으로 등록/ })).toContainText('준비 중')
+  })
+})

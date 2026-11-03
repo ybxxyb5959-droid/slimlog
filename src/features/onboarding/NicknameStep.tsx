@@ -21,6 +21,8 @@ export function NicknameStep() {
   const [state, setState] = useState<NicknameState>({ kind: 'idle' })
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
+  /** 마지막으로 '사용 가능' 판정을 받은 값 — 입력이 바뀌면 다시 확인해야 한다 */
+  const [checkedName, setCheckedName] = useState<string | null>(null)
   const abort = useRef<AbortController | null>(null)
   const timer = useRef<number | undefined>(undefined)
 
@@ -33,13 +35,18 @@ export function NicknameStep() {
     setState({ kind: 'checking' })
     try {
       const r = await checkNicknameAvailability(name.trim(), ctrl.signal)
+      if (ctrl.signal.aborted) return
       setState({ kind: r })
+      setCheckedName(r === 'available' ? name.trim() : null)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setState({ kind: 'error' })
     }
   }, [])
 
   const change = (name: string, immediate = false) => {
+    // 진행 중인 확인은 버린다 (늦게 온 이전 결과가 새 상태를 덮어쓰지 않게)
+    abort.current?.abort()
+    setCheckedName(null)
     setValue(name)
     set({ nickname: name, nicknameSaved: false })
     setSuggestions([])
@@ -61,6 +68,8 @@ export function NicknameStep() {
   }, [])
 
   const submit = async () => {
+    abort.current?.abort()
+    window.clearTimeout(timer.current)
     setSaving(true)
     const r = await reserveNickname(value.trim())
     setSaving(false)
@@ -69,11 +78,12 @@ export function NicknameStep() {
       navigate('/onboarding/body')
     } else {
       setState({ kind: 'taken-on-save' })
+      setCheckedName(null)
       setSuggestions(r.suggestions)
     }
   }
 
-  const ready = state.kind === 'available'
+  const ready = state.kind === 'available' && checkedName === value.trim()
 
   return (
     <OnboardingShell
