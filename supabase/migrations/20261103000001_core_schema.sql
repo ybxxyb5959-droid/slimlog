@@ -1,13 +1,6 @@
--- =====================================================================
--- SlimLog Supabase 스키마 초안 v0.1  (승인 전 · 아직 어디에도 적용 안 함)
--- 기준: 계획서 v2.0 ERD 18개 + DB_변경_제안.md + 현재 목업 구조
--- 대상: Supabase PostgreSQL (auth.users, auth.uid(), storage 스키마 사용)
--- 원칙
---   1) 모든 개인 기록은 RLS 로 '본인 행만'
---   2) 검사·추론이 필요한 쓰기(게시글, 분류 결과, 관리자 조치)는 FastAPI(service_role)만
---   3) 민감정보(투약·증상·체성분)는 별도 동의가 있어야 저장 가능
---   4) 눈바디 사진·인바디 결과지 이미지는 DB/Storage 에 두지 않음
--- =====================================================================
+-- SlimLog 001 · 핵심 스키마 (테이블 22개, 함수, 트리거)
+-- 승인: 2026-11-03 설계안 v0.1 (22개 테이블) · 아직 실제 Supabase 에 적용 안 함
+-- 개인정보: 눈바디 사진·인바디 결과지 이미지는 저장하지 않는다. 식단 사진은 Storage, DB 에는 경로·메타데이터만.
 
 -- ---------------------------------------------------------------------
 -- 0. 공통
@@ -25,7 +18,7 @@ begin new.updated_at = now(); return new; end $$;
 -- email 은 auth.users 에 있으므로 중복 저장하지 않는다.
 create table public.users (
   user_id      uuid primary key references auth.users(id) on delete cascade,
-  nickname     text unique
+  nickname     text
                check (nickname ~ '^[가-힣A-Za-z0-9]{2,10}$'),
   role         text not null default 'user' check (role in ('user', 'admin')),
   onboarding_step         smallint not null default 0,
@@ -37,11 +30,14 @@ create table public.users (
 -- USER_HEALTH (비공개) — RLS 는 행 단위라 공개/비공개 컬럼을 테이블로 나눈다.
 create table public.user_health (
   user_id         uuid primary key references public.users(user_id) on delete cascade,
+  -- 일반 개인정보
   legal_name      text,                          -- 가입 시 이름 (홈 인사말, 성 제외 표시)
   birth_year      smallint check (birth_year between 1900 and 2100),
+  -- 민감정보(sensitive 동의 필요, 철회 시 null): 키·체중
   height_cm       numeric(4,1) check (height_cm between 100 and 250),
   start_weight_kg numeric(5,2) check (start_weight_kg between 20 and 400),
   goal_weight_kg  numeric(5,2) check (goal_weight_kg between 20 and 400),
+  -- 일반: 목표 단백질
   protein_goal_g  smallint check (protein_goal_g between 0 and 400),
   updated_at      timestamptz not null default now()
 );
@@ -50,7 +46,8 @@ create table public.user_health (
 create table public.consents (
   consent_id   bigint generated always as identity primary key,
   user_id      uuid not null references public.users(user_id) on delete cascade,
-  type         text not null check (type in ('terms', 'privacy', 'sensitive_health', 'marketing')),
+  -- 프론트 src/fixtures/consents.ts 의 ConsentId 와 같은 값
+  type         text not null check (type in ('terms', 'privacy', 'sensitive', 'photo_improve', 'marketing')),
   version      text not null,
   agreed_at    timestamptz not null default now(),
   withdrawn_at timestamptz
@@ -74,11 +71,11 @@ language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.users where user_id = auth.uid() and role = 'admin')
 $$;
 
-create or replace function public.has_health_consent() returns boolean
+create or replace function public.has_consent(consent_type text) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from public.consents
-    where user_id = auth.uid() and type = 'sensitive_health' and withdrawn_at is null
+    where user_id = auth.uid() and type = consent_type and withdrawn_at is null
   )
 $$;
 
@@ -178,8 +175,9 @@ create table public.daily_checks (
   check_id        bigint generated always as identity primary key,
   user_id         uuid not null default auth.uid() references public.users(user_id) on delete cascade,
   date            date not null,
-  water_cups      smallint check (water_cups between 0 and 30),   -- 레거시: 새 물 기록은 intake_logs
-  supplement_done boolean,
+  water_cups      smallint check (water_cups between 0 and 30),   -- 일반 · 레거시 (새 물 기록은 intake_logs)
+  supplement_done boolean,                                        -- 일반
+  -- 민감정보(sensitive 동의 필요, 철회 시 null): 수면·식욕·컨디션
   sleep_h         numeric(3,1) check (sleep_h between 0 and 24),
   appetite        smallint check (appetite between 1 and 5),
   condition       smallint check (condition between 1 and 5),
@@ -187,6 +185,7 @@ create table public.daily_checks (
 );
 
 -- INTAKE_ITEMS / INTAKE_LOGS — 섭취 관리 (물·영양제·복용약), 신규
+-- kind = 'medicine'(복용약) 은 민감정보 → sensitive 동의 필요, 철회 시 삭제
 create table public.intake_items (
   item_id    uuid primary key default gen_random_uuid(),
   user_id    uuid not null default auth.uid() references public.users(user_id) on delete cascade,
@@ -255,11 +254,21 @@ create table public.meals (
   meal_type   text not null check (meal_type in ('breakfast', 'lunch', 'dinner', 'snack')),
   eaten_at    timestamptz not null check (eaten_at <= now() + interval '5 minutes'),
   source      text not null check (source in ('photo', 'manual')),
-  photo_path  text,                              -- storage: meal-photos/{user_id}/{uuid}.jpg (EXIF 제거본)
+  -- 사진 메타데이터 (사진 파일 자체는 Storage 'meal-photos' 버킷)
+  photo_path          text unique,              -- '{user_id}/{meal_id}.jpg'
+  photo_mime          text check (photo_mime in ('image/jpeg', 'image/webp')),
+  photo_bytes         integer check (photo_bytes between 1 and 5242880),
+  photo_width         smallint check (photo_width between 1 and 8192),
+  photo_height        smallint check (photo_height between 1 and 8192),
+  photo_exif_stripped boolean,                  -- 서버가 EXIF(위치 등) 제거했는지
   status      text not null default 'confirmed' check (status in ('draft', 'confirmed')),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
-  check (source = 'manual' or photo_path is not null)
+  -- 사진 기록이면 경로·메타데이터 필수, 수동 기록이면 전부 비움
+  check ((source = 'photo' and photo_path is not null and photo_mime is not null and photo_bytes is not null and photo_exif_stripped)
+      or (source = 'manual' and photo_path is null and photo_mime is null and photo_bytes is null and photo_width is null and photo_height is null and photo_exif_stripped is null)),
+  -- 경로는 반드시 본인 폴더
+  check (photo_path is null or photo_path like user_id::text || '/%')
 );
 create index meals_user_time_idx on public.meals (user_id, eaten_at desc);
 
@@ -283,6 +292,7 @@ create index meal_items_meal_idx on public.meal_items (meal_id);
 
 -- PREDICTIONS — 사진 인식 결과 (멀티라벨: 사진 1장 → 라벨 여러 줄). 서버만 기록.
 --   사용자가 '제외'한 라벨도 남겨 둔다 (meal_item_id null) → 오인식 분석용
+--   모델 성능 점검(사용자 수정 결과 활용)은 photo_improve 동의자만 → model_feedback 뷰(서버 전용)
 create table public.predictions (
   pred_id           uuid primary key default gen_random_uuid(),
   meal_id           uuid not null references public.meals(meal_id) on delete cascade,
@@ -396,138 +406,13 @@ create trigger meals_updated before update on public.meals for each row execute 
 create trigger posts_updated before update on public.posts for each row execute function public.set_updated_at();
 create trigger comments_updated before update on public.comments for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------
--- 6. RLS
---   service_role(FastAPI) 은 RLS 를 우회한다. 아래 정책은 앱(anon key + 사용자 JWT) 기준.
--- ---------------------------------------------------------------------
-alter table public.users            enable row level security;
-alter table public.user_health      enable row level security;
-alter table public.consents         enable row level security;
-alter table public.medications      enable row level security;
-alter table public.doses            enable row level security;
-alter table public.symptoms         enable row level security;
-alter table public.body_log_sources enable row level security;
-alter table public.body_logs        enable row level security;
-alter table public.daily_checks     enable row level security;
-alter table public.intake_items     enable row level security;
-alter table public.intake_logs      enable row level security;
-alter table public.foods            enable row level security;
-alter table public.model_versions   enable row level security;
-alter table public.meals            enable row level security;
-alter table public.meal_items       enable row level security;
-alter table public.predictions      enable row level security;
-alter table public.posts            enable row level security;
-alter table public.comments         enable row level security;
-alter table public.post_likes       enable row level security;
-alter table public.reports          enable row level security;
-alter table public.filter_logs      enable row level security;
-alter table public.admin_actions    enable row level security;
 
--- users: 로그인 사용자는 닉네임 조회 가능(커뮤니티), 수정은 본인만. role 은 바꿀 수 없음.
-create policy users_select on public.users for select to authenticated using (true);
-create policy users_update on public.users for update to authenticated
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
-revoke update on public.users from authenticated;
-grant update (nickname, onboarding_step, onboarding_completed_at) on public.users to authenticated;
-
--- 본인 전용 (읽기·쓰기 모두)
-create policy own_all on public.user_health  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy own_all on public.daily_checks for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy own_all on public.intake_items for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy own_all on public.intake_logs  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy own_all on public.meals        for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy own_all on public.meal_items   for all to authenticated using (user_id = auth.uid())
-  with check (user_id = auth.uid() and exists (select 1 from public.meals m where m.meal_id = meal_items.meal_id and m.user_id = auth.uid()));
-
--- 동의: 본인 조회·추가, 철회는 withdrawn_at 만 (삭제 불가 = 이력 보존)
-create policy consents_select on public.consents for select to authenticated using (user_id = auth.uid());
-create policy consents_insert on public.consents for insert to authenticated with check (user_id = auth.uid());
-create policy consents_update on public.consents for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-revoke update on public.consents from authenticated;
-grant update (withdrawn_at) on public.consents to authenticated;
-
--- 민감정보: 본인 + 동의가 있어야 쓰기. 읽기·삭제는 동의 철회 후에도 가능(본인 삭제권)
-create policy health_select on public.doses for select to authenticated using (user_id = auth.uid());
-create policy health_delete on public.doses for delete to authenticated using (user_id = auth.uid());
-create policy health_insert on public.doses for insert to authenticated with check (user_id = auth.uid() and public.has_health_consent());
-create policy health_update on public.doses for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and public.has_health_consent());
-
-create policy health_select on public.symptoms for select to authenticated using (user_id = auth.uid());
-create policy health_delete on public.symptoms for delete to authenticated using (user_id = auth.uid());
-create policy health_insert on public.symptoms for insert to authenticated with check (user_id = auth.uid() and public.has_health_consent());
-create policy health_update on public.symptoms for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and public.has_health_consent());
-
-create policy health_select on public.body_logs for select to authenticated using (user_id = auth.uid());
-create policy health_delete on public.body_logs for delete to authenticated using (user_id = auth.uid());
-create policy health_insert on public.body_logs for insert to authenticated with check (user_id = auth.uid() and public.has_health_consent());
-create policy health_update on public.body_logs for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and public.has_health_consent());
-
-create policy health_select on public.body_log_sources for select to authenticated using (user_id = auth.uid());
-create policy health_delete on public.body_log_sources for delete to authenticated using (user_id = auth.uid());
-create policy health_insert on public.body_log_sources for insert to authenticated with check (user_id = auth.uid() and public.has_health_consent());
-
--- 기준 정보: 모두 읽기, 쓰기는 서버만
-create policy read_all on public.medications    for select to anon, authenticated using (true);
-create policy read_all on public.model_versions for select to authenticated using (true);
-
--- 음식: 공용 + 내 음식 읽기, 내 음식만 추가·수정·삭제
-create policy foods_select on public.foods for select to authenticated using (owner_id is null or owner_id = auth.uid());
-create policy foods_insert on public.foods for insert to authenticated with check (owner_id = auth.uid() and ai_class = false);
-create policy foods_update on public.foods for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid() and ai_class = false);
-create policy foods_delete on public.foods for delete to authenticated using (owner_id = auth.uid());
-
--- 인식 결과: 본인 읽기 + 피드백 컬럼만 수정. 추가는 서버만.
-create policy pred_select on public.predictions for select to authenticated using (user_id = auth.uid());
-create policy pred_update on public.predictions for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-revoke update on public.predictions from authenticated;
-grant update (meal_item_id, user_action, corrected_food_id, feedback_at) on public.predictions to authenticated;
-
--- 게시글·댓글: 보이는 글은 로그인 사용자 모두 읽기, 본인 글은 숨김 상태여도 읽기, 관리자는 전부.
---   작성·수정은 안전 검사를 거쳐야 하므로 앱에서 직접 못 하고 FastAPI(service_role)만.
---   삭제는 소프트 삭제(deleted_at)도 서버 API 로.
-create policy posts_select on public.posts for select to authenticated
-  using ((deleted_at is null and status = 'visible') or user_id = auth.uid() or public.is_admin());
-create policy comments_select on public.comments for select to authenticated
-  using ((deleted_at is null and status = 'visible') or user_id = auth.uid() or public.is_admin());
-
--- 좋아요: 본인 것만 추가·취소, 개수는 posts.like_count 로 공개
-create policy likes_select on public.post_likes for select to authenticated using (user_id = auth.uid());
-create policy likes_insert on public.post_likes for insert to authenticated with check (user_id = auth.uid());
-create policy likes_delete on public.post_likes for delete to authenticated using (user_id = auth.uid());
-
--- 신고: 본인 신고 추가·조회, 관리자는 전체 조회
-create policy reports_insert on public.reports for insert to authenticated with check (reporter_id = auth.uid());
-create policy reports_select on public.reports for select to authenticated using (reporter_id = auth.uid() or public.is_admin());
-
--- 필터 로그·관리자 조치: 관리자만 읽기, 쓰기는 서버만
-create policy admin_read on public.filter_logs   for select to authenticated using (public.is_admin());
-create policy admin_read on public.admin_actions for select to authenticated using (public.is_admin());
-
--- ---------------------------------------------------------------------
--- 7. Storage — 식단 사진 (비공개 버킷)
---   업로드는 FastAPI 가 EXIF 제거 후 service_role 로 한다. 앱은 본인 폴더 읽기·삭제만.
---   경로: meal-photos/{user_id}/{uuid}.jpg
--- ---------------------------------------------------------------------
-insert into storage.buckets (id, name, public) values ('meal-photos', 'meal-photos', false)
-  on conflict (id) do nothing;
-
-create policy meal_photos_read on storage.objects for select to authenticated
-  using (bucket_id = 'meal-photos' and (storage.foldername(name))[1] = auth.uid()::text);
-create policy meal_photos_delete on storage.objects for delete to authenticated
-  using (bucket_id = 'meal-photos' and (storage.foldername(name))[1] = auth.uid()::text);
-
--- ---------------------------------------------------------------------
--- 8. 민감정보 동의 철회 시 삭제 (서버 API 에서 호출)
--- ---------------------------------------------------------------------
-create or replace function public.withdraw_health_consent() returns void
-language plpgsql security definer set search_path = public as $$
-begin
-  update consents set withdrawn_at = now()
-   where user_id = auth.uid() and type = 'sensitive_health' and withdrawn_at is null;
-  delete from doses            where user_id = auth.uid();
-  delete from symptoms         where user_id = auth.uid();
-  delete from body_logs        where user_id = auth.uid();
-  delete from body_log_sources where user_id = auth.uid();
-end $$;
-revoke execute on function public.withdraw_health_consent() from public, anon;
-grant execute on function public.withdraw_health_consent() to authenticated;
+-- 모델 점검용 (서버 전용): photo_improve 동의가 살아 있는 사용자의 피드백만
+create view public.model_feedback with (security_invoker = true) as
+  select p.pred_id, p.model_ver_id, p.mode, p.predicted_food_id, p.candidates, p.score, p.threshold,
+         p.status, p.user_action, p.corrected_food_id, p.created_at
+    from public.predictions p
+   where p.user_action is not null
+     and exists (select 1 from public.consents c
+                  where c.user_id = p.user_id and c.type = 'photo_improve' and c.withdrawn_at is null);
+revoke all on public.model_feedback from anon, authenticated;
