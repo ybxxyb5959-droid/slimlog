@@ -4,7 +4,7 @@ import { acceptRequiredConsents, adminDelete, adminInsert, adminSelect, devLogin
 
 /** Phase 2 — 식단 (공용 음식 검색·내 음식·식사 저장/수정/삭제) */
 
-const PUBLIC_FOOD = { food_id: 'e2e-public-rice', name: 'E2E공용쌀밥', category: '밥·면', basis_grams: 210, basis_label: '1공기(210g)당', serving_g: 210, kcal: 300, carb_g: 66, protein_g: 5, fat_g: 0.5, data_source: 'E2E 테스트용 (실제 영양값 아님)' }
+const PUBLIC_FOOD = { food_id: 'e2e-public-rice', name: 'E2E공용쌀밥', brand: 'E2E브랜드', category: '밥·면', basis_grams: 210, basis_label: '1공기(210g)당', serving_g: 210, kcal: 300, carb_g: 66, protein_g: 5, fat_g: 0.5, data_source: 'E2E 테스트용 (실제 영양값 아님)' }
 
 test.beforeAll(async () => adminInsert('foods', PUBLIC_FOOD))
 test.afterAll(async () => {
@@ -29,6 +29,10 @@ test('식단: 공용 음식 서버 검색 + 내 음식 등록 → 한 끼 저장
   await page.goto('/record/meal/search')
   await page.getByLabel('음식 검색').fill('E2E공용')
   await page.getByRole('button', { name: 'E2E공용쌀밥 1인분 바로 추가' }).click()
+
+  // 브랜드명만 쳐도 검색됨
+  await page.getByLabel('음식 검색').fill('E2E브랜드')
+  await expect(page.getByRole('button', { name: 'E2E공용쌀밥 1인분 바로 추가' })).toBeVisible()
 
   // 내 음식 등록 → 담기
   await page.getByLabel('음식 검색').fill('엄마표곤드레밥')

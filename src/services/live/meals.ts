@@ -41,11 +41,12 @@ export const rowToFood = (r: FoodRow): FoodItem => ({
   custom: r.owner_id !== null,
 })
 
-/** 이름 검색 (공용 + 내 음식, RLS 가 남의 음식은 숨김) */
+/** 이름·브랜드 검색 (공용 + 내 음식, RLS 가 남의 음식은 숨김) */
 export async function searchFoodsRemote(q: string, limit = 30): Promise<FoodItem[]> {
   const term = q.trim().replace(/[%_,()]/g, '')
   if (!term) return []
-  const r = await sb().from('foods').select(FOOD_COLS).ilike('name', `%${term}%`).order('name').limit(limit)
+  // 음식 이름 또는 브랜드(제조사)로 찾기 — '허닭', '햇반'처럼 브랜드만 쳐도 나오게
+  const r = await sb().from('foods').select(FOOD_COLS).or(`name.ilike.%${term}%,brand.ilike.%${term}%`).order('name').limit(limit)
   if (r.error) throw r.error
   return r.data.map(rowToFood)
 }
