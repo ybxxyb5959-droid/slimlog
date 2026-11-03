@@ -40,7 +40,7 @@
 }
 
 /* 다크 토큰은 정의만 — 화면 적용은 1차 승인 후 결정 */
-:root[data-theme="dark"] {
+:root[data-slimlog-theme="dark"] {
   --background: #121514;
   --surface: #1a1e1c;
   --surface-muted: #222725;
@@ -118,3 +118,39 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* ---- Bottom sheet / modal 애니메이션 ---- */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sheet-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes modal-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+.sheet-overlay[data-state='open'] { animation: fade-in 200ms ease-out; }
+.sheet-overlay[data-state='closed'] { animation: fade-out 180ms ease-in; }
+.sheet-content[data-state='open'] { animation: sheet-up 280ms cubic-bezier(0.32, 0.72, 0, 1); }
+.sheet-content[data-state='closed'] { animation: sheet-down 220ms ease-in; }
+@media (min-width: 768px) {
+  .sheet-content[data-state='open'] { animation: modal-in 200ms ease-out; }
+  .sheet-content[data-state='closed'] { animation: modal-out 160ms ease-in; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-overlay, .sheet-content { animation: none !important; }
+}
+
+/* 가로 스크롤 목록의 스크롤바 숨김 (드래그로 조작) */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

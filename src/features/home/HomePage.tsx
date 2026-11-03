@@ -26,6 +26,7 @@ import { useDoses } from '@/services/doses'
 import { getHomeSummary } from '@/services/records'
 
 import { HomeTimeline } from './HomeTimeline'
+import { WeightAnalogyCard } from './WeightAnalogyCard'
 
 const CONDITION_LABEL = ['', '많이 힘듦', '조금 힘듦', '보통', '좋음', '아주 좋음'] as const
 
@@ -48,9 +49,6 @@ export function HomePage() {
   const { profile, bodyLogs, todayMeals, todayCheck, symptoms, timeline, weeklyStatus } = data
   const sortedLogs = [...bodyLogs].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
   const latest = sortedLogs[sortedLogs.length - 1]
-  const weekAgo = sortedLogs.filter((l) => daysBetween(new Date(l.measuredAt), now) >= 7).at(-1)
-  const diffStart = latest.weightKg - profile.startWeightKg
-  const diffWeek = weekAgo ? latest.weightKg - weekAgo.weightKg : null
   const kcal = todayMeals.reduce((a, m) => a + m.kcal, 0)
   const carb = todayMeals.reduce((a, m) => a + m.carbG, 0)
   const fat = todayMeals.reduce((a, m) => a + m.fatG, 0)
@@ -91,31 +89,8 @@ export function HomePage() {
       </nav>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {/* 체중 */}
-        <Link to="/analysis/body" className="group">
-          <Card className="h-full transition-colors group-hover:bg-surface-muted/40">
-            <CardHeader className="mb-1">
-              <CardTitle className="flex items-center gap-2 font-medium text-text-muted">
-                <AppIcon icon={Scale} size="sm" /> 현재 체중
-              </CardTitle>
-              <AppIcon icon={ChevronRight} size="sm" tone="muted" />
-            </CardHeader>
-            <p className="tabular text-[32px] leading-tight font-bold tracking-tight">
-              {latest.weightKg.toFixed(1)}
-              <span className="ml-1 text-base font-semibold text-text-muted">kg</span>
-            </p>
-            <p className="tabular mt-1 text-[14px] font-semibold text-primary">
-              시작 대비 {diffStart > 0 ? '+' : ''}
-              {diffStart.toFixed(1)}kg ({((diffStart / profile.startWeightKg) * 100).toFixed(1)}%)
-            </p>
-            {diffWeek !== null && (
-              <p className="tabular mt-0.5 text-[13px] text-text-muted">
-                최근 7일 {diffWeek > 0 ? '+' : ''}
-                {diffWeek.toFixed(1)}kg
-              </p>
-            )}
-          </Card>
-        </Link>
+        {/* 체중 — 일상 물건 비유 */}
+        <WeightAnalogyCard startKg={profile.startWeightKg} latestKg={latest.weightKg} to="/analysis" />
 
         {/* 오늘 섭취 */}
         <Link to="/record/meal" className="group">

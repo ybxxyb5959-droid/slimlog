@@ -9,6 +9,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = '확인',
+  cancelLabel = '취소',
   tone = 'primary',
   onConfirm,
 }: {
@@ -17,6 +18,7 @@ export function ConfirmDialog({
   title: string
   description?: React.ReactNode
   confirmLabel?: string
+  cancelLabel?: string
   tone?: 'primary' | 'danger'
   onConfirm: () => void
 }) {
@@ -27,7 +29,7 @@ export function ConfirmDialog({
         {description && <DialogDescription>{description}</DialogDescription>}
         <div className="mt-6 grid grid-cols-2 gap-2">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            취소
+            {cancelLabel}
           </Button>
           <Button
             variant={tone === 'danger' ? 'danger' : 'primary'}

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:preview": "tsc -b && VITE_PREVIEW=1 vite build --base ./ --outDir dist-preview"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

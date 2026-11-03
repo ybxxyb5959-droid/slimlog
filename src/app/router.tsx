@@ -1,9 +1,11 @@
-import { createBrowserRouter, Navigate } from 'react-router'
+import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } from 'react-router'
 
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AnalysisHubPage } from '@/features/analysis/AnalysisHubPage'
 import { MedicationAnalysisPage } from '@/features/analysis/MedicationAnalysisPage'
 import { ComingSoonPage } from '@/features/common/ComingSoonPage'
+import { WeightCardGallery } from '@/features/dev/WeightCardGallery'
+import { FirstDosePage } from '@/features/record/first-dose/FirstDosePage'
 import { NotFoundPage } from '@/features/common/NotFoundPage'
 import { HomePage } from '@/features/home/HomePage'
 import { MedicationDetailPage } from '@/features/record/medication/MedicationDetailPage'
@@ -13,12 +15,14 @@ import { RecordHubPage } from '@/features/record/RecordHubPage'
 
 const soon = (path: string, title: string) => ({ path, element: <ComingSoonPage title={title} /> })
 
-export const router = createBrowserRouter([
+const routes: RouteObject[] = [
   {
     element: <AppLayout />,
     children: [
       { index: true, element: <Navigate to="/home" replace /> },
       { path: 'home', element: <HomePage /> },
+      { path: 'onboarding/first-dose', element: <FirstDosePage /> },
+      { path: 'preview/weight-cards', element: <WeightCardGallery /> },
 
       { path: 'record', element: <RecordHubPage /> },
       { path: 'record/medication', element: <MedicationListPage /> },
@@ -52,4 +56,17 @@ export const router = createBrowserRouter([
   soon('consent', '개인정보 동의'),
   soon('onboarding', '시작하기'),
   { path: '*', element: <NotFoundPage /> },
-])
+]
+
+/** 미리보기 링크 뒤 #이름 으로 시작 화면 지정 (예: #first-dose) */
+const PREVIEW_START: Record<string, string> = {
+  'first-dose': '/onboarding/first-dose',
+  'weight-cards': '/preview/weight-cards',
+  analysis: '/analysis',
+}
+
+/** 미리보기 배포(VITE_PREVIEW=1)는 주소창을 쓸 수 없는 환경이라 메모리 라우터 사용 */
+export const router =
+  import.meta.env.VITE_PREVIEW === '1'
+    ? createMemoryRouter(routes, { initialEntries: [PREVIEW_START[window.location.hash.slice(1)] ?? '/home'] })
+    : createBrowserRouter(routes)

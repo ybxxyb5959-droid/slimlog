@@ -13,11 +13,40 @@ export interface Medication {
   /** 반감기(시간). 출처가 없으면 null → 참고 곡선을 만들지 않는다 (계획서 6.3) */
   halfLifeHours: number | null
   halfLifeSource: { label: string; note: string } | null
-  /** 선택형 용량 목록. 없으면 직접 입력 */
+  /** 선택형 용량 목록(허가 용량). 확인하지 못했으면 null → 직접 입력 */
   doseOptionsMg: number[] | null
+  /** 허가 정보 출처 — 용량·주사 부위 */
+  approval: MedicationApproval
 }
 
-export type InjectionSite = 'abdomen_left' | 'abdomen_right' | 'thigh' | 'arm'
+export type SourceStatus = 'verified' | 'secondary'
+
+export interface ApprovalSource {
+  title: string
+  url: string
+  checkedAt: string // YYYY-MM-DD
+  /** verified: 의약품안전나라 원문 확인 / secondary: 보도·안내 자료로 확인, 원문 대조 필요 */
+  status: SourceStatus
+}
+
+export type BodyArea = 'abdomen' | 'thigh' | 'upper_arm'
+
+export interface MedicationApproval {
+  doses: ApprovalSource | null
+  /** 허가된 주사 부위. null이면 확인 전 → 부위 선택 막지 않고 안내만 표시 */
+  sites: { areas: BodyArea[]; source: ApprovalSource } | null
+}
+
+/** 'thigh' | 'arm' 은 좌우 구분 이전 기록과의 호환용 */
+export type InjectionSite =
+  | 'abdomen_left'
+  | 'abdomen_right'
+  | 'thigh_left'
+  | 'thigh_right'
+  | 'arm_left'
+  | 'arm_right'
+  | 'thigh'
+  | 'arm'
 
 /** DOSES */
 export interface Dose {
@@ -27,6 +56,10 @@ export interface Dose {
   administeredAt: string // ISO 8601
   site: InjectionSite
   memo?: string
+  /** 시간을 기억하지 못함 → 시각은 12:00으로 두고 화면에 '시간 모름' 표시 */
+  timeUnknown?: boolean
+  /** 날짜가 정확하지 않음(대략) */
+  dateApproximate?: boolean
 }
 
 export type BodyLogSource = 'MANUAL' | 'INBODY_OCR' | 'INBODY_API'
