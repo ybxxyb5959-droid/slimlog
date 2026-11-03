@@ -1,6 +1,6 @@
 import { Heart, MessageCircle, PenLine, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { MockBadge } from '@/components/common/MockBadge'
@@ -22,7 +22,8 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 export function CommunityListPage() {
   const posts = useCommunityStore((s) => s.posts)
-  const [filter, setFilter] = useState<Filter>('all')
+  const [params] = useSearchParams()
+  const [filter, setFilter] = useState<Filter>(params.get('filter') === 'mine' ? 'mine' : 'all')
   // REVIEW·BLOCKED 글은 목록에 노출하지 않고, 작성자 본인의 '내 글'에서만 보인다
   const visible = posts.filter((p) =>
     filter === 'mine' ? p.mine : p.status === 'LOW' && (filter === 'all' || p.category === filter),

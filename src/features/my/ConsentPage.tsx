@@ -19,7 +19,7 @@ export function ConsentPage() {
 
   return (
     <>
-      <PageHeader title="동의 관리" description="동의한 내용을 확인하고 바꿀 수 있어요" back="/my" />
+      <PageHeader title="개인정보 · 보안" description="동의한 내용을 확인하고 바꿀 수 있어요" back="/my/settings" />
       <div className="space-y-6 md:max-w-2xl">
         <MyGroup title="동의 항목 · 최근 동의 2026.09.23 (예시)">
           {CONSENT_ITEMS.map((c) => (

@@ -32,6 +32,8 @@ export function FirstDoseFlow({
   setDraft,
   step,
   setStep,
+  onConfirmed,
+  onFinished,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,6 +41,10 @@ export function FirstDoseFlow({
   setDraft: (d: FirstDoseDraft) => void
   step: number
   setStep: (s: number) => void
+  /** 확인 시 호출 — 넘기면 목업 저장을 하고 완료 문구가 바뀐다 */
+  onConfirmed?: (draft: FirstDoseDraft) => void
+  /** 완료 화면을 닫을 때 */
+  onFinished?: () => void
 }) {
   const [confirmClose, setConfirmClose] = useState(false)
   const patch = (p: Partial<FirstDoseDraft>) => setDraft({ ...draft, ...p })
@@ -49,7 +55,8 @@ export function FirstDoseFlow({
     if (done) {
       setDraft(EMPTY_DRAFT)
       setStep(1)
-      return onOpenChange(false)
+      onOpenChange(false)
+      return onFinished?.()
     }
     if (isDirty(draft)) setConfirmClose(true)
     else onOpenChange(false)
@@ -95,7 +102,14 @@ export function FirstDoseFlow({
       닫기
     </Button>
   ) : step === 1 ? null : step === 5 ? (
-    <Button size="lg" className="w-full" onClick={() => setStep(6)}>
+    <Button
+      size="lg"
+      className="w-full"
+      onClick={() => {
+        onConfirmed?.(draft)
+        setStep(6)
+      }}
+    >
       확인
     </Button>
   ) : (
@@ -133,7 +147,7 @@ export function FirstDoseFlow({
         {step === 3 && <StepSite draft={draft} onPatch={patch} />}
         {step === 4 && <StepDateTime draft={draft} onPatch={patch} error={dtError} />}
         {step === 5 && <Summary draft={draft} onEdit={setStep} />}
-        {done && <Done />}
+        {done && <Done saved={!!onConfirmed} />}
       </BottomSheet>
 
       <ConfirmDialog
@@ -177,19 +191,21 @@ function Summary({ draft, onEdit }: { draft: FirstDoseDraft; onEdit: (step: numb
         ))}
       </dl>
       <p className="text-[12px] leading-relaxed text-text-subtle">
-        목업 단계라 ‘확인’을 눌러도 실제로 저장되지 않아요. 앱은 용량이나 주사 부위를 추천하지 않아요.
+        목업 단계라 서버에는 저장되지 않아요. 앱은 용량이나 주사 부위를 추천하지 않아요.
       </p>
     </div>
   )
 }
 
-function Done() {
+function Done({ saved }: { saved: boolean }) {
   return (
     <div className="flex flex-col items-center py-6 text-center">
       <AppIcon icon={CircleCheck} size="lg" tone="success" bg="success" className="size-16 rounded-2xl [&>svg]:size-8" />
-      <p className="mt-4 text-[17px] font-bold">입력 내용을 확인했어요</p>
+      <p className="mt-4 text-[17px] font-bold">{saved ? '투약 기록을 남겼어요' : '입력 내용을 확인했어요'}</p>
       <p className="mt-1 max-w-xs text-[14px] text-text-muted">
-        목업 화면이라 실제로 저장되지 않았어요. 저장 기능은 서버 연결 단계에서 붙일 예정이에요.
+        {saved
+          ? '목업이라 이 기기 화면에만 저장돼요. 홈에서 방금 남긴 기록을 확인할 수 있어요.'
+          : '목업 화면이라 실제로 저장되지 않았어요. 저장 기능은 서버 연결 단계에서 붙일 예정이에요.'}
       </p>
     </div>
   )

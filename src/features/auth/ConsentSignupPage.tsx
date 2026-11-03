@@ -87,7 +87,7 @@ export function ConsentSignupPage() {
 
       <p className="mt-3 px-1 text-[12px] leading-relaxed text-text-subtle">동의 문구는 초안이며 출시 전 법률 검토가 필요해요.</p>
       <div className="mt-auto pt-6">
-        <Button size="lg" className="w-full" disabled={!requiredOk} onClick={() => navigate('/onboarding/first-dose')}>
+        <Button size="lg" className="w-full" disabled={!requiredOk} onClick={() => navigate('/onboarding')}>
           동의하고 시작하기
         </Button>
       </div>

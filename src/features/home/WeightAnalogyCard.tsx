@@ -96,3 +96,69 @@ export function WeightAnalogyCard({
     </Link>
   )
 }
+
+/**
+ * 새 사용자용 메인 카드 — 기록이 0~1건일 때.
+ * 허위 감량량·그래프를 만들지 않고, 입력한 시작·목표만 보여준다.
+ */
+export function WeightStartCard({
+  startKg,
+  goalKg,
+  eyebrow,
+}: {
+  startKg: number | null
+  goalKg: number | null
+  eyebrow?: React.ReactNode
+}) {
+  const empty = startKg === null
+  const diff = startKg !== null && goalKg !== null ? Math.round((goalKg - startKg) * 10) / 10 : null
+  return (
+    <Card className="p-6 md:p-8">
+      {eyebrow && <div className="text-[13px] text-text-muted">{eyebrow}</div>}
+      <div className="mt-3 flex items-center gap-4 md:gap-8">
+        <div className="min-w-0 flex-1">
+          <p className="text-[22px] leading-snug font-bold tracking-tight text-balance break-keep md:text-[26px]">
+            {empty ? '시작 체중을 기록해 볼까요?' : '첫 기록을 시작했어요'}
+          </p>
+          {empty ? (
+            <p className="mt-2 text-[14px] leading-relaxed break-keep text-text-muted">
+              체중을 기록하면 줄어든 무게를 일상 물건에 비유해 보여드려요.
+            </p>
+          ) : (
+            <dl className="tabular mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-surface-muted px-4 py-3">
+                <dt className="text-[13px] text-text-muted">시작 체중</dt>
+                <dd className="text-[24px] font-bold">
+                  {startKg!.toFixed(1)}
+                  <span className="ml-0.5 text-[14px] font-semibold text-text-muted">kg</span>
+                </dd>
+              </div>
+              <div className="rounded-2xl bg-primary-soft px-4 py-3">
+                <dt className="text-[13px] text-primary/80">내가 정한 목표</dt>
+                <dd className="text-[24px] font-bold text-primary">
+                  {goalKg !== null ? goalKg.toFixed(1) : '—'}
+                  <span className="ml-0.5 text-[14px] font-semibold">kg</span>
+                </dd>
+              </div>
+            </dl>
+          )}
+          {diff !== null && (
+            <p className="tabular mt-3 text-[13px] text-text-muted">
+              목표까지 {diff > 0 ? '+' : diff < 0 ? '−' : ''}
+              {Math.abs(diff).toFixed(1)}kg · 다음 체중을 기록하면 변화가 여기에 보여요
+            </p>
+          )}
+        </div>
+        <span className="hidden size-24 shrink-0 items-center justify-center rounded-3xl bg-icon-soft/70 sm:flex md:size-32">
+          <AnalogyIllustration id="scale" className="size-16 md:size-20" />
+        </span>
+      </div>
+      <Link
+        to={empty ? '/my/body' : '/record/body'}
+        className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-[15px] font-semibold text-primary-foreground hover:bg-primary-hover"
+      >
+        {empty ? '신체 정보 입력하기' : '오늘 체중 기록하기'}
+      </Link>
+    </Card>
+  )
+}

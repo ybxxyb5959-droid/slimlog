@@ -3,13 +3,14 @@ import {
   ChevronRight,
   CircleCheck,
   CirclePlus,
-  Droplets,
+  GlassWater,
   HeartPulse,
   type LucideIcon,
   Scale,
   Syringe,
   Utensils,
 } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { AppIcon } from '@/components/common/AppIcon'
@@ -24,8 +25,10 @@ import { addDays, daysBetween, formatShortDateWithDay, formatTime, greetingFor }
 import { useAsync } from '@/lib/useAsync'
 import { useDoses } from '@/services/doses'
 import { getHomeSummary } from '@/services/records'
+import { formatMl, summarizeIntake, useIntakeStore } from '@/stores/intakeStore'
+import { IntakeSheet } from '@/features/intake/IntakeSheet'
 
-import { WeightAnalogyCard } from './WeightAnalogyCard'
+import { WeightAnalogyCard, WeightStartCard } from './WeightAnalogyCard'
 
 const MEAL_LABEL = { breakfast: '아침', lunch: '점심', dinner: '저녁', snack: '간식' } as const
 const monthDay = (iso: string) => {
@@ -35,6 +38,8 @@ const monthDay = (iso: string) => {
 
 interface TodayTile {
   to: string
+  /** 있으면 페이지 이동 대신 실행 (섭취 관리 시트) */
+  onClick?: () => void
   icon: LucideIcon
   title: string
   done: boolean
@@ -43,24 +48,36 @@ interface TodayTile {
 }
 
 function TodayTileCard({ tile }: { tile: TodayTile }) {
-  return (
-    <Link
-      to={tile.to}
-      className="flex min-h-[120px] flex-col rounded-card border border-border bg-surface p-4 transition-colors hover:bg-surface-muted/60"
-      aria-label={`${tile.title}: ${tile.done ? '기록함' : '기록 전'}, ${tile.sub}`}
-    >
+  const cls = 'flex min-h-[120px] w-full flex-col rounded-card border border-border bg-surface p-4 text-left transition-colors hover:bg-surface-muted/60'
+  const label = `${tile.title}: ${tile.done ? '기록함' : '기록 전'}, ${tile.sub}`
+  const body = (
+    <>
       <div className="flex items-start justify-between">
         <AppIcon icon={tile.icon} size="md" />
         <AppIcon icon={tile.done ? CircleCheck : CirclePlus} size="sm" tone={tile.done ? 'success' : 'muted'} />
       </div>
       <p className="mt-auto pt-4 text-[16px] font-bold text-text">{tile.title}</p>
       <p className="mt-0.5 truncate text-[13px] text-text-muted">{tile.sub}</p>
+    </>
+  )
+  return tile.onClick ? (
+    <button type="button" onClick={tile.onClick} className={cls} aria-label={label} aria-haspopup="dialog">
+      {body}
+    </button>
+  ) : (
+    <Link to={tile.to} className={cls} aria-label={label}>
+      {body}
     </Link>
   )
 }
 
 export function HomePage() {
   const { data, loading, error, reload } = useAsync(getHomeSummary)
+  const [intakeOpen, setIntakeOpen] = useState(false)
+  const water = useIntakeStore((s) => s.water)
+  const intakeLogs = useIntakeStore((s) => s.logs)
+  const waterGoalMl = useIntakeStore((s) => s.waterGoalMl)
+  const intake = summarizeIntake({ water, logs: intakeLogs })
   const doses = useDoses()
   const now = new Date()
 
@@ -68,7 +85,7 @@ export function HomePage() {
   if (error || !data)
     return <ErrorState description="잠시 후 다시 시도해 주세요." action={<Button onClick={reload}>다시 불러오기</Button>} />
 
-  const { profile, bodyLogs, todayMeals, todayCheck, symptoms } = data
+  const { profile, bodyLogs, todayMeals, symptoms } = data
   const sortedLogs = [...bodyLogs].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
   const latest = sortedLogs[sortedLogs.length - 1]
   const kcal = todayMeals.reduce((a, m) => a + m.kcal, 0)
@@ -96,10 +113,15 @@ export function HomePage() {
     },
     {
       to: '/record/daily',
-      icon: Droplets,
-      title: '수분',
-      done: todayCheck.waterCups >= todayCheck.waterGoalCups,
-      sub: todayCheck.waterCups > 0 ? `${todayCheck.waterCups} / ${todayCheck.waterGoalCups}컵` : '섭취량 기록',
+      onClick: () => setIntakeOpen(true),
+      icon: GlassWater,
+      title: '섭취 관리',
+      done: intake.ml >= waterGoalMl,
+      // 실제 기록만 표시 — 없으면 안내 문구
+      sub:
+        intake.ml || intake.taken
+          ? [intake.ml ? `물 ${formatMl(intake.ml)}` : null, intake.taken ? `복용 ${intake.taken}건` : null].filter(Boolean).join(' · ')
+          : '물 · 영양제 · 복용약',
     },
     { to: '/record/symptom', icon: HeartPulse, title: '컨디션', done: conditionDone, sub: '오늘 상태 입력' },
   ]
@@ -116,20 +138,8 @@ export function HomePage() {
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 3)
 
-  return (
-    <div className="space-y-6">
-      {/* 모바일 앱 헤더 (데스크톱은 사이드바에 로고) */}
-      <div className="-mt-1 flex items-center justify-between md:hidden">
-        <Logo size={28} />
-      </div>
+  const greeting = (
 
-      {/* 메인: 체중 변화 */}
-      <WeightAnalogyCard
-        variant="hero"
-        startKg={profile.startWeightKg}
-        latestKg={latest.weightKg}
-        to="/analysis"
-        eyebrow={
           <>
             <span className="block">
               {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
@@ -139,8 +149,22 @@ export function HomePage() {
             </h1>
             <MockBadge className="mt-1.5" />
           </>
-        }
-      />
+        
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* 모바일 앱 헤더 (데스크톱은 사이드바에 로고) */}
+      <div className="-mt-1 flex items-center justify-between md:hidden">
+        <Logo size={28} />
+      </div>
+
+      {/* 메인: 체중 변화 */}
+      {profile.startWeightKg !== null && bodyLogs.length > 1 && latest ? (
+        <WeightAnalogyCard variant="hero" startKg={profile.startWeightKg} latestKg={latest.weightKg} to="/analysis" eyebrow={greeting} />
+      ) : (
+        <WeightStartCard startKg={profile.startWeightKg} goalKg={profile.goalWeightKg} eyebrow={greeting} />
+      )}
 
       {/* 오늘의 기록 */}
       <section aria-labelledby="today-title">
@@ -159,7 +183,7 @@ export function HomePage() {
 
       <div className="grid items-start gap-3 lg:grid-cols-2">
         {/* 최근 투약 */}
-        <Link to="/record/medication" className="group block">
+        <Link to={lastDose ? '/record/medication' : '/record/medication/new'} className="group block">
           <Card className="transition-colors group-hover:bg-surface-muted/40">
             <CardHeader>
               <CardTitle className="text-[16px] font-bold">최근 투약</CardTitle>
@@ -192,7 +216,12 @@ export function HomePage() {
                 </p>
               </>
             ) : (
-              <p className="text-[14px] text-text-muted">아직 투약 기록이 없어요.</p>
+              <div>
+                <p className="text-[14px] text-text-muted">아직 투약 기록이 없어요. 맞은 투약을 기록하면 여기에 보여요.</p>
+                <span className="mt-3 inline-flex h-11 items-center rounded-xl border border-border px-4 text-[14px] font-semibold text-text">
+                  첫 투약 기록하기
+                </span>
+              </div>
             )}
           </Card>
         </Link>
@@ -205,6 +234,9 @@ export function HomePage() {
               전체 보기
             </Link>
           </CardHeader>
+          {activity.length === 0 && (
+            <p className="text-[14px] leading-relaxed text-text-muted">아직 기록이 없어요. 오늘의 기록에서 하나씩 시작해 보세요.</p>
+          )}
           <ul className="space-y-3.5">
             {activity.map((a) => (
               <li key={a.title} className="flex items-center gap-3">
@@ -218,6 +250,7 @@ export function HomePage() {
           </ul>
         </Card>
       </div>
+      <IntakeSheet open={intakeOpen} onClose={() => setIntakeOpen(false)} />
     </div>
   )
 }

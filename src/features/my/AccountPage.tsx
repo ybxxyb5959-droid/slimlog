@@ -14,7 +14,7 @@ export function AccountPage() {
   const [withdraw, setWithdraw] = useState(false)
   return (
     <>
-      <PageHeader title="계정 관리" back="/my" />
+      <PageHeader title="연결된 로그인 계정" back="/my/settings" />
       <div className="space-y-4 md:max-w-2xl">
         <Card className="space-y-3">
           <h2 className="text-[15px] font-semibold">로그인 계정</h2>

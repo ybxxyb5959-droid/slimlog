@@ -13,11 +13,19 @@ const PAGES = [
   { path: '/community/p1', heading: '6주차, 단백질 챙기려고 계란을 늘렸어요' },
   { path: '/community/write', heading: '글쓰기' },
   { path: '/admin/moderation', heading: '관리자 검토' },
-  { path: '/my', heading: '마이' },
-  { path: '/my/consent', heading: '동의 관리' },
-  { path: '/my/settings', heading: '기록 · 알림 설정' },
+  { path: '/my', heading: '마이페이지' },
+  { path: '/my/consent', heading: '개인정보 · 보안' },
+  { path: '/my/settings', heading: '설정' },
+  { path: '/my/settings/notifications', heading: '알림 설정' },
+  { path: '/my/settings/app', heading: '화면 및 앱 환경' },
+  { path: '/my/body', heading: '신체 정보 · 목표' },
+  { path: '/my/liked', heading: '공감한 글' },
+  { path: '/my/data', heading: '내 데이터 관리' },
+  { path: '/my/support', heading: '고객지원 · 서비스 정보' },
+  { path: '/my/terms', heading: '이용약관 · 개인정보 처리방침' },
+  { path: '/onboarding/nickname', heading: /반가워요/ },
   { path: '/my/eyebody-data', heading: '눈바디 로컬 데이터' },
-  { path: '/my/account', heading: '계정 관리' },
+  { path: '/my/account', heading: '연결된 로그인 계정' },
   { path: '/my/profile', heading: '프로필' },
   { path: '/login', heading: 'SlimLog 로그인' },
   { path: '/signup', heading: '이메일로 가입' },
@@ -397,7 +405,7 @@ test.describe('로그인·가입', () => {
     await page.getByRole('checkbox', { name: '필수 민감정보(건강정보) 처리' }).click()
     await expect(start).toBeEnabled()
     await start.click()
-    await expect(page).toHaveURL('/onboarding/first-dose')
+    await expect(page).toHaveURL('/onboarding/nickname')
   })
 
   test('이메일 가입: 형식 검증', async ({ page }) => {
@@ -420,10 +428,180 @@ test.describe('마이', () => {
     await expect(page.getByRole('switch', { name: /민감정보/ })).toHaveAttribute('aria-checked', 'true')
   })
 
-  test('로그아웃 → 로그인 화면', async ({ page }) => {
-    await page.goto('/my')
+  test('로그아웃 → 로그인 화면 (설정 하단)', async ({ page }) => {
+    await page.goto('/my/settings')
     await page.getByRole('button', { name: '로그아웃' }).click()
     await page.getByRole('dialog').getByRole('button', { name: '로그아웃' }).click()
     await expect(page).toHaveURL('/login')
+  })
+})
+
+test.describe('마이페이지 · 설정', () => {
+  test('톱니바퀴 → 설정 → 뒤로 가기는 마이페이지', async ({ page }) => {
+    await page.goto('/my')
+    await expect(page.getByText('나의 목표 체중')).toBeVisible()
+    await expect(page.getByRole('button', { name: '로그아웃' })).toHaveCount(0)
+    await page.getByRole('link', { name: '설정', exact: true }).click()
+    await expect(page).toHaveURL('/my/settings')
+    for (const t of ['앱 설정', '개인정보 및 계정', '서비스']) await expect(page.getByText(t, { exact: true })).toBeVisible()
+    await page.goBack()
+    await expect(page).toHaveURL('/my')
+  })
+
+  test('회원 탈퇴는 연결된 로그인 계정 하위', async ({ page }) => {
+    await page.goto('/my/settings')
+    await page.getByRole('link', { name: /연결된 로그인 계정/ }).click()
+    await expect(page.getByRole('button', { name: '회원 탈퇴' })).toBeVisible()
+  })
+
+  test('내가 쓴 글 → 커뮤니티 내 글 탭', async ({ page }) => {
+    await page.goto('/my')
+    await page.getByRole('link', { name: /내가 쓴 글/ }).click()
+    await expect(page.getByRole('tab', { name: '내 글' })).toHaveAttribute('aria-selected', 'true')
+  })
+})
+
+test.describe('온보딩', () => {
+  const next = (page: import('@playwright/test').Page) => page.getByRole('button', { name: '이 닉네임으로 계속하기' })
+
+  test('자동 닉네임 → 신체정보(목표 변화량) → 나중에 기록 → 첫 홈(허위 감량 없음)', async ({ page }) => {
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL('/onboarding/nickname')
+    await expect(page.getByLabel('나의 닉네임')).not.toHaveValue('')
+    await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+    await next(page).click()
+    await expect(page).toHaveURL('/onboarding/body')
+    await page.getByLabel('현재 체중').fill('500')
+    await expect(page.getByText('20~300kg 사이로 입력해 주세요.').first()).toBeVisible()
+    await expect(page.getByLabel('목표 변화량')).toHaveCount(0)
+    await page.getByLabel('현재 체중').fill('80')
+    await page.getByLabel('목표 체중').fill('72')
+    await expect(page.getByLabel('목표 변화량')).toContainText('−8.0kg')
+    await page.getByLabel('목표 체중').fill('82.5')
+    await expect(page.getByLabel('목표 변화량')).toContainText('+2.5kg')
+    await page.getByLabel('목표 체중').fill('72')
+    await page.getByRole('button', { name: '다음' }).click()
+    await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
+    await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+    await expect(page).toHaveURL('/home')
+    await expect(page.getByText('첫 기록을 시작했어요')).toBeVisible()
+    await expect(page.getByText('80.0')).toBeVisible()
+    await expect(page.getByText(/가벼워졌어요/)).toHaveCount(0)
+    await expect(page.getByText('아직 투약 기록이 없어요.', { exact: false })).toBeVisible()
+  })
+
+  test('중복 닉네임은 계속할 수 없다', async ({ page }) => {
+    await page.goto('/onboarding/nickname')
+    await page.getByLabel('나의 닉네임').fill('느긋한판다')
+    await expect(page.getByText('이미 사용 중인 닉네임이에요.', { exact: false })).toBeVisible()
+    await expect(next(page)).toBeDisabled()
+    await page.getByLabel('나의 닉네임').fill('a b')
+    await expect(page.getByText('한글, 영문, 숫자만', { exact: false })).toBeVisible()
+  })
+
+  test('동시 가입 충돌: 확인 후 저장 순간 중복 → 추천 닉네임으로 재시도', async ({ page }) => {
+    await page.goto('/onboarding/nickname')
+    await page.getByLabel('나의 닉네임').fill('졸린복숭아')
+    await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+    await next(page).click()
+    await expect(page.getByText('방금 다른 분이 먼저 사용했어요.', { exact: false })).toBeVisible()
+    const chips = page.getByLabel('추천 닉네임').getByRole('button')
+    await expect(chips).toHaveCount(3)
+    await chips.first().click()
+    await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+    await next(page).click()
+    await expect(page).toHaveURL('/onboarding/body')
+  })
+
+  test('네트워크 오류 상태와 다시 확인', async ({ page }) => {
+    await page.goto('/onboarding/nickname')
+    await page.getByLabel('나의 닉네임').fill('네트워크오류')
+    await expect(page.getByText('확인하지 못했어요.', { exact: false })).toBeVisible()
+    await expect(page.getByRole('button', { name: '다시 확인' })).toBeVisible()
+  })
+
+  test('중단 후 복귀: 새로고침해도 진행 단계·입력값 유지, 뒤로 가기는 이전 단계', async ({ page }) => {
+    await page.goto('/onboarding/nickname')
+    await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+    const name = await page.getByLabel('나의 닉네임').inputValue()
+    await next(page).click()
+    await page.getByLabel('현재 체중').fill('80')
+    await page.reload()
+    await expect(page.getByLabel('현재 체중')).toHaveValue('80')
+    await page.goBack()
+    await expect(page.getByLabel('나의 닉네임')).toHaveValue(name)
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL('/onboarding/body')
+  })
+
+  test('지금 기록하기 → 기존 5단계 → 저장 후 홈에 최근 투약 표시 / 취소해도 입력 유지', async ({ page }) => {
+    await page.goto('/onboarding/nickname')
+    await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+    await next(page).click()
+    await page.getByRole('button', { name: '나중에 입력' }).click()
+    await page.getByRole('radio', { name: /지금 투약 내역 기록하기/ }).click()
+    await page.getByRole('button', { name: '투약 기록 시작하기' }).click()
+    const sheet = page.getByRole('dialog')
+    // 취소 → 3단계 유지
+    await sheet.getByRole('radio', { name: /마운자로/ }).click()
+    await page.keyboard.press('Escape')
+    await page.getByRole('dialog', { name: '기록을 잠시 멈출까요?' }).getByRole('button', { name: '닫기', exact: true }).first().click()
+    await expect(page).toHaveURL('/onboarding/medication')
+    // 다시 진행
+    await page.getByRole('button', { name: '투약 기록 시작하기' }).click()
+    await sheet.getByRole('button', { name: '다음', exact: true }).click()
+    await sheet.getByRole('radio', { name: '배 왼쪽' }).click()
+    await sheet.getByRole('button', { name: '다음', exact: true }).click()
+    await sheet.getByRole('button', { name: '어제', exact: true }).click()
+    await sheet.getByRole('checkbox', { name: /시간이 기억나지 않아요/ }).check()
+    await sheet.getByRole('button', { name: '다음', exact: true }).click()
+    await sheet.getByRole('button', { name: '확인', exact: true }).click()
+    await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
+    await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
+    await expect(page).toHaveURL('/home')
+    await expect(page.getByText('마운자로 2.5mg').first()).toBeVisible()
+    await expect(page.getByText('시작 체중을 기록해 볼까요?')).toBeVisible()
+  })
+
+  test('온보딩을 마친 사용자는 로그인 후 바로 홈', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('slimlog:onboarding:v1', JSON.stringify({ state: { step: 'medication', nickname: '우는자몽', nicknameSaved: true, heightCm: '', weightKg: '80', goalKg: '72', bodySkipped: false, baselineSavedAt: null, doseChoice: 'later', completedAt: '2026-11-03T00:00:00.000Z' }, version: 1 })),
+    )
+    await page.goto('/login')
+    await page.getByRole('button', { name: '카카오 로그인' }).click()
+    await expect(page).toHaveURL('/home')
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL('/home')
+  })
+})
+
+test.describe('섭취 관리', () => {
+  test('홈 카드: 기존 수분 기록을 mL로 이어서 표시, 시트에서 물 추가', async ({ page }) => {
+    await page.goto('/home')
+    const card = page.getByRole('button', { name: /섭취 관리/ })
+    await expect(card).toContainText('물 1.5L · 복용 1건')
+    await card.click()
+    const sheet = page.getByRole('dialog', { name: '섭취 관리' })
+    await expect(sheet.getByText('기존 컵 기록 환산')).toBeVisible()
+    await sheet.getByRole('button', { name: '+250mL' }).click()
+    await expect(sheet.getByText('1,750')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(card).toContainText('물 1.8L')
+  })
+
+  test('영양제 등록·섭취 기록, 복용약 탭 안내', async ({ page }) => {
+    await page.goto('/home')
+    await page.getByRole('button', { name: /섭취 관리/ }).click()
+    const sheet = page.getByRole('dialog', { name: '섭취 관리' })
+    await sheet.getByRole('tab', { name: '영양제' }).click()
+    await sheet.getByLabel('영양제 이름').fill('유산균')
+    await sheet.getByRole('button', { name: '등록' }).click()
+    const row = sheet.locator('li', { hasText: '유산균' })
+    await expect(row).toContainText('오늘 섭취 기록 없음')
+    await row.getByRole('button', { name: '섭취 기록' }).click()
+    await expect(row).toContainText('오늘 섭취 1회')
+    await sheet.getByRole('tab', { name: '복용약' }).click()
+    await expect(sheet.getByText('주사는 홈의 ‘투약’에서 기록해요', { exact: false })).toBeVisible()
+    await expect(sheet.getByText('등록한 복용약이 없어요', { exact: false })).toBeVisible()
   })
 })

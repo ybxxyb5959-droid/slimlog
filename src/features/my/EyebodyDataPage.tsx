@@ -20,7 +20,7 @@ export function EyebodyDataPage() {
 
   return (
     <>
-      <PageHeader title="눈바디 로컬 데이터" description="사진은 이 기기 브라우저에만 저장돼요" back="/my" />
+      <PageHeader title="눈바디 로컬 데이터" description="사진은 이 기기 브라우저에만 저장돼요" back="/my/data" />
       <div className="space-y-4 md:max-w-2xl">
         <Card className="space-y-4">
           <div className="flex items-center gap-3">

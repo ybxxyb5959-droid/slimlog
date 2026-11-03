@@ -2,6 +2,7 @@ import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } f
 
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ModerationPage } from '@/features/admin/ModerationPage'
+import { OnboardingRoute } from '@/features/onboarding/OnboardingRoute'
 import { ConsentSignupPage } from '@/features/auth/ConsentSignupPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
@@ -13,7 +14,14 @@ import { ConsentPage } from '@/features/my/ConsentPage'
 import { EyebodyDataPage } from '@/features/my/EyebodyDataPage'
 import { MyPage } from '@/features/my/MyPage'
 import { ProfilePage } from '@/features/my/ProfilePage'
-import { SettingsPage } from '@/features/my/SettingsPage'
+import { AppSettingsPage } from '@/features/my/AppSettingsPage'
+import { BodyGoalPage } from '@/features/my/BodyGoalPage'
+import { DataManagePage } from '@/features/my/DataManagePage'
+import { LikedPostsPage } from '@/features/my/LikedPostsPage'
+import { NotificationSettingsPage } from '@/features/my/NotificationSettingsPage'
+import { SettingsHubPage } from '@/features/my/SettingsHubPage'
+import { SupportPage } from '@/features/my/SupportPage'
+import { TermsPage } from '@/features/my/TermsPage'
 import { AnalysisHubPage } from '@/features/analysis/AnalysisHubPage'
 import { AnalysisSection } from '@/features/analysis/AnalysisSection'
 import { MedicationAnalysisPage } from '@/features/analysis/MedicationAnalysisPage'
@@ -29,7 +37,6 @@ import { MedicationNewPage } from '@/features/record/medication/MedicationNewPag
 import { RecordHubPage } from '@/features/record/RecordHubPage'
 
 const soon = (path: string, title: string) => ({ path, element: <ComingSoonPage title={title} /> })
-const soonBrand = (path: string, title: string) => ({ path, element: <ComingSoonPage title={title} brand /> })
 
 const routes: RouteObject[] = [
   {
@@ -75,7 +82,14 @@ const routes: RouteObject[] = [
       { path: 'my', element: <MyPage /> },
       { path: 'my/profile', element: <ProfilePage /> },
       { path: 'my/consent', element: <ConsentPage /> },
-      { path: 'my/settings', element: <SettingsPage /> },
+      { path: 'my/body', element: <BodyGoalPage /> },
+      { path: 'my/liked', element: <LikedPostsPage /> },
+      { path: 'my/settings', element: <SettingsHubPage /> },
+      { path: 'my/settings/notifications', element: <NotificationSettingsPage /> },
+      { path: 'my/settings/app', element: <AppSettingsPage /> },
+      { path: 'my/data', element: <DataManagePage /> },
+      { path: 'my/support', element: <SupportPage /> },
+      { path: 'my/terms', element: <TermsPage /> },
       { path: 'my/eyebody-data', element: <EyebodyDataPage /> },
       { path: 'my/account', element: <AccountPage /> },
     ],
@@ -83,7 +97,8 @@ const routes: RouteObject[] = [
   { path: 'login', element: <LoginPage /> },
   { path: 'signup', element: <SignupPage /> },
   { path: 'consent', element: <ConsentSignupPage /> },
-  soonBrand('onboarding', '시작하기'),
+  { path: 'onboarding', element: <OnboardingRoute /> },
+  { path: 'onboarding/:step', element: <OnboardingRoute /> },
   { path: '*', element: <NotFoundPage /> },
 ]
 
@@ -94,6 +109,7 @@ const PREVIEW_START: Record<string, string> = {
   analysis: '/analysis',
   brand: '/preview/brand',
   login: '/login',
+  onboarding: '/onboarding',
   community: '/community',
   my: '/my',
 }

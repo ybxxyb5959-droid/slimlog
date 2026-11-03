@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { Logo } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/button'
+import { useOnboardingStore } from '@/stores/onboardingStore'
 
 import { AuthShell } from './AuthShell'
 import { ProviderButton } from './ProviderMark'
@@ -13,7 +14,8 @@ export function LoginPage() {
   const navigate = useNavigate()
   const go = (label: string) => {
     toast(`목업: ${label} — 실제 로그인 없이 다음 화면으로 이동해요`)
-    navigate('/consent')
+    // 온보딩을 마친 사용자는 바로 홈, 처음이면 동의 → 온보딩
+    navigate(useOnboardingStore.getState().completedAt ? '/home' : '/consent')
   }
 
   return (

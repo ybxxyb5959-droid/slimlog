@@ -1,76 +1,87 @@
-import { Bell, Camera, ClipboardCheck, LogOut, ShieldUser, SlidersHorizontal, UserRound, UserX } from 'lucide-react'
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { toast } from 'sonner'
+import { ChevronRight, Heart, MessagesSquare, Ruler, Settings, UserRound, type LucideIcon } from 'lucide-react'
+import { Link } from 'react-router'
 
 import { AppIcon } from '@/components/common/AppIcon'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { MockBadge } from '@/components/common/MockBadge'
 import { PageHeader } from '@/components/common/PageHeader'
 import { Card } from '@/components/ui/card'
-import { MEDICATIONS } from '@/fixtures/medications.mock'
-import { MOCK_PROFILE } from '@/fixtures/records.mock'
-import { daysBetween } from '@/lib/date'
+import { useMyProfile } from '@/services/profile'
+import { useCommunityStore } from '@/stores/communityStore'
 
-import { MyGroup, MyRow } from './MyRow'
+function CardRow({ to, icon, title, description, meta }: { to: string; icon: LucideIcon; title: string; description: string; meta?: string }) {
+  return (
+    <Link to={to} className="flex min-h-[76px] items-center gap-4 rounded-card border border-border bg-surface px-5 py-4 hover:bg-surface-muted/60">
+      <AppIcon icon={icon} size="md" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[16px] font-semibold text-text">{title}</span>
+        <span className="block truncate text-[13px] text-text-muted">{description}</span>
+      </span>
+      {meta && <span className="tabular text-[13px] text-text-muted">{meta}</span>}
+      <AppIcon icon={ChevronRight} size="sm" tone="muted" />
+    </Link>
+  )
+}
 
+/** 마이페이지 — 설정 메뉴는 우측 상단 톱니바퀴(설정 화면)로 분리 */
 export function MyPage() {
-  const navigate = useNavigate()
-  const [logout, setLogout] = useState(false)
-  const p = MOCK_PROFILE
-  const days = daysBetween(new Date(p.startedAt), new Date()) + 1
+  const p = useMyProfile()
+  const posts = useCommunityStore((s) => s.posts)
+  const myPosts = posts.filter((x) => x.mine).length
+  const myComments = posts.reduce((n, x) => n + x.comments.filter((c) => c.mine).length, 0)
+  const liked = posts.filter((x) => x.liked).length
 
   return (
     <>
-      <PageHeader title="마이" />
-      <div className="space-y-6 md:max-w-2xl">
+      <PageHeader
+        title="마이페이지"
+        actions={
+          <Link to="/my/settings" aria-label="설정" className="inline-flex size-11 items-center justify-center rounded-full hover:bg-surface-muted">
+            <AppIcon icon={Settings} size="lg" tone="text" />
+          </Link>
+        }
+      />
+      <div className="space-y-4 md:max-w-2xl">
         <Link to="/my/profile" className="block">
           <Card className="flex items-center gap-4 hover:bg-surface-muted/40">
-            <AppIcon icon={UserRound} size="lg" bg="soft" className="size-14 rounded-2xl" />
+            <AppIcon icon={UserRound} size="lg" bg="success" tone="success" className="size-16 rounded-full [&>svg]:size-7" />
             <div className="min-w-0 flex-1">
-              <p className="text-[18px] font-bold">{p.nickname}</p>
-              <p className="tabular text-[13px] text-text-muted">
-                {MEDICATIONS[p.medicationId].name} · 기록 {days}일째 · 목표 {p.goalWeightKg}kg
-              </p>
+              <p className="truncate text-[20px] font-bold">{p.nickname || '닉네임 없음'}</p>
+              <p className="text-[14px] text-text-muted">프로필 편집</p>
             </div>
-            <MockBadge />
+            {p.isExample && <MockBadge />}
+            <AppIcon icon={ChevronRight} size="sm" tone="muted" />
           </Card>
         </Link>
 
-        <MyGroup title="개인정보">
-          <MyRow to="/my/consent" icon={ClipboardCheck} label="개인정보 · 민감정보 동의 관리" />
-          <MyRow to="/my/eyebody-data" icon={Camera} label="눈바디 로컬 데이터" meta="이 기기에만 저장" />
-        </MyGroup>
+        <Link to="/my/body" className="block rounded-card bg-primary-soft px-6 py-5 hover:brightness-[0.98]" aria-label="나의 목표 체중, 눌러서 수정">
+          <div className="flex items-center justify-between">
+            <p className="text-[15px] font-semibold text-primary">나의 목표 체중</p>
+            <AppIcon icon={ChevronRight} size="sm" tone="success" />
+          </div>
+          <p className="tabular mt-2 text-[36px] leading-tight font-bold tracking-tight text-primary">
+            {p.goalWeightKg !== null ? (
+              <>
+                {p.goalWeightKg}
+                <span className="ml-1 text-[20px]">kg</span>
+              </>
+            ) : (
+              <span className="text-[22px]">아직 정하지 않았어요</span>
+            )}
+          </p>
+          <p className="mt-2 text-[13px] text-text-muted">내가 설정한 목표 · 눌러서 수정</p>
+        </Link>
 
-        <MyGroup title="설정">
-          <MyRow to="/my/settings" icon={SlidersHorizontal} label="기록 설정" />
-          <MyRow to="/my/settings#notifications" icon={Bell} label="알림 설정" />
-        </MyGroup>
+        <section className="pt-2">
+          <h2 className="mb-2 px-1 text-[14px] font-semibold text-text-muted">나의 건강 관리</h2>
+          <CardRow to="/my/body" icon={Ruler} title="신체 정보 · 목표 관리" description="키 · 시작 체중 · 목표 체중 설정" />
+        </section>
 
-        <MyGroup title="계정">
-          <MyRow to="/my/account" icon={UserX} label="계정 관리" meta="카카오 연결" />
-          <button type="button" onClick={() => setLogout(true)} className="flex min-h-14 w-full items-center gap-3 px-5 py-3 text-left hover:bg-surface-muted/60">
-            <AppIcon icon={LogOut} size="sm" tone="muted" />
-            <span className="flex-1 text-[15px]">로그아웃</span>
-          </button>
-        </MyGroup>
-
-        <MyGroup title="운영 (관리자 계정에만 보임 · 목업)">
-          <MyRow to="/admin/moderation" icon={ShieldUser} label="관리자 검토" meta="대기 3건" />
-        </MyGroup>
+        <section className="space-y-3 pt-2">
+          <h2 className="px-1 text-[14px] font-semibold text-text-muted">나의 커뮤니티</h2>
+          <CardRow to="/community?filter=mine" icon={MessagesSquare} title="내가 쓴 글 · 댓글" description="내 커뮤니티 활동 보기" meta={`글 ${myPosts} · 댓글 ${myComments}`} />
+          <CardRow to="/my/liked" icon={Heart} title="공감한 글" description="관심 게시글 모아보기" meta={`${liked}개`} />
+        </section>
       </div>
-
-      <ConfirmDialog
-        open={logout}
-        onOpenChange={setLogout}
-        title="로그아웃할까요?"
-        description="이 기기의 눈바디 사진은 지워지지 않아요."
-        confirmLabel="로그아웃"
-        onConfirm={() => {
-          toast('목업: 로그아웃했어요')
-          navigate('/login')
-        }}
-      />
     </>
   )
 }
