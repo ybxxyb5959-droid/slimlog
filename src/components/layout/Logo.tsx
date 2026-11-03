@@ -1,16 +1,19 @@
 import { Link } from 'react-router'
 
-export function Logo({ compactBelowLg = false }: { compactBelowLg?: boolean }) {
+import { Logo as BrandLogo } from '@/components/brand/Logo'
+
+/** 헤더·사이드바용 로고 링크 — 좁은 곳은 S 심볼만 */
+export function Logo({ compactBelowLg = false, size = 30 }: { compactBelowLg?: boolean; size?: number }) {
   return (
-    <Link to="/home" className="inline-flex items-center gap-2" aria-label="슬림로그 홈">
-      <span className="inline-flex size-8 items-center justify-center rounded-[10px] bg-primary">
-        <svg viewBox="0 0 32 32" className="size-6" aria-hidden>
-          <path d="M7 11c4 0 5 10 9 10s4.5-5 9-5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
-        </svg>
-      </span>
-      <span className={compactBelowLg ? 'hidden text-[18px] font-bold tracking-tight text-text lg:inline' : 'text-[18px] font-bold tracking-tight text-text'}>
-        슬림로그 <span className="text-[13px] font-medium text-text-subtle">SlimLog</span>
-      </span>
+    <Link to="/home" className="inline-flex items-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label="SlimLog 홈">
+      {compactBelowLg ? (
+        <>
+          <BrandLogo variant="symbol" size={size} className="lg:hidden" />
+          <BrandLogo variant="horizontal" size={size} className="hidden lg:inline-flex" />
+        </>
+      ) : (
+        <BrandLogo variant="horizontal" size={size} />
+      )}
     </Link>
   )
 }

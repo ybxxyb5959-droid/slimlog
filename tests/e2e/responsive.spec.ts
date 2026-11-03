@@ -280,3 +280,20 @@ test.describe('분석 유의사항', () => {
     await expect(page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })).toBeVisible()
   })
 })
+
+test('홈: 체중 변화가 최상단 메인 카드, 로고 표시', async ({ page }) => {
+  await page.goto('/home')
+  const hero = page.getByRole('link', { name: '체중 변화 자세히 보기' })
+  const today = page.getByRole('heading', { name: '오늘의 기록' })
+  const heroBox = (await hero.boundingBox())!
+  const todayBox = (await today.boundingBox())!
+  expect(heroBox.y).toBeLessThan(todayBox.y)
+  await expect(page.getByRole('img', { name: 'SlimLog' }).locator('visible=true').first()).toBeVisible()
+})
+
+test('브랜드: 파비콘·PWA 매니페스트·아이콘 제공', async ({ request }) => {
+  const manifest = await (await request.get('/manifest.webmanifest')).json()
+  expect(manifest.short_name).toBe('SlimLog')
+  for (const icon of manifest.icons) expect((await request.get(icon.src)).ok()).toBeTruthy()
+  expect((await request.get('/favicon.svg')).ok()).toBeTruthy()
+})

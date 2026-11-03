@@ -3,13 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f6f7f5" />
     <meta name="description" content="투약·식단·체성분·증상을 하나의 날짜축에서 보는 기록 서비스" />
-    <title>슬림로그 SlimLog</title>
+    <title>SlimLog 슬림로그</title>
+    <style>
+      /* 스플래시: React가 그려지기 전까지만 보인다 */
+      .splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #f6f7f5; font-family: system-ui, sans-serif; }
+      .splash p { margin: 0; color: #0b7a5a; font-weight: 700; font-size: 26px; letter-spacing: -0.01em; }
+      .splash span { color: #5b7a70; font-size: 13px; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="splash" aria-label="SlimLog 불러오는 중">
+        <svg viewBox="0 4 98 98" width="72" height="72" aria-hidden="true">
+          <path d="M80 16H34.5A18.5 18.5 0 0 0 34.5 53H63.5A18.5 18.5 0 0 1 63.5 90H22" fill="none" stroke="#0B7A5A" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="22" cy="90" r="8.5" fill="#22C08A" />
+        </svg>
+        <p>SlimLog</p>
+        <span>나의 변화를 기록하다</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

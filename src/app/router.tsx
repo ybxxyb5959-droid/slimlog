@@ -16,6 +16,7 @@ import { MedicationNewPage } from '@/features/record/medication/MedicationNewPag
 import { RecordHubPage } from '@/features/record/RecordHubPage'
 
 const soon = (path: string, title: string) => ({ path, element: <ComingSoonPage title={title} /> })
+const soonBrand = (path: string, title: string) => ({ path, element: <ComingSoonPage title={title} brand /> })
 
 const routes: RouteObject[] = [
   {
@@ -60,10 +61,10 @@ const routes: RouteObject[] = [
       soon('my', '마이'),
     ],
   },
-  soon('login', '로그인'),
-  soon('signup', '회원가입'),
-  soon('consent', '개인정보 동의'),
-  soon('onboarding', '시작하기'),
+  soonBrand('login', '로그인'),
+  soonBrand('signup', '회원가입'),
+  soonBrand('consent', '개인정보 동의'),
+  soonBrand('onboarding', '시작하기'),
   { path: '*', element: <NotFoundPage /> },
 ]
 

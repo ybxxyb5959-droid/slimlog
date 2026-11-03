@@ -14,6 +14,7 @@ import { Link } from 'react-router'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { MockBadge } from '@/components/common/MockBadge'
+import { Logo } from '@/components/layout/Logo'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
@@ -116,39 +117,45 @@ export function HomePage() {
     .slice(0, 3)
 
   return (
-    <div className="space-y-5">
-      <header className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[13px] font-medium text-text-muted">
-            {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-          </p>
-          <h1 className="mt-1 text-[22px] leading-tight font-bold tracking-tight md:text-2xl">
-            {profile.nickname}님, {greetingFor(now)}
-          </h1>
-        </div>
-      </header>
-
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        {/* 오늘의 기록 */}
-        <section aria-labelledby="today-title">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 id="today-title" className="text-[20px] font-bold tracking-tight">
-              오늘의 기록
-            </h2>
-            <MockBadge label="예시 상태" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {tiles.map((t) => (
-              <TodayTileCard key={t.title} tile={t} />
-            ))}
-          </div>
-        </section>
-
-        {/* 체중 변화 (비유) */}
-        <section aria-label="체중 변화" className="lg:pt-[44px]">
-          <WeightAnalogyCard startKg={profile.startWeightKg} latestKg={latest.weightKg} to="/analysis" />
-        </section>
+    <div className="space-y-6">
+      {/* 모바일 앱 헤더 (데스크톱은 사이드바에 로고) */}
+      <div className="-mt-1 flex items-center justify-between md:hidden">
+        <Logo size={28} />
       </div>
+
+      {/* 메인: 체중 변화 */}
+      <WeightAnalogyCard
+        variant="hero"
+        startKg={profile.startWeightKg}
+        latestKg={latest.weightKg}
+        to="/analysis"
+        eyebrow={
+          <>
+            <span className="block">
+              {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
+            </span>
+            <h1 className="text-[15px] font-semibold text-text">
+              {profile.nickname}님, {greetingFor(now)}
+            </h1>
+            <MockBadge className="mt-1.5" />
+          </>
+        }
+      />
+
+      {/* 오늘의 기록 */}
+      <section aria-labelledby="today-title">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="today-title" className="text-[20px] font-bold tracking-tight">
+            오늘의 기록
+          </h2>
+          <MockBadge label="예시 상태" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {tiles.map((t) => (
+            <TodayTileCard key={t.title} tile={t} />
+          ))}
+        </div>
+      </section>
 
       <div className="grid items-start gap-3 lg:grid-cols-2">
         {/* 최근 투약 */}
