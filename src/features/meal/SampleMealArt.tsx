@@ -27,13 +27,3 @@ export function SampleMealArt({ className }: { className?: string }) {
     </svg>
   )
 }
-
-/** 예시 사진에서 그려 볼 영역 (가이드용, % 좌표) */
-// eslint-disable-next-line react-refresh/only-export-components
-export const SAMPLE_REGIONS = [
-  { x: 13, y: 13, w: 34, h: 44 }, // 찌개
-  { x: 54, y: 16, w: 27, h: 37 }, // 밥
-  { x: 11, y: 62, w: 25, h: 31 }, // 반찬1
-  { x: 39, y: 64, w: 24, h: 29 }, // 반찬2
-  { x: 66, y: 62, w: 25, h: 31 }, // 반찬3
-]

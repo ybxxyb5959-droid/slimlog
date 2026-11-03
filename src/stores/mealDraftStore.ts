@@ -6,22 +6,17 @@ import type { MealItem, MealRecord } from '@/types/meal'
 
 /**
  * 저장 전 식사(장바구니) — 사진 기록과 수동 기록이 같은 저장 화면을 쓴다.
- * foodId가 null인 항목 = 아직 음식을 고르지 않은 사진 영역 → 저장 불가.
+ * foodId가 null인 항목 = '확인 필요'인데 아직 음식을 고르지 않은 사진 인식 항목 → 저장 불가.
  */
 export type DraftItem = Omit<MealItem, 'foodId'> & { foodId: string | null }
 
-/** 사진 위 음식 영역 (% 좌표) */
-export interface PhotoRegion {
-  x: number
-  y: number
-  w: number
-  h: number
-}
 export interface DraftPhoto {
   kind: 'sample' | 'file'
   url?: string
-  regions: PhotoRegion[]
 }
+
+/** 사진 인식 항목인지 (예전 영역 번호 기록도 사진 항목으로 본다) */
+export const isPhotoItem = (i: { fromPhoto?: boolean; regionNo?: number }) => !!i.fromPhoto || i.regionNo !== undefined
 
 export const defaultMealType = (d = new Date()): MealType => {
   const h = d.getHours()
@@ -54,9 +49,9 @@ export const useMealDraftStore = create<DraftState>((set) => ({
   replaceItem: (id, item) => set((s) => ({ items: s.items.map((x) => (x.id === id ? item : x)) })),
   removeItem: (id) => set((s) => ({ items: s.items.filter((x) => x.id !== id) })),
   setPhoto: (photo) => set({ photo }),
-  setPhotoItems: (items, photoId) => set((s) => ({ items: [...items, ...s.items.filter((x) => x.regionNo === undefined)], photoId })),
+  setPhotoItems: (items, photoId) => set((s) => ({ items: [...items, ...s.items.filter((x) => !isPhotoItem(x))], photoId })),
   setMeta: (patch) => set(patch),
   loadRecord: (r) =>
-    set({ items: r.items, photoId: r.photoId ?? null, photo: r.photoId ? { kind: 'sample', regions: [] } : null, mealType: r.mealType, eatenAt: toDateTimeLocalValue(new Date(r.eatenAt)), editingId: r.id }),
+    set({ items: r.items, photoId: r.photoId ?? null, photo: r.photoId ? { kind: 'sample' } : null, mealType: r.mealType, eatenAt: toDateTimeLocalValue(new Date(r.eatenAt)), editingId: r.id }),
   reset: () => set(fresh()),
 }))

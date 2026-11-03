@@ -33,7 +33,7 @@ const demoRecords = (): MealRecord[] => [
     eatenAt: at(0, 12, 40),
     source: 'photo',
     photoId: 'photo-demo',
-    items: [makeItem(food('kimchi-jjigae'), 400, { regionNo: 1 }), makeItem(food('rice'), 210, { regionNo: 2 })],
+    items: [makeItem(food('kimchi-jjigae'), 400, { fromPhoto: true }), makeItem(food('rice'), 210, { fromPhoto: true })],
   },
   { id: 'rec-demo-3', mealType: 'snack', eatenAt: at(0, 16, 0), source: 'manual', items: [makeItem(food('boiled-egg'), 100)] },
   { id: 'rec-demo-4', mealType: 'dinner', eatenAt: at(-1, 19, 20), source: 'manual', items: [makeItem(food('chicken-breast'), 150), makeItem(food('multigrain-rice'), 210), makeItem(food('kimchi'), 50)] },

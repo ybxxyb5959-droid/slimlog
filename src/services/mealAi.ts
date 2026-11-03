@@ -1,26 +1,49 @@
 /**
- * 음식 사진 인식 — 목업 (실제 AI 결과 아님).
- * 실제: POST /meals/photo (사진 + 영역 좌표) → 서버가 EXIF 제거 후 영역마다 잘라 ONNX 분류 모델로 추론 → 영역별 Top-3.
- * 1순위 확률이 기준값(검증셋에서 0.5·0.6·0.7 비교) 이상이면 자동 제안. 화면에는 확률 숫자를 보여주지 않는다.
- * supported=false: 학습한 20종 밖으로 보이는 경우 → 검색으로만 고른다.
+ * 음식 사진 인식 — 멀티라벨 분류 계약 (현재는 목업만 동작)
+ *
+ * 실제(다음 승인 이후): POST /api/meals/recognize (사진 1장)
+ *   → 서버가 EXIF 제거 → EfficientNet-B0 멀티라벨 모델(ONNX) 추론
+ *   → 클래스마다 sigmoid 점수 → 클래스별 기준값 이상이면 '인식 결과',
+ *     기준값보다 조금 낮은 구간이면 '확인 필요'로 돌려준다.
+ * 영역(박스)을 그리지 않는다. 사진 전체를 한 번에 본다.
+ *
+ * 모델이 준비되지 않았으면(model_status: not_loaded) 목업 결과로 시연한다.
+ * 목업 결과는 mode: 'mock' 으로 표시되고, 사진 내용과 상관없는 고정 예시다.
  */
-export interface RegionPrediction {
-  confident: boolean
-  supported: boolean
-  candidates: string[] // foodId, 1순위부터
+import type { AiLabelMeta } from '@/types/meal'
+
+export type ModelStatus = 'ready' | 'not_loaded' | 'mock'
+
+export interface RecognizedLabel extends Omit<AiLabelMeta, 'modelVersion' | 'mode'> {
+  foodId: string
 }
 
-/** 그린 영역 순서대로 돌려주는 예시 결과 — 확신 높음·낮음·미지원 상태를 모두 보여주기 위함 */
-const MOCK: RegionPrediction[] = [
-  { confident: true, supported: true, candidates: ['kimchi-jjigae', 'sundubu', 'doenjang-jjigae'] },
-  { confident: true, supported: true, candidates: ['rice', 'bibimbap', 'gimbap'] },
-  { confident: false, supported: true, candidates: ['spinach', 'kongnamul', 'myeolchi'] },
-  { confident: false, supported: false, candidates: [] },
-  { confident: true, supported: true, candidates: ['kimchi', 'kongnamul', 'spinach'] },
-  { confident: false, supported: true, candidates: ['jeyuk', 'bulgogi', 'tteokbokki'] },
+export interface RecognitionResult {
+  mode: 'model' | 'mock'
+  modelStatus: ModelStatus
+  modelVersion: string
+  /** 점수 높은 순 */
+  labels: RecognizedLabel[]
+}
+
+export const MOCK_MODEL_VERSION = 'mock-0'
+
+/** 목업 결과 — '인식 결과'와 '확인 필요'를 모두 보여주기 위한 고정 예시 (실제 점수 아님) */
+const MOCK_LABELS: RecognizedLabel[] = [
+  { foodId: 'kimchi-jjigae', status: 'recognized', score: 0.91, threshold: 0.5, candidates: ['kimchi-jjigae', 'sundubu', 'doenjang-jjigae'] },
+  { foodId: 'rice', status: 'recognized', score: 0.88, threshold: 0.5, candidates: ['rice', 'multigrain-rice'] },
+  { foodId: 'kimchi', status: 'recognized', score: 0.74, threshold: 0.55, candidates: ['kimchi', 'kkakdugi'] },
+  { foodId: 'spinach', status: 'review', score: 0.41, threshold: 0.55, candidates: ['spinach', 'kongnamul', 'myeolchi'] },
+  { foodId: 'gyeranmari', status: 'review', score: 0.37, threshold: 0.5, candidates: ['gyeranmari', 'boiled-egg'] },
 ]
 
-export async function classifyRegions(count: number): Promise<RegionPrediction[]> {
+/** 지금 쓸 수 있는 모델 상태 — 백엔드가 없으므로 항상 mock */
+export function getModelStatus(): ModelStatus {
+  return 'mock'
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 실제 연결 시 사진을 보낸다 (목업은 사진을 쓰지 않음)
+export async function recognizeMeal(_photo: { kind: 'sample' | 'file'; url?: string }): Promise<RecognitionResult> {
   await new Promise((r) => setTimeout(r, 1100))
-  return Array.from({ length: count }, (_, i) => MOCK[i % MOCK.length])
+  return { mode: 'mock', modelStatus: getModelStatus(), modelVersion: MOCK_MODEL_VERSION, labels: MOCK_LABELS.map((l) => ({ ...l, candidates: [...l.candidates] })) }
 }

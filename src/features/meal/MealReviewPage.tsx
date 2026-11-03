@@ -17,7 +17,7 @@ import { amountLabel, fmtG, sumNutrients } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
 import { getFood } from '@/services/foodCatalog'
 import { makeItem, useMealStore } from '@/stores/mealStore'
-import { useMealDraftStore, type DraftItem } from '@/stores/mealDraftStore'
+import { isPhotoItem, useMealDraftStore, type DraftItem } from '@/stores/mealDraftStore'
 import type { MealType } from '@/types/domain'
 import type { FoodItem, MealItem } from '@/types/meal'
 
@@ -77,11 +77,13 @@ export function MealReviewPage() {
   const future = new Date(d.eatenAt).getTime() > openedAt + 60_000
   const canSave = d.items.length > 0 && unresolved === 0 && !future
   const typeLabel = MEAL_TYPES.find((t) => t.value === d.mealType)!.label
-  const photoItems = d.items.filter((i) => i.regionNo !== undefined).length
+  const photoItems = d.items.filter(isPhotoItem).length
+  const mockAi = d.items.some((i) => i.ai?.mode === 'mock')
+  const reviewNo = (it: DraftItem) => d.items.filter((x) => x.ai?.status === 'review').indexOf(it) + 1
 
   const choose = (item: DraftItem, food: FoodItem) => {
     const corrected = !!item.ai && item.ai.candidates[0] !== food.id
-    d.replaceItem(item.id, { ...makeItem(food, food.servingGrams, { regionNo: item.regionNo, ai: item.ai, corrected }), id: item.id })
+    d.replaceItem(item.id, { ...makeItem(food, food.servingGrams, { fromPhoto: isPhotoItem(item), ai: item.ai, corrected }), id: item.id })
   }
 
   const save = () => {
@@ -131,19 +133,14 @@ export function MealReviewPage() {
           <div>
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
               {d.photo.kind === 'file' ? <img src={d.photo.url} alt="식사 사진" className="h-full w-full object-cover" /> : <SampleMealArt className="h-full w-full" />}
-              {d.photo.regions.map((r, i) => (
-                <div key={i} className="pointer-events-none absolute rounded-lg border-2 border-white shadow-[0_0_0_1.5px_rgba(15,23,42,0.5)]" style={{ left: `${r.x}%`, top: `${r.y}%`, width: `${r.w}%`, height: `${r.h}%` }}>
-                  <span className="absolute top-1 left-1 inline-flex size-5 items-center justify-center rounded-full bg-text text-[11px] font-bold text-surface">{i + 1}</span>
-                </div>
-              ))}
             </div>
             <div className="mt-2 flex items-center justify-between">
               <span className="flex items-center gap-2 text-[14px] font-semibold">
                 <AppIcon icon={Camera} size="sm" tone="muted" /> 식단 사진 1장
               </span>
-              {d.photo.regions.length > 0 && (
+              {!d.editingId && (
                 <Button asChild variant="outline" size="sm" className="h-9 rounded-full">
-                  <Link to="/record/meal/photo">영역 수정</Link>
+                  <Link to="/record/meal/photo">다시 인식</Link>
                 </Button>
               )}
             </div>
@@ -158,6 +155,11 @@ export function MealReviewPage() {
             </h2>
             <span className="text-[13px] text-text-muted">{d.items.length}개 음식</span>
           </div>
+          {mockAi && (
+            <p className="mb-2 rounded-xl bg-review-soft px-3 py-2 text-[12px] leading-relaxed text-review">
+              <b>목업 인식 결과</b>예요. 실제 AI가 사진을 분석한 결과가 아니라 시연용 고정 예시예요.
+            </p>
+          )}
           {d.items.length === 0 && <EmptyState title="아직 담은 음식이 없어요" description="사진으로 분석하거나 직접 추가해 보세요." className="py-6" />}
           <ul className="space-y-2.5">
             {d.items.map((it) => {
@@ -166,11 +168,15 @@ export function MealReviewPage() {
               return (
                 <li key={it.id} className={cn('rounded-2xl border bg-surface p-4', !it.foodId ? 'border-review-border' : 'border-border')}>
                   <div className="flex items-start gap-2">
-                    {it.regionNo !== undefined && <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-text text-[12px] font-bold text-surface">{it.regionNo}</span>}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[17px] font-bold">{it.foodId ? it.name : '어떤 음식인가요?'}</p>
+                      {ai && (
+                        <Badge tone={it.foodId ? 'info' : 'review'} className="mb-1">
+                          {ai.status === 'recognized' ? '인식 결과' : it.foodId ? '확인 완료' : '확인 필요'}
+                        </Badge>
+                      )}
+                      <p className="truncate text-[17px] font-bold">{it.foodId ? it.name : '이 음식이 맞나요?'}</p>
                       <p className="tabular text-[13px] text-text-muted">
-                        {it.regionNo !== undefined ? 'AI 사진 분석' : '직접 검색'}
+                        {isPhotoItem(it) ? '사진 인식' : '직접 검색'}
                         {it.foodId && ` · ${amountLabel(it.grams, food)} · ${it.kcal}kcal`}
                         {it.corrected && ' · 직접 고침'}
                       </p>
@@ -182,7 +188,7 @@ export function MealReviewPage() {
                         </Button>
                       </>
                     )}
-                    <button type="button" onClick={() => d.removeItem(it.id)} aria-label={`${it.foodId ? it.name : `${it.regionNo}번 음식`} 제외`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-surface-muted">
+                    <button type="button" onClick={() => d.removeItem(it.id)} aria-label={`${it.foodId ? it.name : `확인 필요 ${reviewNo(it)}`} 제외`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-surface-muted">
                       <AppIcon icon={Trash2} size="sm" tone="muted" className="size-[18px]" />
                     </button>
                   </div>
@@ -192,16 +198,12 @@ export function MealReviewPage() {
                     <div className="mt-3">
                       {!it.foodId &&
                         (ai.candidates.length ? (
-                          <Badge tone="review" className="mb-2">
-                            비슷한 음식이 있어요 · 후보 중 골라 주세요
-                          </Badge>
+                          <p className="mb-2 text-[13px] text-review">사진에 있다면 맞는 음식을 골라 주세요. 없으면 빼면 돼요.</p>
                         ) : (
-                          <Badge tone="review" className="mb-2">
-                            학습하지 않은 음식일 수 있어요 · 검색해서 골라 주세요
-                          </Badge>
+                          <p className="mb-2 text-[13px] text-review">후보가 없어요. 검색해서 골라 주세요.</p>
                         ))}
                       {ai.candidates.length > 0 && (
-                        <div role="radiogroup" aria-label={`${it.regionNo}번 음식 AI 후보`} className="flex flex-wrap gap-1.5">
+                        <div role="radiogroup" aria-label={`${it.foodId ? it.name : `확인 필요 ${reviewNo(it)}`} 인식 후보`} className="flex flex-wrap gap-1.5">
                           {ai.candidates.map((cid) => {
                             const c = getFood(cid)!
                             const active = it.foodId === cid
@@ -302,7 +304,7 @@ export function MealReviewPage() {
         onClose={() => setAmountFor(null)}
         onApply={(g) => {
           const f = getFood(amountFor!.foodId)!
-          d.replaceItem(amountFor!.id, { ...makeItem(f, g, { regionNo: amountFor!.regionNo, ai: amountFor!.ai, corrected: amountFor!.corrected }), id: amountFor!.id })
+          d.replaceItem(amountFor!.id, { ...makeItem(f, g, { fromPhoto: isPhotoItem(amountFor!), ai: amountFor!.ai, corrected: amountFor!.corrected }), id: amountFor!.id })
           setAmountFor(null)
         }}
       />

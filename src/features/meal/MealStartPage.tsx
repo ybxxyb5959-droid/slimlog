@@ -26,7 +26,7 @@ export function MealStartPage() {
 
   const startPhoto = (p: { kind: 'sample' } | { kind: 'file'; url: string }) => {
     if (draft.editingId) draft.reset()
-    draft.setPhoto({ ...p, regions: [] })
+    draft.setPhoto(p)
     navigate('/record/meal/photo')
   }
   const pickSource = (id: 'camera' | 'gallery' | 'sample') => {

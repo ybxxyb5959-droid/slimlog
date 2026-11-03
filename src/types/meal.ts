@@ -32,6 +32,24 @@ export interface FoodItem extends Nutrients {
   custom?: boolean
 }
 
+/**
+ * 사진 인식 결과 한 줄 (멀티라벨 분류 — 사진 한 장에서 음식 여러 개를 '있다/없다'로 판단)
+ * - status: 화면 표시용. recognized → '인식 결과', review → '확인 필요'
+ * - score·threshold·modelVersion·mode 는 내부 데이터. 사용자에게 % 로 보여주지 않는다.
+ */
+export interface AiLabelMeta {
+  status: 'recognized' | 'review'
+  /** 후보 foodId — 첫 번째가 모델이 고른 음식, 나머지는 헷갈리기 쉬운 비슷한 음식 */
+  candidates: string[]
+  /** sigmoid 원점수 0~1 (목업이면 예시 값) */
+  score: number | null
+  /** 이 클래스에 적용한 기준값 (검증셋에서 클래스별로 정함) */
+  threshold: number | null
+  modelVersion: string
+  /** model = 실제 모델 결과, mock = 시연용 목업 결과 */
+  mode: 'model' | 'mock'
+}
+
 /** 식사 안의 음식 한 개 — 저장 시점의 이름·영양을 스냅숏으로 보관 */
 export interface MealItem extends Nutrients {
   id: string
@@ -39,10 +57,12 @@ export interface MealItem extends Nutrients {
   name: string
   brand?: string
   grams: number
-  /** 사진 기록이면 영역 번호(1부터) */
+  /** 사진 인식으로 들어온 항목인지 (직접 검색으로 추가한 음식은 false/없음) */
+  fromPhoto?: boolean
+  /** @deprecated 영역 그리기 시절 필드 — 읽기 호환용. 새 기록에는 쓰지 않는다 */
   regionNo?: number
-  /** AI 후보 (사진 기록) */
-  ai?: { confident: boolean; candidates: string[] }
+  /** 사진 인식 결과 (내부 보관용 — 점수·기준값은 화면에 보여주지 않음) */
+  ai?: AiLabelMeta
   /** AI 1순위와 다른 음식을 골랐는지 (PREDICTIONS.corrected_food_id) */
   corrected?: boolean
 }

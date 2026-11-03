@@ -15,7 +15,7 @@ import { daysBetween, formatTime } from '@/lib/date'
 import { amountLabel, fmtG, sumNutrients } from '@/lib/nutrition'
 import { getFood } from '@/services/foodCatalog'
 import { isNewUser } from '@/services/session'
-import { useMealDraftStore } from '@/stores/mealDraftStore'
+import { isPhotoItem, useMealDraftStore } from '@/stores/mealDraftStore'
 import { useMealStore } from '@/stores/mealStore'
 import type { MealRecord } from '@/types/meal'
 
@@ -112,7 +112,7 @@ export function MealListPage() {
                           <AppIcon icon={Utensils} size="sm" tone="muted" className="size-[18px]" />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[15px]">
-                              {i.name} {i.regionNo === undefined && r.photoId && <span className="text-[11px] text-text-subtle">직접 추가</span>}
+                              {i.name} {!isPhotoItem(i) && r.photoId && <span className="text-[11px] text-text-subtle">직접 추가</span>}
                             </span>
                             <span className="tabular block text-[12px] text-text-muted">
                               {amountLabel(i.grams, getFood(i.foodId))} · 단백질 {fmtG(i.proteinG)}
