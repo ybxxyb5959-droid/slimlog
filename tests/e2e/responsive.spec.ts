@@ -30,6 +30,12 @@ const PAGES = [
   { path: '/login', heading: 'SlimLog 로그인' },
   { path: '/signup', heading: '이메일로 가입' },
   { path: '/consent', heading: '약관 동의' },
+  { path: '/record/meal', heading: 'AI 식단' },
+  { path: '/record/meal/new', heading: '오늘 무엇을 드셨나요?' },
+  { path: '/record/meal/search', heading: '음식 직접 추가' },
+  { path: '/record/meal/food/rice', heading: '쌀밥' },
+  { path: '/record/meal/custom', heading: '직접 음식 등록' },
+  { path: '/record/meal/review', heading: '오늘의 식단' },
 ]
 
 const NOTICE_KEY = 'slimlog:notice:analysis-pk'
@@ -669,42 +675,147 @@ test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })).toBeVisible()
 })
 
-test.describe('식단 AI (목업)', () => {
-  test('한 상 차림: 영역 여러 개 → 영역별 인식 → 후보 선택·인분 → 기록 → 목록·홈 반영', async ({ page }) => {
+
+test.describe('식단 기록', () => {
+  const kcalTotal = (page: import('@playwright/test').Page) => page.getByText('총 섭취 열량').locator('..')
+  const saveBtn = (page: import('@playwright/test').Page) => page.getByRole('button', { name: /식단 (저장|수정)하기/ })
+
+  test('1. 사진 1장 → 여러 영역(그리기·이동·삭제) → AI 결과 수정 → 저장', async ({ page }) => {
     await page.goto('/record/meal/new')
-    await page.getByRole('button', { name: /예시 한 상 차림/ }).click()
-    // 손으로 영역 그리기
+    await page.getByRole('button', { name: '예시 사진' }).click()
     const c = (await page.getByRole('application').boundingBox())!
-    await page.mouse.move(c.x + c.width * 0.12, c.y + c.height * 0.12)
+    await page.mouse.move(c.x + c.width * 0.1, c.y + c.height * 0.1)
     await page.mouse.down()
-    await page.mouse.move(c.x + c.width * 0.48, c.y + c.height * 0.56, { steps: 5 })
+    await page.mouse.move(c.x + c.width * 0.4, c.y + c.height * 0.5, { steps: 5 })
     await page.mouse.up()
-    await expect(page.getByRole('button', { name: '1개 인식하기' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '1개 분석하기' })).toBeVisible()
+    // 이동
+    await page.mouse.move(c.x + c.width * 0.25, c.y + c.height * 0.3)
+    await page.mouse.down()
+    await page.mouse.move(c.x + c.width * 0.35, c.y + c.height * 0.35, { steps: 5 })
+    await page.mouse.up()
     await page.getByRole('button', { name: '1번 영역 지우기' }).click()
     await page.getByRole('button', { name: '예시 영역 5개 넣어 보기' }).click()
-    await page.getByRole('button', { name: '5개 인식하기' }).click()
-    await expect(page.getByText('5개 영역을 인식하고 있어요')).toBeVisible()
-    await expect(page.getByRole('heading', { name: '음식 5가지' })).toBeVisible()
-    // 확신 낮음 2개는 선택 전까지 기록 불가
-    const save = page.getByRole('button', { name: '기록하기' })
-    await expect(save).toBeDisabled()
-    await page.getByRole('radiogroup', { name: '3번째 음식 후보' }).getByRole('radio', { name: '시금치나물' }).click()
-    await page.getByRole('radiogroup', { name: '4번째 음식 후보' }).getByRole('radio', { name: '계란말이' }).click()
-    await page.getByRole('radiogroup', { name: '쌀밥 먹은 양' }).getByRole('radio', { name: '0.5인분' }).click()
+    await page.getByRole('button', { name: '5개 분석하기' }).click()
+    await expect(page).toHaveURL('/record/meal/review')
+    await expect(page.getByText('5개 음식')).toBeVisible()
+    await expect(saveBtn(page)).toBeDisabled()
+    // 3번: 후보 선택, 4번: 미지원 → 검색해서 교체, 1번: 후보로 수정
+    await page.getByRole('radiogroup', { name: '3번 음식 AI 후보' }).getByRole('radio', { name: '시금치나물' }).click()
+    await page.getByRole('button', { name: '검색해서 고르기' }).click()
+    const sheet = page.getByRole('dialog', { name: '음식 검색' })
+    await sheet.getByLabel('음식 검색').fill('계란말이')
+    await sheet.getByRole('button', { name: /^계란말이 100g당/ }).click()
+    await page.getByRole('radiogroup', { name: '1번 음식 AI 후보' }).getByRole('radio', { name: '순두부찌개' }).click()
+    await expect(page.getByText('직접 고침').first()).toBeVisible()
     await page.getByRole('radio', { name: '저녁' }).click()
-    await save.click()
+    await saveBtn(page).click()
     await expect(page).toHaveURL('/record/meal')
-    await expect(page.getByText('사진 1장')).toBeVisible()
-    await expect(page.getByText('시금치나물')).toBeVisible()
+    const card = page.getByRole('region', { name: /^저녁 .* 식사 기록$/ }).first()
+    await expect(card).toContainText('사진 1장')
+    await expect(card).toContainText('순두부찌개')
+    await expect(card).toContainText('계란말이')
   })
 
-  test('사진 없이 검색해서 기록', async ({ page }) => {
+  test('2. 사진 1장 → 한 가지 음식 → 저장', async ({ page }) => {
     await page.goto('/record/meal/new')
-    await page.getByRole('button', { name: /사진 없이 검색해서 기록/ }).click()
-    const sheet = page.getByRole('dialog', { name: '음식 검색' })
-    await sheet.getByLabel('음식 이름 검색').fill('비빔')
-    await sheet.getByRole('button', { name: /비빔밥/ }).click()
-    await expect(page.getByText('직접 추가')).toBeVisible()
-    await expect(page.getByRole('button', { name: '기록하기' })).toBeEnabled()
+    await page.getByRole('button', { name: '예시 사진' }).click()
+    await page.getByRole('button', { name: '한 가지 음식이에요' }).click()
+    await expect(page.getByText('1개 음식')).toBeVisible()
+    await expect(page.getByText('김치찌개').first()).toBeVisible()
+    await saveBtn(page).click()
+    await expect(page).toHaveURL('/record/meal')
+  })
+
+  test('3·5. 사진 없이 검색 → 선택 → 영양 자동 입력 → 100g→200g 재계산 → 저장', async ({ page }) => {
+    await page.goto('/record/meal/new')
+    await page.getByRole('link', { name: /음식명 또는 제품명/ }).click()
+    await page.getByLabel('음식 검색').fill('닭가슴')
+    await page.getByRole('button', { name: /^닭가슴살 100g당/ }).click()
+    await expect(page.getByText('100g당').first()).toBeVisible()
+    const grams = page.getByLabel('직접 입력')
+    await grams.fill('100')
+    await expect(page.getByText('섭취량 100g 기준', { exact: false })).toBeVisible()
+    await expect(page.getByText('110 kcal')).toBeVisible()
+    await grams.fill('200')
+    await expect(page.getByText('220 kcal')).toBeVisible()
+    await expect(page.getByText('46g')).toBeVisible() // 단백질 23g × 2
+    await page.getByRole('button', { name: '식단에 추가' }).click()
+    await expect(page).toHaveURL('/record/meal/review')
+    await saveBtn(page).click()
+    await expect(page.getByText('사진 없이 기록').first()).toBeVisible()
+  })
+
+  test('4·6. 음식 3개 연속 추가 → 합계 → 삭제하면 즉시 반영', async ({ page }) => {
+    await page.goto('/record/meal/search')
+    // 쌀밥 1공기(210g) 바로 담기
+    await page.getByLabel('음식 검색').fill('쌀밥')
+    await page.getByRole('button', { name: '쌀밥 1인분 바로 추가' }).click()
+    // 닭가슴살 100g
+    await page.getByLabel('음식 검색').fill('닭가슴살')
+    await page.getByRole('button', { name: /^닭가슴살 100g당/ }).click()
+    await page.getByLabel('직접 입력').fill('100')
+    await page.getByRole('button', { name: '식단에 추가' }).click()
+    // 배추김치 50g — 작성 화면의 '음식 직접 추가하기'에서
+    await page.getByRole('button', { name: '음식 직접 추가하기' }).click()
+    await page.getByLabel('음식 검색').fill('배추김치')
+    await page.getByRole('button', { name: '배추김치 1인분 바로 추가' }).click()
+    await expect(page.getByText('3개 음식')).toBeVisible()
+    // 310 + 110 + 9 = 429
+    await expect(kcalTotal(page)).toContainText('429 kcal')
+    await page.getByRole('button', { name: '닭가슴살 제외' }).click()
+    await expect(kcalTotal(page)).toContainText('319 kcal')
+    await saveBtn(page).click()
+    await expect(page).toHaveURL('/record/meal')
+  })
+
+  test('7. 검색 결과 없음 → 직접 음식 등록(영양소 비우면 정보 없음) → 식단 추가', async ({ page }) => {
+    await page.goto('/record/meal/search')
+    await page.getByLabel('음식 검색').fill('엄마표곤드레밥')
+    await expect(page.getByText('찾으시는 음식이 없나요?')).toBeVisible()
+    await page.getByRole('button', { name: '직접 음식 등록하기' }).click()
+    await expect(page.getByLabel(/음식명/)).toHaveValue('엄마표곤드레밥')
+    await page.getByLabel(/기준 제공량/).fill('250')
+    await page.getByLabel(/^칼로리/).fill('380')
+    await page.getByRole('button', { name: '내 음식으로 등록' }).click()
+    await expect(page.getByRole('heading', { name: '엄마표곤드레밥' })).toBeVisible()
+    await expect(page.getByText('정보 없음').first()).toBeVisible()
+    await page.getByRole('button', { name: '식단에 추가' }).click()
+    await expect(page.getByText('영양 정보가 없는 음식이 있어', { exact: false })).toBeVisible()
+    // 새로고침 없이 다시 검색하면 내 음식으로 나온다
+    await page.getByRole('button', { name: '음식 직접 추가하기' }).click()
+    await page.getByLabel('음식 검색').fill('곤드레')
+    await expect(page.getByText('내 음식', { exact: true })).toBeVisible()
+  })
+
+  test('8. 저장된 식단 수정 및 삭제', async ({ page }) => {
+    await page.goto('/record/meal')
+    await page.getByRole('button', { name: /^아침 08:10 기록 수정/ }).click()
+    await expect(page.getByRole('heading', { name: '식단 수정' })).toBeVisible()
+    await page.getByRole('button', { name: '바나나 제외' }).click()
+    await saveBtn(page).click()
+    const card = page.getByRole('region', { name: '아침 08:10 식사 기록' })
+    await expect(card).not.toContainText('바나나')
+    await page.getByRole('button', { name: '아침 08:10 기록 삭제' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '삭제', exact: true }).click()
+    await expect(page.getByRole('region', { name: '아침 08:10 식사 기록' })).toHaveCount(0)
+  })
+
+  test('9. 같은 끼니라도 따로 저장한 식사는 섞이지 않는다', async ({ page }) => {
+    await page.goto('/record/meal')
+    for (const food of ['바나나', '사과']) {
+      // 목업 상태는 새로고침하면 초기화되므로 앱 안에서 이동
+      await page.getByRole('button', { name: '기록하기' }).click()
+      await page.getByRole('link', { name: /음식명 또는 제품명/ }).click()
+      await page.getByLabel('음식 검색').fill(food)
+      await page.getByRole('button', { name: `${food} 1인분 바로 추가` }).click()
+      await page.getByRole('button', { name: '뒤로 가기' }).click()
+      await page.getByRole('radio', { name: '간식' }).click()
+      await saveBtn(page).click()
+      await expect(page).toHaveURL('/record/meal')
+    }
+    const snackCards = page.getByRole('region', { name: /^간식 .* 식사 기록$/ })
+    // 예시 간식 1건 + 새로 저장한 2건
+    await expect(snackCards).toHaveCount(3)
   })
 })

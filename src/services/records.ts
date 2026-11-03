@@ -12,7 +12,7 @@ import { parseMeasure, RANGES } from '@/lib/measure'
 import { givenNameOf } from '@/lib/personName'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
-import { useMealStore } from '@/stores/mealStore'
+import { flattenMeals, useMealStore } from '@/stores/mealStore'
 
 import { mockResponse } from './mock'
 import { isNewUser } from './session'
@@ -22,7 +22,7 @@ import { isNewUser } from './session'
  * 연결 예정 API: GET /body-logs, GET /timeline?from&to&types, PUT /daily-checks/{date}
  */
 /** 오늘 식단 — 식단 화면에서 추가한 기록까지 반영 */
-const todayMeals = () => useMealStore.getState().meals.filter((m) => new Date(m.eatenAt).toDateString() === new Date().toDateString())
+const todayMeals = () => flattenMeals(useMealStore.getState().records).filter((m) => new Date(m.eatenAt).toDateString() === new Date().toDateString())
 
 export interface HomeSummary {
   /** givenName: 가입 시 이름에서 성을 뺀 값 (없으면 null) */

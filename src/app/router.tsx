@@ -3,7 +3,12 @@ import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } f
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ModerationPage } from '@/features/admin/ModerationPage'
 import { MealListPage } from '@/features/meal/MealListPage'
+import { CustomFoodPage } from '@/features/meal/CustomFoodPage'
+import { FoodDetailPage } from '@/features/meal/FoodDetailPage'
+import { FoodSearchPage } from '@/features/meal/FoodSearchPage'
 import { MealPhotoPage } from '@/features/meal/MealPhotoPage'
+import { MealReviewPage } from '@/features/meal/MealReviewPage'
+import { MealStartPage } from '@/features/meal/MealStartPage'
 import { OnboardingRoute } from '@/features/onboarding/OnboardingRoute'
 import { ConsentSignupPage } from '@/features/auth/ConsentSignupPage'
 import { LoginPage } from '@/features/auth/LoginPage'
@@ -55,7 +60,12 @@ const routes: RouteObject[] = [
       { path: 'record/medication/new', element: <MedicationNewPage /> },
       { path: 'record/medication/:id', element: <MedicationDetailPage /> },
       { path: 'record/meal', element: <MealListPage /> },
-      { path: 'record/meal/new', element: <MealPhotoPage /> },
+      { path: 'record/meal/new', element: <MealStartPage /> },
+      { path: 'record/meal/photo', element: <MealPhotoPage /> },
+      { path: 'record/meal/search', element: <FoodSearchPage /> },
+      { path: 'record/meal/food/:foodId', element: <FoodDetailPage /> },
+      { path: 'record/meal/custom', element: <CustomFoodPage /> },
+      { path: 'record/meal/review', element: <MealReviewPage /> },
       soon('record/body', '체중 · 체성분'),
       soon('record/inbody', '인바디 OCR'),
       soon('record/eyebody', '눈바디'),
