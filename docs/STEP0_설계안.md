@@ -1,83 +1,105 @@
-# SlimLog v2.0 — STEP 0 설계안 (초안)
+# SlimLog v2.0 — STEP 0 설계안
 
-> 작성일: 2026-11-03 · 발표일: 2026-12-01 (남은 기간 약 4주)
->
-> **주의:** 계획서 `SlimLog_졸업작품_최종개발계획서_v2.0_1.docx`와 아이콘 참고 이미지가
-> 이 세션에 첨부되지 않았습니다. 이 문서는 **지시서 본문만 기준**으로 작성했습니다.
-> 계획서를 `docs/` 폴더에 올려주면 P0/P1 우선순위, 화면명, 데이터 항목을 대조해 수정합니다.
-> 계획서 확인이 필요한 부분은 `[계획서 확인]`으로 표시했습니다.
+> 기준 문서: `SlimLog_졸업작품_최종개발계획서_v2.0` (2026.11.03) · 발표일 2026-12-01
+> 아이콘 기준: 사용자 제공 참고 이미지 (어두운 라운드 배경 + 초록 선형 아이콘)
 
 ---
 
-## 1. 핵심 요구사항 (지시서 기준)
+## 1. 계획서 핵심 요구사항
 
-| 구분 | 내용 |
-|---|---|
-| 서비스 | GLP-1 계열 약물(마운자로·위고비·에페) 사용자의 투약·식단·체성분·증상 통합 기록 |
-| 구조 | 홈 · 기록 · 분석 · 커뮤니티 · 마이 **5탭** |
-| 이번 단계 | 실제 React 코드로 된 **인터랙티브 목업** (백엔드·AI 없음) |
-| 데이터 | 전부 `fixtures` 가상 데이터, 화면에 "예시 데이터" 배지 표시 |
-| 약물 그래프 | 반감기 기반 **상대값**만. 고정 문구: "참고용 계산값이며 실제 혈중농도 또는 약효를 의미하지 않습니다." |
-| 눈바디 | 사진 서버 전송 금지. 암호화는 이번 단계 **미구현 → "준비 중"으로 정직하게 표시** |
-| 커뮤니티 | 판매·양도·용량 권유 차단. 안전검사 LOW / REVIEW / BLOCKED 상태 UI + 관리자 검토 화면 |
-| 금지 | 진단·용량 추천, 가짜 AI 정확도 수치, 실제 DB 연결된 척, 이모지 아이콘 |
-| 우선순위 | `[계획서 확인]` P0/P1/P2 구분은 계획서 기준으로 맞춤 |
+### 1.1 서비스 한 줄
+주 1회 GLP-1 주사(마운자로·위고비·에페) 사용자가 **투약·식단·증상·체중·체성분·눈바디를 하나의 날짜축**에서 보는 기록 서비스.
+진단·처방·용량 결정 기능은 만들지 않는다.
+
+### 1.2 우선순위 (계획서 4.1 그대로)
+| 등급 | 범위 | 이번 목업에서 |
+|---|---|---|
+| **P0 (발표 필수)** | 회원·민감정보 동의, 투약·참고 곡선, AI 식단(Top-3·수정·영양), 체중·체성분 수동, 증상·컨디션, 물·영양제·단백질, 통합 타임라인, 커뮤니티·L/R/B 검사·관리자 감사 로그, 5탭 UI | 전부 화면 구현 |
+| **P1 (시연 목표)** | ① 인바디 OCR ② 눈바디 ③ 바디 변화 통합 ④ 상담 준비 ⑤ 좋아요·수정·삭제 ⑥ 기간 필터 | 전부 화면 구현 (P1 배지 없이, 문서에서만 구분) |
+| **P2 (발표 이후)** | 공식 InBody API, 병원·약국 검색, 상담 PDF, 눈바디 백업, 데이터 내보내기 | **화면 안 만듦.** 필요하면 "준비 중" 버튼만 |
+
+### 1.3 화면에 반드시 반영할 규칙
+| 규칙 | 출처 | UI 반영 |
+|---|---|---|
+| 참고 곡선은 상대값(기간 내 최댓값=100)만 | 6.3 | Y축 "상대값", mg 단위 없음 |
+| 고정 문구 "참고용 계산값이며 실제 혈중농도 또는 약효를 의미하지 않습니다." | 지시서·1.3 | 곡선이 나오는 모든 곳에 항상 표시 |
+| 반감기는 허가사항 출처와 함께, **출처 없는 약은 곡선 미생성** | 6.3 | 약물별 출처 카드 + "출처 미등록 → 곡선 없음" 빈 상태 |
+| 이 곡선으로 할 수 없는 것: 효과·부작용 예측, 용량 판단 | 그림 19 | 곡선 아래 안내 카드 |
+| 용량은 처방받은 대로 입력, 앱은 추천 안 함 | 그림 19 | 투약 입력 폼 하단 문구 |
+| 1순위 확률이 기준값 이상 → 자동 제안 / 미만 → Top-3 | 6.2 | 식단 결과 화면 두 가지 상태 |
+| 사용자 수정은 수정 기록으로 저장 (동의 시) | 6.2·그림 18 | Top-3 하단 안내 + 직접 검색 |
+| 영양성분 = 식약처 DB 대표 1인분 × 선택한 양 | 5.3·그림 18 | 영양 카드 출처 문구, 인분 0.5/1/1.5 |
+| 음식 모델은 학습한 20종 안에서만 판별 | 5.3 | 업로드 화면 안내 |
+| OCR 값은 자동 확정 안 함, 확인한 숫자만 저장 | 6.4 | "확인 완료" 체크 전 저장 버튼 비활성 |
+| OCR 검증 범위 (체중 20~300kg, 체지방률 2~75%, 교차검증 1.0 이내, 미래 날짜 불가) | 6.4 | 범위 밖 = Amber 의심 칸 강조 |
+| 필수항목 실패·교차검증 2칸 이상 실패·'직접 입력' → 수동 폼 (인식값 미리 채움) | 6.4 | OCR 실패 화면 → 수동 폼 전환 |
+| 결과지 1종만 지원 | 5.3 | 업로드 화면 안내 |
+| 같은 날 10분·0.1kg 이내 → 중복 의심 경고 후 저장 | 6.6 | 체성분 저장 시 확인 모달 |
+| 눈바디: 서버 전송 0건, PBKDF2+AES-GCM, 비밀번호 분실 시 복구 불가, 브라우저 삭제 시 유실 고지 | 6.5 | 안내 화면. **이번 단계는 암호화 미구현 → "개발 예정" 표시** |
+| 커뮤니티: 판매·양도·나눔·처방전 없이 구매 = BLOCKED / 용량·증량 권유·병원·약국 상호 = REVIEW / 나머지 LOW | 6.8 | 글쓰기 검사 결과 박스 3종 |
+| REVIEW 글은 목록 미노출, 수정 시 재검사 | 7.3 | 내 글에만 "검토 중" 배지 |
+| 관리자 조치는 사유 필수 | 6.7·7.3 | 사유 비면 저장 버튼 비활성 |
+| 색 의미: 초록=기록·완료, 주황=참고·검토, 빨강=차단만 | 7.2 | 디자인 토큰에 고정 |
+| "추천·늘리세요·위험합니다" 같은 의료 판단 표현 금지 | 7.2 | 문구 작성 규칙 |
+| 타임라인 안내 "기록을 한눈에 보기 위한 화면이며, 증상의 원인을 판단하지 않습니다." | 그림 17 | 타임라인 하단 고정 |
+| 신뢰도 숫자·사진은 화면 예시, 실험 수치는 실측값만 | 그림 18·4.2 | 아래 1.4 참고 |
+
+### 1.4 목업 정직성 원칙
+- 모든 가상 데이터 카드에 `예시 데이터` 배지
+- 식단 결과: "목업 화면 · 실제 AI 분석 아님" 배너
+- **신뢰도 표시는 "확신 높음 / 확신 낮음" 상태로만**. 계획서 그림 18의 0.91 같은 숫자는 화면에 안 넣고, API 연결 후 실제 값이 들어갈 자리만 만든다 (가짜 수치 금지 원칙)
+- 모델 정확도·OCR 정확도·추론 속도 숫자는 어디에도 표시하지 않음
+- 눈바디 암호화·IndexedDB 저장: 이번 단계 미구현 → 비밀번호 UI는 만들되 "암호화 저장 기능 개발 중" 표시
+- 저장 버튼: 화면 상태만 바뀌고 토스트로 "목업 — 실제 저장되지 않았어요" 안내
 
 ---
 
 ## 2. 사이트맵 (라우트)
 
 ```
-/                     → 로그인 여부에 따라 /home 또는 /login
+/                     → /home (목업은 로그인 상태 가정, 로그인 화면은 별도 이동)
 ├─ 공통
-│  /login             로그인
-│  /signup            회원가입
-│  /consent           개인정보·민감정보 동의
-│  /onboarding        온보딩 (약물·목표 설정, 3스텝)
-│  *                  404
+│  /login · /signup · /consent(일반+민감정보 분리 동의) · /onboarding(3스텝)
+│  *  404
 │
 ├─ 홈  /home
-│     인사말·날짜 / 현재 체중·변화 / 식단 요약 / 단백질·수분
-│     최근 투약 / 다음 예정 투약일(사용자 기록 기준) / 컨디션
-│     주간 기록 현황 / 빠른 기록 / 타임라인 미리보기
+│     날짜·인사 / 체중·시작 대비 변화 / 오늘 섭취(kcal·단백질 목표 대비)
+│     물·영양제 / 최근 투약 + 다음 예정일(마지막 기록 +7일, 사용자 기록 기준)
+│     최근 컨디션 / 주간 기록 현황 / 빠른 기록(식단·체중·증상) / 최근 7일 타임라인
 │
-├─ 기록  /record              기록 허브 (7개 메뉴 카드)
-│  /record/medication         투약 목록
-│  /record/medication/new     투약 입력
-│  /record/medication/:id     상세·수정
-│  /record/meal               식단 목록
-│  /record/meal/new           사진 업로드 → 분석 중 → Top-1/Top-3 → 수정·인분 → 확정
-│  /record/body               체중·체성분 입력·목록
-│  /record/inbody             OCR: 업로드 → 인식 결과(의심 항목 강조) → 수정 → 최종 확인
-│                             (실패 시 /record/body 수동 입력으로 전환)
-│  /record/eyebody            눈바디: 로컬 저장 안내 / 비밀번호 UI / 날짜별 목록
-│  /record/eyebody/compare    Before/After 슬라이더
-│  /record/symptom            증상 선택·강도·컨디션·날짜별 목록
-│  /record/daily              물·단백질·영양제
+├─ 기록  /record                      기록 허브 (7개 메뉴)
+│  /record/medication                 투약 목록
+│  /record/medication/new             투약 입력 (+ 참고 곡선 미리보기)
+│  /record/medication/:id             상세·수정·삭제
+│  /record/meal                       식단 목록 (끼니별)
+│  /record/meal/new                   사진 → 분석 중 → [확신 높음: Top-1] / [확신 낮음: Top-3] → 인분 → 확정
+│  /record/body                       체중·체성분 수동 입력 + 목록 (중복 의심 경고)
+│  /record/inbody                     OCR: 업로드 → 인식 결과(의심 칸) → 수정 → 최종 확인 / 실패 → 수동
+│  /record/eyebody                    로컬 저장 안내 · 비밀번호 설정 · 날짜별 사진
+│  /record/eyebody/compare            첫 사진 ↔ 최근 사진 Before/After 슬라이더
+│  /record/symptom                    증상 선택·강도·컨디션·날짜별 목록
+│  /record/daily                      물(컵)·단백질(g)·영양제 체크
 │
-├─ 분석  /analysis            요약 + 기간 필터 (1주/1개월/3개월/전체)
-│  /analysis/weight           체중·체성분 그래프
-│  /analysis/medication       참고용 잔존량 곡선 + 투약일 마커 + 출처·계산 방식 안내
-│  /analysis/symptom          증상 ↔ 그래프 비교
-│  /analysis/nutrition        식단·영양 추이
-│  /analysis/timeline         통합 타임라인
-│  /analysis/body             바디 변화 통합 (체성분 + 눈바디)
-│  /analysis/consult          상담 준비 (진료 때 보여줄 요약)
+├─ 분석  /analysis                     요약 허브 + 기간 필터(7일·30일·전체)
+│  /analysis/timeline                 통합 타임라인 (투약·섭취·증상 같은 날짜축)
+│  /analysis/body                     바디 변화 (체중·골격근·체지방 그래프 + 눈바디 첫/최근)
+│  /analysis/medication               참고용 잔존량 곡선 + 투약일 마커 + 증상 겹쳐 보기 + 출처·계산 방식
+│  /analysis/nutrition                식단·영양 (단백질 목표 대비 추이)
+│  /analysis/consult                  상담 준비 (진료 때 보여줄 기간 요약)
 │
-├─ 커뮤니티  /community        목록 + 카테고리 탭
-│  /community/:id             상세·댓글·좋아요·신고·수정·삭제
-│  /community/write           글쓰기 + 안전검사 결과 안내
-│  /admin/moderation          관리자 검토 (REVIEW/BLOCKED 큐)
+├─ 커뮤니티  /community                 목록 + 카테고리
+│  /community/:id                     상세·댓글·좋아요·신고·수정·삭제
+│  /community/write                   글쓰기 + 검사 결과(LOW/REVIEW/BLOCKED)
+│  /admin/moderation                  관리자 검토 큐 + 조치 사유 + 감사 로그
 │
 └─ 마이  /my
-   /my/profile                프로필
-   /my/consent                동의 관리
-   /my/settings               기록 설정·알림 설정
-   /my/eyebody-data           눈바디 로컬 데이터 관리
-   /my/account                계정 관리·로그아웃·탈퇴
+   /my/profile · /my/consent · /my/settings(기록·알림) · /my/eyebody-data · /my/account(로그아웃·탈퇴)
 ```
 
-공통 상태 컴포넌트(모든 화면에서 재사용): 로딩 / 데이터 없음 / 오류 / 삭제 확인 모달 / 저장 성공·실패 토스트
+계획서 그림 15와 맞춤: 분석 하위 = 통합 타임라인 · 바디 변화 · 참고 곡선 · 식단·영양.
+지시서의 "체중 그래프 / 증상 비교"는 각각 바디 변화 / 참고 곡선 화면 안에 포함.
+
+공통 상태 컴포넌트: 로딩 · 데이터 없음 · 오류 · 삭제 확인 모달 · 저장 성공/실패 토스트
 
 ---
 
@@ -85,36 +107,30 @@
 
 ```
 slimlog/
-├─ docs/                      계획서·설계 문서
-├─ public/                    PWA 아이콘, manifest (추후)
+├─ docs/                     계획서·설계 문서
+├─ public/                   파비콘, PWA manifest(추후)
 ├─ src/
-│  ├─ app/                    router.tsx, App.tsx, providers
+│  ├─ app/                   App.tsx, router.tsx
 │  ├─ components/
-│  │  ├─ ui/                  shadcn/ui (Button, Card, Dialog, Input, Tabs, Sheet, Slider, Toast…)
-│  │  ├─ common/              AppIcon, PageHeader, MockBadge, EmptyState, ErrorState,
-│  │  │                       LoadingState, ConfirmDialog, StatCard, SectionTitle, Disclaimer
-│  │  ├─ layout/              AppLayout, BottomTabBar(모바일), Sidebar(768px+)
-│  │  └─ charts/              WeightChart, MedicationLevelChart 등 (Recharts 래퍼)
-│  ├─ features/               화면 단위 폴더
-│  │  ├─ home/
-│  │  ├─ record/              medication/, meal/, body/, inbody/, eyebody/, symptom/, daily/
-│  │  ├─ analysis/
-│  │  ├─ community/
-│  │  ├─ my/
-│  │  └─ auth/                login, signup, consent, onboarding
-│  ├─ fixtures/               가상 데이터 (*.mock.ts) — 전부 여기에만
-│  ├─ services/               API 자리. 지금은 fixtures 반환하는 mock 구현
-│  │                          → 나중에 FastAPI/Supabase로 이 폴더만 교체
-│  ├─ stores/                 Zustand (토스트, 임시 입력 상태 정도만)
-│  ├─ types/                  도메인 타입 (Medication, Meal, BodyRecord, Post…)
-│  ├─ lib/                    utils, date 포맷, cn()
-│  └─ styles/                 globals.css (디자인 토큰)
-├─ tests/e2e/                 Playwright (390 / 768 / 1440)
+│  │  ├─ ui/                 shadcn/ui (button, card, dialog, input, tabs, sheet, slider, sonner…)
+│  │  ├─ common/             AppIcon, PageHeader, MockBadge, Disclaimer, StatCard,
+│  │  │                      EmptyState, ErrorState, LoadingState, ConfirmDialog, ChipGroup
+│  │  ├─ layout/             AppLayout, BottomTabBar(<768), Sidebar(≥768)
+│  │  └─ charts/             WeightChart, ResidualCurveChart, TimelineChart…
+│  ├─ features/              home/ record/ analysis/ community/ my/ auth/ admin/
+│  ├─ fixtures/              *.mock.ts — 가상 데이터는 여기만
+│  ├─ services/              API 자리. 지금은 fixtures 반환 → 나중에 FastAPI 호출로 교체
+│  ├─ stores/                Zustand (목업 저장 결과·토스트 정도만)
+│  ├─ types/                 계획서 ERD 이름 기준 타입 (Dose, Medication, Meal, Prediction,
+│  │                         BodyLog, Symptom, DailyCheck, Post, FilterLog, AdminAction…)
+│  ├─ lib/                   cn(), 날짜 포맷
+│  └─ styles/globals.css     디자인 토큰
+├─ tests/e2e/                Playwright (390 / 768 / 1440)
 └─ package.json
 ```
 
-**API 교체 전략:** 화면 → `services/xxx.ts` → (지금) fixtures / (나중) fetch.
-화면은 services 함수만 부르니까, 백엔드 붙일 때 UI는 거의 안 건드립니다.
+- 타입 이름을 ERD(18개 테이블)·API(`/doses`, `/body-logs`, `/timeline` …)와 맞춰서 나중에 백엔드 붙일 때 그대로 씀
+- 오류 응답 형식 `{code, message, field}`도 타입으로 미리 정의 → 폼 오류 표시를 지금부터 같은 방식으로
 
 ---
 
@@ -122,99 +138,113 @@ slimlog/
 
 | 패키지 | 이유 |
 |---|---|
-| react, react-dom, typescript, vite | 기본 (지시서 필수) |
-| tailwindcss v4 + @tailwindcss/vite | 스타일·디자인 토큰 |
-| shadcn/ui (CLI로 필요한 것만 복사) + radix-ui, class-variance-authority, clsx, tailwind-merge | 모달·탭·시트 등 접근성 갖춘 기본 부품 |
-| lucide-react | 아이콘 (이모지 금지 규칙) |
-| react-router (v7) | 라우팅 |
+| react, react-dom, typescript, vite | 계획서 7.1 확정 스택 |
+| tailwindcss v4 + @tailwindcss/vite | 스타일·토큰 |
+| shadcn/ui (필요한 부품만 복사) + radix-ui, class-variance-authority, clsx, tailwind-merge | 모달·탭·시트 접근성 |
+| lucide-react | 아이콘 (이모지 금지) |
+| react-router | 라우팅 |
 | recharts | 그래프 |
-| zustand | 토스트·임시 상태 (최소 범위) |
-| pretendard | 한글 폰트 (CDN 대신 패키지로 → 오프라인/PWA 유리) |
-| sonner | 저장 성공·실패 토스트 (shadcn 기본 토스트) |
-| @playwright/test, eslint, typescript-eslint | 검증 |
+| zustand | 최소 상태 |
+| pretendard | 한글 폰트 (패키지로 넣어 PWA·오프라인 대비) |
+| sonner | 저장 성공·실패 토스트 |
+| @playwright/test, eslint, typescript-eslint | 검증 (Chromium은 환경에 이미 설치됨) |
 
-**안 넣는 것:** 상태관리 대형 라이브러리(Redux), 폼 라이브러리(목업엔 과함), 애니메이션 라이브러리, 백엔드 SDK(Supabase는 연동 단계에서).
-날짜 처리는 `Intl` + 작은 유틸로 해결 — date 라이브러리 필요해지면 그때 보고 후 추가.
+**안 넣는 것:** Redux, 폼 라이브러리, 애니메이션 라이브러리, date 라이브러리, Supabase SDK, Tesseract.js(연동 단계에서).
 
 ---
 
 ## 5. UI 디자인 시스템
 
-### 색상 토큰 (`src/styles/globals.css`)
-| 토큰 | 값 | 용도 |
-|---|---|---|
-| `--primary` | `#0F9F6E` (Emerald 600 근처, 살짝 차분하게) | 주요 버튼·활성 아이콘 |
-| `--primary-soft` | `#E7F6EF` | 아이콘 배경·선택 상태 |
-| `--background` | `#F7F8F6` | 앱 배경 (Off-white) |
-| `--surface` | `#FFFFFF` | 카드 |
-| `--text` | `#1E293B` (Slate 800) | 본문 |
-| `--text-muted` | `#64748B` (Slate 500) | 보조 텍스트·비활성 아이콘 |
-| `--border` | `#E5E7EB` | 구분선 |
-| `--success` | `#16A34A` | 정상·LOW |
-| `--review` | `#D97706` (Amber) | 참고·REVIEW·OCR 의심 항목 |
-| `--danger` | `#DC2626` | 오류·BLOCKED·삭제 |
+### 5.1 색상 토큰
+| 토큰 | 라이트 | 다크 | 의미 (계획서 7.2) |
+|---|---|---|---|
+| `--primary` | `#12A06E` | `#34C68C` | 기록·완료·활성 |
+| `--primary-soft` | `#E6F6EF` | `#1F2A26` | 아이콘 배경·선택 |
+| `--background` | `#F7F8F6` | `#121514` | 앱 배경 |
+| `--surface` | `#FFFFFF` | `#1A1E1C` | 카드 |
+| `--text` | `#1E293B` | `#E7ECEA` | 본문 |
+| `--text-muted` | `#64748B` | `#94A3B8` | 보조·비활성 아이콘 |
+| `--border` | `#E6E8EB` | `#2A302D` | 구분선 |
+| `--review` | `#C77700` / 배경 `#FFF6E5` | | 참고·검토·OCR 의심 칸 |
+| `--danger` | `#DC2626` / 배경 `#FEF2F2` | | **차단에만** |
 
-다크모드는 토큰만 미리 정의하고 화면 적용은 승인 후 결정.
+- 참고 곡선 선 색: Slate 계열(`#475569`) — 초록(완료)·빨강(차단) 의미와 섞이지 않게
+- 다크모드: 토큰만 이번에 정의, 화면 전체 적용은 1차 승인 후 결정
 
-### 타이포 (Pretendard)
-- 큰 숫자(체중 등): 32px / Bold — 숫자가 제일 먼저 눈에 들어오게
-- 화면 제목: 20px / Bold · 카드 제목: 16px / SemiBold
-- 본문: 15px / Regular · 보조: 13px / Medium
-
-### 레이아웃
-- 모바일 기본 폭 390px, 좌우 여백 20px, 카드 간격 12px, 카드 모서리 16px
-- 그림자 거의 없음 (1px 테두리 + 아주 옅은 shadow 1단계만)
-- 터치 영역 최소 44×44px, 주요 버튼은 화면 하단 고정(한 손 조작)
-- 768px 이상: 좌측 사이드바(240px) + 본문 최대폭 960px, 카드 2~3열 그리드
-
-### 아이콘 규칙 — `AppIcon` 컴포넌트
-```tsx
-<AppIcon icon={Syringe} size="md" tone="primary" withBg />
-```
-- `strokeWidth` 1.75 고정, size: sm 20 / md 22 / lg 24
-- tone: `primary`(Emerald) / `muted`(Slate, 비활성) / `review` / `danger`
-- withBg: 연녹색(`--primary-soft`) 또는 연회색 원형/라운드 배경
-- 이모지 사용 금지 → ESLint 규칙 + Playwright에서 화면 텍스트 이모지 검사로 강제
-
-| 메뉴 | Lucide 아이콘 |
+### 5.2 타이포 (Pretendard)
+| 용도 | 크기/굵기 |
 |---|---|
-| 홈 / 기록 / 분석 / 커뮤니티 / 마이 | `House` / `SquarePen` / `ChartLine` / `MessagesSquare` / `UserRound` |
-| 투약 | `Syringe` |
-| 식단 | `Utensils` |
-| 체중·체성분 | `Scale` |
-| 인바디 OCR | `ScanText` |
-| 눈바디 | `Camera` (+ 잠금 안내 `LockKeyhole`) |
-| 증상·컨디션 | `Activity` |
-| 물·단백질·영양제 | `GlassWater` / `Beef` / `Pill` |
-| 타임라인 / 상담 준비 | `ListTree` / `ClipboardList` |
-| 신고 / 안전검사 | `Flag` / `ShieldCheck` |
+| 핵심 숫자 (84.6kg, 890kcal) | 32px / Bold, 단위는 16px |
+| 화면 제목 | 20px / Bold |
+| 카드 제목 | 15px / SemiBold |
+| 본문 | 15px / Regular |
+| 보조·라벨 | 13px / Medium, muted |
 
-### 정직성 표시 규칙
-- 모든 가상 데이터 카드에 `예시 데이터` 배지 (MockBadge)
-- 식단 AI 결과: "목업 화면 — 실제 AI 분석 아님" 표시, 신뢰도는 숫자 대신 "높음/낮음" 상태로만 (가짜 % 금지)
-- 약물 곡선: 고정 문구 + 출처·계산방식 접이식 안내 + "예시 데이터" 배지
-- 눈바디 암호화: "암호화 저장 — 개발 예정" 표시, 완성된 척 금지
+### 5.3 레이아웃
+- 모바일: 좌우 20px, 카드 간격 12px, 모서리 16px, 테두리 1px + 그림자 거의 없음
+- 터치 영역 최소 44px, 주요 버튼(저장·기록하기)은 하단 고정
+- **768px 이상: 좌측 사이드바** (계획서 그림 15 기준. 그림 17·19·20의 상단 메뉴는 쓰지 않음)
+- 데스크톱 본문 최대 1120px, 카드 2~4열 (그림 17처럼 상단 4칸 요약)
+
+### 5.4 아이콘 — `AppIcon`
+참고 이미지 분석: **둥근 사각 배경(10px 라운드) + 초록 선형 아이콘 + 오른쪽에 제목/설명** 구조.
+
+```tsx
+<AppIcon icon={Syringe} size="md" tone="primary" bg="soft" />
+```
+| 속성 | 값 |
+|---|---|
+| strokeWidth | 1.75 고정 (prop으로 못 바꿈) |
+| size | sm 20 · md 22 · lg 24 |
+| tone | primary(초록) · muted(Slate, 비활성) · review · danger |
+| bg | none · soft(연녹) · neutral(연회색) — 다크모드에서는 자동으로 Dark Gray |
+| 배경 박스 | 40px(아이콘 22) / 44px(아이콘 24), 라운드 12px |
+
+| 메뉴 | Lucide | 메뉴 | Lucide |
+|---|---|---|---|
+| 홈 | `House` | 투약 | `Syringe` |
+| 기록 | `SquarePen` | AI 식단 | `Utensils` |
+| 분석 | `ChartLine` | 체중·체성분 | `Scale` |
+| 커뮤니티 | `MessagesSquare` | 인바디 OCR | `ScanText` |
+| 마이 | `UserRound` | 눈바디 | `Camera` |
+| 증상·컨디션 | `Activity` | 물 | `GlassWater` |
+| 단백질 | `Egg` | 영양제 | `Pill` |
+| 통합 타임라인 | `CalendarRange` | 바디 변화 | `PersonStanding` |
+| 참고 곡선 | `TrendingDown` | 상담 준비 | `ClipboardList` |
+| 신고 | `Flag` | 안전 검사 | `ShieldCheck` / `ShieldAlert` / `ShieldBan` |
+| 로컬 저장·잠금 | `LockKeyhole` | 관리자 | `ShieldUser` |
+
+- 계획서 그림 15·17·19·20에 있는 이모지(💉🍽📷 등)는 전부 위 아이콘으로 교체
+- 이모지 차단: Playwright 테스트에서 모든 화면 텍스트에 이모지 정규식 검사
 
 ---
 
-## 6. 구현 순서
+## 6. 구현 순서 (계획서 8.2 일정에 맞춤)
 
-| 단계 | 내용 | 승인 |
+| 날짜 | 단계 | 내용 |
 |---|---|---|
-| **STEP 1** | Vite 프로젝트, 토큰, AppIcon, 레이아웃(하단탭/사이드바), 공통 컴포넌트 | |
-| **STEP 1.5** | 대표 화면 3개: **홈 / 기록 허브 + 투약 입력 / 분석(체중 + 참고용 약물 곡선)** → 미리보기 제공 | **← 1차 디자인 승인** |
-| STEP 2 | 커뮤니티 · 마이 탭 | |
-| STEP 3 | 세부 화면: 식단 AI, 체성분, OCR, 눈바디, 증상, 물·단백질, 타임라인, 상담 준비, 관리자, 공통(로그인·동의·온보딩·404 등) | |
-| STEP 4 | Playwright 390/768/1440 검증 (가로스크롤·잘림·겹침·내비게이션·이모지 검사) | |
+| ~11/05 | **STEP 1** | 프로젝트 기반, 토큰, AppIcon, 하단탭/사이드바, 공통 컴포넌트 |
+| | **STEP 1.5** | 대표 화면: **홈 / 기록 허브 + 투약 입력 / 분석 허브 + 참고 곡선** → 스크린샷 전달 → **1차 디자인 승인** |
+| ~11/08 | STEP 2 | 커뮤니티 · 마이 · 로그인·동의·온보딩 (계획서 "~11/08 5탭·로그인·동의"와 일치) |
+| ~11/12 | STEP 3 | 식단 AI · 체성분 · 증상 · 물·단백질 · 타임라인 · 관리자 · 공통 상태 화면 |
+| ~11/15 | STEP 3 | OCR 확인 화면 · 눈바디 · 바디 변화 · 상담 준비 (계획서는 ~11/22지만 목업은 먼저) |
+| 각 단계 | STEP 4 | Playwright 390/768/1440: 가로 스크롤·잘림·겹침·내비게이션·이모지 검사 |
 
-미리보기: 클라우드 세션이라 외부 URL을 바로 줄 수 없어서, **① Playwright 스크린샷(모바일/PC) 공유 + ② 로컬 실행 명령(`npm install && npm run dev`)** 으로 제공.
-원하면 GitHub Pages / Vercel 배포 설정도 추가 가능(승인 필요).
+미리보기: 클라우드 세션이라 외부 URL 직접 제공은 불가 → **스크린샷(모바일·PC) 전달 + `npm install && npm run dev` 로컬 실행**.
+배포 주소가 필요하면 GitHub Pages(무료, Actions 사용) 설정 가능 — 승인 시 진행.
 
 ---
 
-## 7. 기존 프로젝트 충돌 가능성
+## 7. 기존 프로젝트·계획서와의 충돌 가능성
 
-- 저장소 `slimlog`는 **커밋 0개, 파일 없음** → 덮어쓸 기존 코드 없음, 충돌 없음.
-- Node 22 / npm 10 환경, npm 레지스트리 접근 확인됨.
-- 주의할 점: Tailwind **v4**는 v3와 설정 방식이 다름(설정 파일 대신 CSS `@theme`). shadcn/ui 최신 CLI는 v4 지원하므로 v4로 통일.
-- 확인 필요: 계획서에 다른 프론트 기술(예: Next.js)이 적혀 있다면 알려주세요 — 지시서 기준 Vite로 진행 예정.
+| 항목 | 내용 | 처리 |
+|---|---|---|
+| 기존 코드 | 저장소 비어 있음 (설계 문서 커밋 1개뿐) | 충돌 없음 |
+| 데스크톱 내비 | 그림 15는 좌측 사이드바, 그림 17·19·20은 상단 메뉴 | 지시서·본문대로 **사이드바** |
+| 신뢰도 숫자 | 그림 18에 0.91·0.42 등 표시 | 목업에선 상태 라벨만, 숫자 자리는 API 연결 후 |
+| 아이콘 | 계획서 그림에 이모지 사용 | Lucide로 전부 교체 |
+| 곡선 색 | 그림 19는 파란 선 | 토큰 체계 안의 Slate로 (파랑 추가 안 함) |
+| 에페 반감기 | 계획서에 수치·출처 없음 | 목업에서 "출처 미등록 → 곡선 미생성" 상태로 보여줌 (6.3 규칙 시연용) |
+| 에페 용량 | 계획서에 용량 단계 없음 | 직접 입력 필드 (용량 목록 임의 생성 안 함) |
+| Tailwind | v4는 v3와 설정 방식이 다름 | v4로 통일, shadcn 최신 CLI 사용 |
+| 환경 | Node 22 / npm 10, 레지스트리 접근 OK | 문제 없음 |
