@@ -1,0 +1,11 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+httpx==0.28.1
+pyjwt[crypto]==2.10.1
+pillow==12.2.0
+python-multipart==0.0.20
+# 음식 모델 추론 (모델 파일이 있을 때만 사용)
+onnxruntime==1.22.0
+numpy>=2.0
+# 테스트
+pytest==8.3.5

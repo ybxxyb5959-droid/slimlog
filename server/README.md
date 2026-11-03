@@ -1,0 +1,38 @@
+# SlimLog API (FastAPI)
+
+앱이 Supabase 에 직접 하는 일(RLS 보호)은 여기서 하지 않는다. 이 서버는 **검사 · 계산 · 파일 · 추론 · 탈퇴**만 한다.
+
+| 메서드 · 경로 | 역할 |
+|---|---|
+| `GET /health` | 서버·모델 상태 (`model_status`: ready / not_loaded / mock) |
+| `GET /residual-curve?med_id&from&to` | 내 투약 기록 → 참고용 상대 곡선(0~100). 반감기 출처 없는 약은 빈 곡선 |
+| `POST /posts` · `PATCH /posts/{id}` · `DELETE /posts/{id}` | 금칙어 검사(BLOCKED 거절, REVIEW 비공개) → FILTER_LOGS 기록 → 저장 |
+| `POST /posts/{id}/comments` · `PATCH/DELETE /comments/{id}` | 댓글 동일 |
+| `POST /admin/actions` | 관리자 조치 (DB 의 users.role 로 매번 확인, 사유 필수, ADMIN_ACTIONS 기록) |
+| `POST /meals/photo` | 사진 → EXIF 제거·재인코딩 → Storage → 인식 → meals(draft)·predictions |
+| `DELETE /meals/{id}` | 사진 기록 삭제 (Storage 파일 → DB 행) |
+| `DELETE /me` | 탈퇴 (Storage 폴더 → Auth 사용자, 나머지 cascade) |
+
+오류 형식: `{"detail": {"code", "message", "field"}}`
+
+## 실행
+```bash
+python3 -m venv .venv
+```
+```bash
+.venv/bin/pip install -r requirements.txt
+```
+```bash
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_JWT_SECRET=... ALLOWED_ORIGINS=http://localhost:5173 .venv/bin/uvicorn app.main:app --port 8000
+```
+- `SUPABASE_JWT_SECRET`: HS256 프로젝트(로컬 Supabase 등)만 필요. 신형 프로젝트는 JWKS 로 자동 검증
+- `FOOD_MODEL_PATH`: ONNX 모델 경로 (같은 이름의 `.json` 에 classes·thresholds·mean·std). 없으면 목업 모드
+
+## 테스트 (로컬 Supabase 필요: `npx supabase start`)
+```bash
+.venv/bin/python -m pytest -q tests
+```
+
+## 보안
+- service_role 키는 이 서버 환경변수에만. 브라우저·저장소에 넣지 않는다
+- service_role 은 RLS 를 우회하므로 모든 엔드포인트가 토큰의 사용자 id 로 소유권을 직접 확인한다
