@@ -56,10 +56,9 @@ export function MedicationChoiceStep() {
   const [draft, setDraft] = useState<FirstDoseDraft>(EMPTY_DRAFT)
   const [step, setStep] = useState(1)
 
-  const start = () => {
+  const start = async () => {
     if (choice === 'later') {
-      completeOnboarding('later')
-      navigate('/home', { replace: true })
+      if (await completeOnboarding('later')) navigate('/home', { replace: true })
     } else if (choice === 'now') {
       // 프로필·신체정보는 이미 저장된 상태 → 투약 기록을 취소해도 유지된다
       set({ doseChoice: 'now' })
@@ -117,10 +116,9 @@ export function MedicationChoiceStep() {
         step={step}
         setStep={setStep}
         onConfirmed={(d) => saveOnboardingDose(d)}
-        onFinished={() => {
+        onFinished={async () => {
           // 완료 화면을 닫을 때 온보딩 완료 처리 (먼저 처리하면 완료 화면이 보이기 전에 홈으로 넘어감)
-          completeOnboarding('now')
-          navigate('/home', { replace: true })
+          if (await completeOnboarding('now')) navigate('/home', { replace: true })
         }}
       />
     </OnboardingShell>

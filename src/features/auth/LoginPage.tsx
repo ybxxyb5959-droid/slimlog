@@ -4,9 +4,11 @@ import { toast } from 'sonner'
 
 import { Logo } from '@/components/brand/Logo'
 import { Button } from '@/components/ui/button'
+import { isLive } from '@/lib/supabase'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
 import { AuthShell } from './AuthShell'
+import { LiveLoginPanel } from './LiveLoginPanel'
 import { ProviderButton } from './ProviderMark'
 import { PROVIDERS } from './providers'
 
@@ -34,26 +36,34 @@ export function LoginPage() {
         </p>
       </div>
 
-      <div className="space-y-2.5">
-        {PROVIDERS.filter((p) => p.enabled).map((p) => (
-          <ProviderButton key={p.id} provider={p.id} label={p.label} onClick={() => go(p.label)} />
-        ))}
-        <div className="flex items-center gap-3 py-2 text-[12px] text-text-subtle" aria-hidden>
-          <span className="h-px flex-1 bg-border" />
-          또는
-          <span className="h-px flex-1 bg-border" />
+      {isLive ? (
+        <LiveLoginPanel />
+      ) : (
+        <div className="space-y-2.5">
+          {PROVIDERS.filter((p) => p.enabled).map((p) => (
+            <ProviderButton key={p.id} provider={p.id} label={p.label} onClick={() => go(p.label)} />
+          ))}
+          <div className="flex items-center gap-3 py-2 text-[12px] text-text-subtle" aria-hidden>
+            <span className="h-px flex-1 bg-border" />
+            또는
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <Button asChild variant="outline" size="lg" className="h-[52px] w-full">
+            <Link to="/signup">
+              <Mail size={18} strokeWidth={1.75} aria-hidden /> 이메일로 계속하기
+            </Link>
+          </Button>
         </div>
-        <Button asChild variant="outline" size="lg" className="h-[52px] w-full">
-          <Link to="/signup">
-            <Mail size={18} strokeWidth={1.75} aria-hidden /> 이메일로 계속하기
-          </Link>
-        </Button>
-      </div>
+      )}
 
       <p className="mt-6 text-center text-[12px] leading-relaxed text-text-subtle">
         계속하면 이용약관과 개인정보 처리방침에 동의하게 돼요.
-        <br />
-        UI 목업 · 실제 로그인은 연결되어 있지 않아요.
+        {!isLive && (
+          <>
+            <br />
+            UI 목업 · 실제 로그인은 연결되어 있지 않아요.
+          </>
+        )}
       </p>
     </AuthShell>
   )

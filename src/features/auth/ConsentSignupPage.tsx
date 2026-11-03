@@ -1,11 +1,15 @@
 import { Check, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { CONSENT_ITEMS, type ConsentId } from '@/fixtures/consents'
+import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { saveConsents } from '@/services/live/account'
+import { useAuthStore } from '@/stores/authStore'
 
 import { AuthShell } from './AuthShell'
 
@@ -31,10 +35,27 @@ export function ConsentSignupPage() {
   )
   const all = CONSENT_ITEMS.every((c) => checked[c.id])
   const requiredOk = CONSENT_ITEMS.filter((c) => c.required).every((c) => checked[c.id])
+  const [saving, setSaving] = useState(false)
+
+  const submit = async () => {
+    if (!isLive) return navigate('/onboarding')
+    const { account, refreshAccount } = useAuthStore.getState()
+    if (!account) return
+    setSaving(true)
+    try {
+      await saveConsents(account.userId, CONSENT_ITEMS.filter((c) => checked[c.id]).map((c) => c.id))
+      await refreshAccount()
+      navigate('/onboarding')
+    } catch (e) {
+      toast.error('동의를 저장하지 못했어요', { description: dbErrorMessage(e) })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <AuthShell>
-      <PageHeader title="약관 동의" description="슬림로그를 쓰려면 아래 내용에 동의해 주세요" back="/login" />
+      <PageHeader title="약관 동의" description="슬림로그를 쓰려면 아래 내용에 동의해 주세요" back={isLive ? undefined : "/login"} />
       <button
         type="button"
         role="checkbox"
@@ -87,8 +108,8 @@ export function ConsentSignupPage() {
 
       <p className="mt-3 px-1 text-[12px] leading-relaxed text-text-subtle">동의 문구는 초안이며 출시 전 법률 검토가 필요해요.</p>
       <div className="mt-auto pt-6">
-        <Button size="lg" className="w-full" disabled={!requiredOk} onClick={() => navigate('/onboarding')}>
-          동의하고 시작하기
+        <Button size="lg" className="w-full" disabled={!requiredOk || saving} onClick={submit}>
+          {saving ? '저장 중…' : '동의하고 시작하기'}
         </Button>
       </div>
     </AuthShell>

@@ -7,7 +7,8 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/StateViews'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { removeDoseMock, updateDoseMock, useDose } from '@/services/doses'
+import { removeDose, savedNote, updateDose, useDose } from '@/services/doses'
+import { dbErrorMessage } from '@/lib/supabase'
 
 import { DoseForm } from './DoseForm'
 import { draftFromDose } from './doseDraft'
@@ -40,10 +41,14 @@ export function MedicationDetailPage() {
           draft={draft}
           onChange={setDraft}
           submitLabel="수정 저장"
-          onSubmit={(value) => {
-            updateDoseMock({ ...value, id: dose.id })
-            toast.success('목업: 화면에만 수정됐어요')
-            navigate('/record/medication')
+          onSubmit={async (value) => {
+            try {
+              await updateDose({ ...value, id: dose.id })
+              toast.success('투약 기록을 수정했어요', { description: savedNote() })
+              navigate('/record/medication')
+            } catch (e) {
+              toast.error('수정하지 못했어요', { description: dbErrorMessage(e) })
+            }
           }}
           extraActions={
             <Button type="button" variant="ghost" className="w-full text-danger hover:bg-danger-soft hover:text-danger" onClick={() => setConfirm(true)}>
@@ -59,10 +64,14 @@ export function MedicationDetailPage() {
         description="삭제하면 참고 곡선과 타임라인에서도 사라져요."
         confirmLabel="삭제"
         tone="danger"
-        onConfirm={() => {
-          removeDoseMock(dose.id)
-          toast('목업: 화면에서만 삭제됐어요')
-          navigate('/record/medication')
+        onConfirm={async () => {
+          try {
+            await removeDose(dose.id)
+            toast('투약 기록을 삭제했어요', { description: savedNote() })
+            navigate('/record/medication')
+          } catch (e) {
+            toast.error('삭제하지 못했어요', { description: dbErrorMessage(e) })
+          }
         }}
       />
     </>

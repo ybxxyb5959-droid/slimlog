@@ -1,9 +1,13 @@
+import { isLive } from '@/lib/supabase'
+import { deleteDoseRow, insertDose, updateDoseRow } from '@/services/live/account'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
 import type { Dose } from '@/types/domain'
 
 /**
- * 투약 기록 서비스 — 연결 예정 API: GET·POST /doses, GET /residual-curve
- * 지금은 목업 스토어(화면 상태)에만 반영한다.
+ * 투약 기록 서비스
+ * - 실서비스: Supabase doses 테이블 (RLS: 본인 + 민감정보 동의) 에 저장한 뒤 화면 스토어 갱신
+ * - 목업: 화면 스토어에만 반영 (새로고침하면 사라짐)
+ * 화면 스토어(useMockRecordStore)는 두 모드 모두에서 '화면에 보이는 목록' 캐시 역할을 한다.
  */
 export function useDoses() {
   const doses = useMockRecordStore((s) => s.doses)
@@ -27,14 +31,22 @@ export function validateDose(input: Partial<DoseInput>): { field: keyof DoseInpu
   return null
 }
 
-export function saveDoseMock(input: DoseInput) {
-  return useMockRecordStore.getState().addDose(input)
+export async function saveDose(input: DoseInput): Promise<Dose> {
+  if (!isLive) return useMockRecordStore.getState().addDose(input)
+  const saved = await insertDose(input)
+  useMockRecordStore.setState((s) => ({ doses: [saved, ...s.doses] }))
+  return saved
 }
 
-export function updateDoseMock(dose: Dose) {
-  useMockRecordStore.getState().updateDose(dose)
+export async function updateDose(dose: Dose): Promise<void> {
+  const saved = isLive ? await updateDoseRow(dose) : dose
+  useMockRecordStore.getState().updateDose(saved)
 }
 
-export function removeDoseMock(id: string) {
+export async function removeDose(id: string): Promise<void> {
+  if (isLive) await deleteDoseRow(id)
   useMockRecordStore.getState().removeDose(id)
 }
+
+/** 저장 결과 안내 문구 — 목업이면 서버에 저장되지 않는다는 걸 분명히 */
+export const savedNote = () => (isLive ? undefined : '목업 · 새로고침하면 사라지며 서버에 저장되지 않아요.')

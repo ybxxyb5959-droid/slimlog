@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { parseMeasure, RANGES } from '@/lib/measure'
+import { dbErrorMessage } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { saveOnboardingBody, setOnboardingStep } from '@/services/session'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
 import { OnboardingShell } from './OnboardingShell'
@@ -63,9 +67,24 @@ export function BodyStep() {
   const diff = w.value !== null && g.value !== null ? Math.round((g.value - w.value) * 10) / 10 : null
   const canNext = w.value !== null && g.value !== null && !h.error
 
-  const next = () => {
+  const [saving, setSaving] = useState(false)
+  const next = async () => {
+    if (w.value === null || g.value === null) return
     // 최초 체중 기록은 한 번만 만든다 — 다시 들어와 고치면 같은 기록을 갱신 (중복 저장 방지)
+    setSaving(true)
+    const ok = await saveOnboardingBody({ heightCm: h.value, weightKg: w.value, goalKg: g.value })
+    setSaving(false)
+    if (!ok) return
     set({ step: 'medication', bodySkipped: false, baselineSavedAt: baselineSavedAt ?? new Date().toISOString() })
+    navigate('/onboarding/medication')
+  }
+  const skip = async () => {
+    try {
+      await setOnboardingStep(2)
+    } catch (e) {
+      return void toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
+    }
+    set({ step: 'medication', bodySkipped: true })
     navigate('/onboarding/medication')
   }
 
@@ -82,8 +101,8 @@ export function BodyStep() {
       description="오늘의 정보를 기준으로 앞으로의 변화를 살펴볼 수 있어요."
       footer={
         <div className="space-y-1">
-          <Button size="lg" className="h-[52px] w-full" disabled={!canNext} onClick={next}>
-            다음
+          <Button size="lg" className="h-[52px] w-full" disabled={!canNext || saving} onClick={next}>
+            {saving ? '저장 중…' : '다음'}
           </Button>
           <div className="flex justify-between">
             <Button variant="ghost" size="sm" className="h-10" onClick={() => navigate('/onboarding/nickname')}>
@@ -93,10 +112,7 @@ export function BodyStep() {
               variant="ghost"
               size="sm"
               className="h-10"
-              onClick={() => {
-                set({ step: 'medication', bodySkipped: true })
-                navigate('/onboarding/medication')
-              }}
+              onClick={skip}
             >
               나중에 입력
             </Button>

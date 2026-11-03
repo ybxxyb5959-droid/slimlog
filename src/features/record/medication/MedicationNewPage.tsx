@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { Card } from '@/components/ui/card'
 import { MEDICATIONS } from '@/fixtures/medications.mock'
-import { saveDoseMock, useDoses, validateDose } from '@/services/doses'
+import { saveDose, savedNote, useDoses, validateDose } from '@/services/doses'
+import { dbErrorMessage } from '@/lib/supabase'
 import type { Dose } from '@/types/domain'
 
 import { DoseForm } from './DoseForm'
@@ -33,10 +34,14 @@ export function MedicationNewPage() {
             onChange={setDraft}
             lastSite={last?.site}
             submitLabel="저장"
-            onSubmit={(value) => {
-              saveDoseMock(value)
-              toast.success('목업: 화면에만 저장됐어요', { description: '새로고침하면 사라지며 서버에 저장되지 않아요.' })
-              navigate('/record/medication')
+            onSubmit={async (value) => {
+              try {
+                await saveDose(value)
+                toast.success('투약 기록을 저장했어요', { description: savedNote() })
+                navigate('/record/medication')
+              } catch (e) {
+                toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
+              }
             }}
           />
         </Card>

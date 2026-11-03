@@ -163,9 +163,9 @@ export function ResidualCurveChart({
             axisLine={false}
             width={Y_AXIS_W}
           />
-          {doseMarkers.map((m) => (
+          {doseMarkers.map((m, i) => (
             <ReferenceLine
-              key={m.t}
+              key={`${m.t}-${i}`}
               x={m.t}
               stroke="var(--text-muted)"
               strokeDasharray="4 4"

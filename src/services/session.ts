@@ -1,38 +1,110 @@
+import { toast } from 'sonner'
+
 import { combineDateTime, type FirstDoseDraft } from '@/features/record/first-dose/firstDoseDraft'
 import { MOCK_DOSES } from '@/fixtures/records.mock'
+import { dbErrorMessage, isLive, sb } from '@/lib/supabase'
+import { insertDose } from '@/services/live/account'
+import { useAuthStore } from '@/stores/authStore'
 import { useIntakeStore } from '@/stores/intakeStore'
 import { useMealStore } from '@/stores/mealStore'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
 /**
- * 목업 사용자 세션.
- * - 예시 사용자(기본): fixtures의 6주치 기록
- * - 새 사용자: 온보딩을 마친 뒤 — 본인이 입력한 것만 보인다 (허위 감량·그래프 없음)
+ * 사용자 세션 · 온보딩 저장
+ * - 목업 모드: 예시 사용자(6주치 기록) / 새 사용자(본인 입력만) — 브라우저 메모리
+ * - 실서비스 모드: Supabase 에 저장하고 화면 스토어를 갱신한다
  */
-export const isNewUser = () => !!useOnboardingStore.getState().completedAt || useOnboardingStore.getState().nicknameSaved
+export const isNewUser = () => isLive || !!useOnboardingStore.getState().completedAt || useOnboardingStore.getState().nicknameSaved
 
 export function beginNewUser() {
+  if (isLive) return // 실서비스: 로그인 시 서버 기록으로 채움
   useMockRecordStore.setState({ doses: [] })
   useIntakeStore.getState().resetEmpty()
   useMealStore.getState().resetEmpty()
 }
 
-export function saveOnboardingDose(d: FirstDoseDraft) {
+const requireAccount = () => {
+  const a = useAuthStore.getState().account
+  if (!a) throw new Error('로그인이 필요해요')
+  return a
+}
+
+/** 온보딩 2단계 저장 — 키·시작/목표 체중 + 최초 체중 기록(사람당 1개, 다시 고치면 같은 행 갱신) */
+export async function saveOnboardingBody(v: { heightCm: number | null; weightKg: number; goalKg: number }): Promise<boolean> {
+  if (!isLive) return true
+  try {
+    const a = requireAccount()
+    const db = sb()
+    const h = await db
+      .from('user_health')
+      .update({ height_cm: v.heightCm, start_weight_kg: v.weightKg, goal_weight_kg: v.goalKg })
+      .eq('user_id', a.userId)
+    if (h.error) throw h.error
+    const base = await db.from('body_logs').select('log_id').eq('is_baseline', true).maybeSingle()
+    if (base.error) throw base.error
+    const b = base.data
+      ? await db.from('body_logs').update({ weight_kg: v.weightKg }).eq('log_id', base.data.log_id)
+      : await db.from('body_logs').insert({ measured_at: new Date().toISOString(), weight_kg: v.weightKg, is_baseline: true, source: 'MANUAL' })
+    if (b.error) throw b.error
+    await setOnboardingStep(2)
+    useAuthStore.setState({ account: { ...a, heightCm: v.heightCm, startWeightKg: v.weightKg, goalWeightKg: v.goalKg, onboardingStep: Math.max(a.onboardingStep, 2) } })
+    return true
+  } catch (e) {
+    toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
+    return false
+  }
+}
+
+export async function setOnboardingStep(step: number) {
+  if (!isLive) return
+  const a = requireAccount()
+  if (a.onboardingStep >= step) return
+  const r = await sb().from('users').update({ onboarding_step: step }).eq('user_id', a.userId)
+  if (r.error) throw r.error
+  useAuthStore.setState({ account: { ...a, onboardingStep: step } })
+}
+
+export async function saveOnboardingDose(d: FirstDoseDraft): Promise<boolean> {
   const at = combineDateTime(d)
-  if (!d.medicationId || !d.doseMg || !d.site || !at) return
-  useMockRecordStore.getState().addDose({
+  if (!d.medicationId || !d.doseMg || !d.site || !at) return false
+  const input = {
     medicationId: d.medicationId,
     doseMg: d.doseMg,
     site: d.site,
     administeredAt: at.toISOString(),
     timeUnknown: d.timeUnknown || undefined,
     dateApproximate: d.dateApproximate || undefined,
-  })
+  }
+  if (!isLive) {
+    useMockRecordStore.getState().addDose(input)
+    return true
+  }
+  try {
+    const saved = await insertDose(input)
+    useMockRecordStore.setState((s) => ({ doses: [saved, ...s.doses] }))
+    return true
+  } catch (e) {
+    toast.error('투약 기록을 저장하지 못했어요', { description: dbErrorMessage(e) })
+    return false
+  }
 }
 
-export function completeOnboarding(choice: 'now' | 'later') {
-  useOnboardingStore.getState().set({ doseChoice: choice, completedAt: new Date().toISOString() })
+export async function completeOnboarding(choice: 'now' | 'later'): Promise<boolean> {
+  const now = new Date().toISOString()
+  if (isLive) {
+    try {
+      const a = requireAccount()
+      const r = await sb().from('users').update({ onboarding_step: 3, onboarding_completed_at: now }).eq('user_id', a.userId)
+      if (r.error) throw r.error
+      useAuthStore.setState({ account: { ...a, onboardingStep: 3, onboardingCompletedAt: now } })
+    } catch (e) {
+      toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
+      return false
+    }
+  }
+  useOnboardingStore.getState().set({ doseChoice: choice, completedAt: now })
+  return true
 }
 
 /** 목업: 예시 사용자 데이터로 되돌리기 */

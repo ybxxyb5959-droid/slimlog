@@ -21,12 +21,13 @@ export function DoseForm({
 }: {
   draft: DoseDraft
   onChange: (d: DoseDraft) => void
-  onSubmit: (input: DoseInput) => void
+  onSubmit: (input: DoseInput) => void | Promise<void>
   submitLabel: string
   lastSite?: InjectionSite
   extraActions?: React.ReactNode
 }) {
   const [error, setError] = useState<{ field: string; message: string } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const med = draft.medicationId ? MEDICATIONS[draft.medicationId] : null
   const set = (patch: Partial<DoseDraft>) => {
     setError(null)
@@ -36,12 +37,18 @@ export function DoseForm({
   return (
     <form
       noValidate
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault()
+        if (submitting) return // 중복 저장 방지
         const input = draftToInput(draft)
         const err = validateDose(input)
         if (err) return setError(err)
-        onSubmit(input as DoseInput)
+        setSubmitting(true)
+        try {
+          await onSubmit(input as DoseInput)
+        } finally {
+          setSubmitting(false)
+        }
       }}
       className="space-y-6"
     >
@@ -124,8 +131,8 @@ export function DoseForm({
       </div>
 
       <div className="space-y-2">
-        <Button type="submit" size="lg" className="w-full">
-          {submitLabel}
+        <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+          {submitting ? '저장 중…' : submitLabel}
         </Button>
         {extraActions}
         <p className="text-[12px] leading-relaxed text-text-subtle">

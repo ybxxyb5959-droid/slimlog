@@ -42,11 +42,13 @@ export function FirstDoseFlow({
   step: number
   setStep: (s: number) => void
   /** 확인 시 호출 — 넘기면 목업 저장을 하고 완료 문구가 바뀐다 */
-  onConfirmed?: (draft: FirstDoseDraft) => void
+  /** 저장. Promise 면 끝날 때까지 기다리고, false 를 돌려주면 완료 화면으로 넘어가지 않는다 */
+  onConfirmed?: (draft: FirstDoseDraft) => void | boolean | Promise<void | boolean>
   /** 완료 화면을 닫을 때 */
   onFinished?: () => void
 }) {
   const [confirmClose, setConfirmClose] = useState(false)
+  const [saving, setSaving] = useState(false)
   const patch = (p: Partial<FirstDoseDraft>) => setDraft({ ...draft, ...p })
   const done = step === 6
   const dtError = dateTimeError(draft)
@@ -105,12 +107,18 @@ export function FirstDoseFlow({
     <Button
       size="lg"
       className="w-full"
-      onClick={() => {
-        onConfirmed?.(draft)
-        setStep(6)
+      disabled={saving}
+      onClick={async () => {
+        setSaving(true)
+        try {
+          const ok = await onConfirmed?.(draft)
+          if (ok !== false) setStep(6)
+        } finally {
+          setSaving(false)
+        }
       }}
     >
-      확인
+      {saving ? '저장 중…' : '확인'}
     </Button>
   ) : (
     <Button size="lg" className="w-full" disabled={!canNext} onClick={() => setStep(step + 1)}>

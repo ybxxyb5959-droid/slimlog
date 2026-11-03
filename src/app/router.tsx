@@ -10,7 +10,9 @@ import { MealPhotoPage } from '@/features/meal/MealPhotoPage'
 import { MealReviewPage } from '@/features/meal/MealReviewPage'
 import { MealStartPage } from '@/features/meal/MealStartPage'
 import { OnboardingRoute } from '@/features/onboarding/OnboardingRoute'
+import { AuthCallbackPage } from '@/features/auth/AuthCallbackPage'
 import { ConsentSignupPage } from '@/features/auth/ConsentSignupPage'
+import { LiveGate } from '@/features/auth/LiveGate'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
 import { CommunityListPage } from '@/features/community/CommunityListPage'
@@ -47,7 +49,11 @@ const soon = (path: string, title: string) => ({ path, element: <ComingSoonPage 
 
 const routes: RouteObject[] = [
   {
-    element: <AppLayout />,
+    element: (
+      <LiveGate need="ready">
+        <AppLayout />
+      </LiveGate>
+    ),
     children: [
       { index: true, element: <Navigate to="/home" replace /> },
       { path: 'home', element: <HomePage /> },
@@ -108,9 +114,31 @@ const routes: RouteObject[] = [
   },
   { path: 'login', element: <LoginPage /> },
   { path: 'signup', element: <SignupPage /> },
-  { path: 'consent', element: <ConsentSignupPage /> },
-  { path: 'onboarding', element: <OnboardingRoute /> },
-  { path: 'onboarding/:step', element: <OnboardingRoute /> },
+  { path: 'auth/callback', element: <AuthCallbackPage /> },
+  {
+    path: 'consent',
+    element: (
+      <LiveGate need="session">
+        <ConsentSignupPage />
+      </LiveGate>
+    ),
+  },
+  {
+    path: 'onboarding',
+    element: (
+      <LiveGate need="consented">
+        <OnboardingRoute />
+      </LiveGate>
+    ),
+  },
+  {
+    path: 'onboarding/:step',
+    element: (
+      <LiveGate need="consented">
+        <OnboardingRoute />
+      </LiveGate>
+    ),
+  },
   { path: '*', element: <NotFoundPage /> },
 ]
 

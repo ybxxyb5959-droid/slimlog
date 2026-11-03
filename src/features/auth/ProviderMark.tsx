@@ -43,12 +43,14 @@ const BUTTON: Record<ProviderId, string> = {
   naver: 'bg-[#03C75A] text-white hover:brightness-95',
 }
 
-export function ProviderButton({ provider, label, onClick }: { provider: ProviderId; label: string; onClick: () => void }) {
+export function ProviderButton({ provider, label, onClick, disabled }: { provider: ProviderId; label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
+        'disabled:cursor-not-allowed disabled:opacity-50',
         'relative flex h-[52px] w-full items-center justify-center rounded-xl text-[15px] font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
         BUTTON[provider],
       )}

@@ -6,7 +6,9 @@ import { toast } from 'sonner'
 import { AppIcon } from '@/components/common/AppIcon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PageHeader } from '@/components/common/PageHeader'
+import { isLive } from '@/lib/supabase'
 import { resetToDemoUser } from '@/services/session'
+import { useAuthStore } from '@/stores/authStore'
 
 import { MyGroup, MyRow } from './MyRow'
 
@@ -54,6 +56,7 @@ export function SettingsHubPage() {
             ))}
           </MyGroup>
         ))}
+        {!isLive && (
         <button
           type="button"
           onClick={() => {
@@ -65,6 +68,7 @@ export function SettingsHubPage() {
         >
           목업: 예시 사용자 데이터로 되돌리기
         </button>
+        )}
         <button
           type="button"
           onClick={() => setLogout(true)}
@@ -80,9 +84,10 @@ export function SettingsHubPage() {
         title="로그아웃할까요?"
         description="이 기기의 눈바디 사진은 지워지지 않아요."
         confirmLabel="로그아웃"
-        onConfirm={() => {
-          toast('목업: 로그아웃했어요')
-          navigate('/login')
+        onConfirm={async () => {
+          if (isLive) await useAuthStore.getState().signOut()
+          else toast('목업: 로그아웃했어요')
+          navigate('/login', { replace: true })
         }}
       />
     </>

@@ -29,3 +29,8 @@ playwright-report/
 dist-preview
 __pycache__/
 *.pyc
+
+# 환경 변수 (Supabase 키 등) — 저장소에 올리지 않음
+.env
+.env.*
+!.env.example

@@ -1,12 +1,14 @@
 import { RefreshCw, UserRound } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { validateNickname } from '@/lib/nickname'
 import { cn } from '@/lib/utils'
+import { dbErrorMessage } from '@/lib/supabase'
 import { checkNicknameAvailability, reserveNickname, suggestNickname } from '@/services/nickname'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
@@ -71,8 +73,15 @@ export function NicknameStep() {
     abort.current?.abort()
     window.clearTimeout(timer.current)
     setSaving(true)
-    const r = await reserveNickname(value.trim())
-    setSaving(false)
+    let r: Awaited<ReturnType<typeof reserveNickname>>
+    try {
+      r = await reserveNickname(value.trim())
+    } catch (e) {
+      toast.error('닉네임을 저장하지 못했어요', { description: dbErrorMessage(e) })
+      return
+    } finally {
+      setSaving(false)
+    }
     if (r.ok) {
       set({ nickname: value.trim(), nicknameSaved: true, step: 'body' })
       navigate('/onboarding/body')
