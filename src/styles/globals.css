@@ -156,3 +156,9 @@
 /* 가로 스크롤 목록의 스크롤바 숨김 (드래그로 조작) */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* 차트를 눌렀을 때 생기는 브라우저 포커스 테두리 제거 (값은 말풍선·스크린리더 문구로 안내) */
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus {
+  outline: none;
+}

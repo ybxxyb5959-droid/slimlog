@@ -234,10 +234,13 @@ test('참고 곡선: 기간 전환·툴팁·약별 기록만 표시', async ({ p
     await page.getByRole('radio', { name: label, exact: true }).click()
     await expect(page.getByRole('radio', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true')
   }
-  const chart = page.getByRole('img', { name: '참고용 잔존량 상대값 곡선' })
+  const chart = page.getByRole('img', { name: /참고용 잔존량 상대값 곡선/ })
+  // 기본: 오늘 값 말풍선, 누르면 그 시점 값으로 바뀐다
+  const bubble = page.locator('.residual-bubble-value')
+  const before = await bubble.textContent()
   const box = (await chart.boundingBox())!
-  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2)
-  await expect(page.getByText(/최고 시점 대비 \d+%/).first()).toBeVisible()
+  await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2)
+  await expect(bubble).not.toHaveText(before!)
   // 위고비는 기록이 없으므로 빈 상태 (마운자로 기록을 섞지 않음)
   await page.getByRole('radio', { name: '위고비' }).click()
   await expect(page.getByText('이 기간에 투약 기록이 없어요')).toBeVisible()
@@ -657,4 +660,11 @@ test.describe('홈 인사말 이름', () => {
     await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^민호님, /)
   })
+})
+
+test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {
+  await page.goto('/my/settings/app')
+  await page.getByRole('button', { name: '다시 보기' }).click()
+  await page.goto('/analysis')
+  await expect(page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })).toBeVisible()
 })

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MOCK_TODAY_CHECK } from '@/fixtures/records.mock'
+import { ANALYSIS_PK_NOTICE, localNoticeRepository } from '@/stores/noticePreferences'
 
 import { MyGroup, SettingRow } from './MyRow'
 
@@ -37,6 +38,19 @@ export function AppSettingsPage() {
           </SettingRow>
           <SettingRow id="units" label="단위" description="체중 kg · 키 cm">
             <Badge>고정</Badge>
+          </SettingRow>
+          <SettingRow id="noticeReset" label="분석 유의사항 다시 보기" description="‘다시 보지 않기’를 해제하고 분석 탭에 들어갈 때 다시 보여줘요">
+            <Button
+              id="noticeReset"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                localNoticeRepository.setDismissed(ANALYSIS_PK_NOTICE, false)
+                toast.success('다음에 분석 탭에 들어가면 유의사항이 다시 보여요')
+              }}
+            >
+              다시 보기
+            </Button>
           </SettingRow>
         </MyGroup>
         <Button size="lg" className="w-full" onClick={() => toast.success('목업: 화면에만 저장됐어요')}>
