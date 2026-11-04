@@ -90,3 +90,20 @@ test('InBody970 종이 결과지: 눈금·표준범위·이력표를 건너뛰�
   const d = r.measuredAt!
   expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()]).toEqual([2018, 9, 25, 15, 44])
 })
+
+// 실제 인바디 앱 '인바디검사 요약' 캡처를 Tesseract(kor+eng)로 읽은 글자 모양 그대로 — 숫자·닉네임은 바꿈
+// 라벨 3개가 한 줄, 값은 다음 줄. '(kg)' 가 '(8)' 로, 작은 소수 '24.6' 이 '24 6' 으로 읽힘
+test('인바디 앱 캡처(실제 OCR 모양): 한 줄 라벨 3개 ↔ 다음 줄 값, (kg)→(8)·24 6 오인식 보정', () => {
+  const text =
+    'InBody  0000 TOUCH [= 0)\n대시보드\n인바디검사 요약                        09) 표시항목설정\n체중 (kg)               골격근량 (8)             체지방률 (%)\n81.5    32.7    26 3\n  «=»\n24.09.03 09:56 81.5kg\n[ ]\n[J\n09.03\nMh 공유하기            + 검사기록\n헬스리포트\n'
+  const r = parseInbody(text)
+  expect(r.values).toEqual({ weightKg: 81.5, skeletalMuscleKg: 32.7, bodyFatPct: 26.3 })
+  expect(r.problems).toEqual([])
+  expect(r.measuredAt?.getFullYear()).toBe(2024)
+})
+
+test('단위 괄호를 숫자로 잘못 읽어도 값으로 쓰지 않는다', () => {
+  const r = parseInbody(['체중 (8) 70.4', '골격근량 (8)', '30.2'].join('\n'))
+  expect(r.values.weightKg).toBe(70.4)
+  expect(r.values.skeletalMuscleKg).toBe(30.2)
+})

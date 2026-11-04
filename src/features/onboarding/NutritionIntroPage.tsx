@@ -43,7 +43,7 @@ export function NutritionIntroPage() {
   if (already) return <Navigate to="/home" replace />
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col px-5 pt-[max(1rem,var(--sat))] pb-[max(1.5rem,var(--sab))]">
         <div className="flex items-center justify-between py-2">
           <Logo size={24} />
           <span className="rounded-full bg-surface-muted px-3 py-1 text-[12px] font-semibold text-text-muted">선택 설정</span>

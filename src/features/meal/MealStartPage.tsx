@@ -149,7 +149,7 @@ export function MealStartPage() {
       </div>
 
       {pending && (
-        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 px-5 pb-3 md:bottom-4 md:left-20 lg:left-60">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+var(--sab))] z-20 px-5 pb-3 md:bottom-4 md:left-20 lg:left-60">
           <Link to="/record/meal/review" className="mx-auto flex h-14 max-w-lg items-center justify-between rounded-2xl bg-text px-5 text-surface shadow-lg">
             <span className="text-[14px] font-semibold">작성 중인 식단 {draft.items.length}개 · {pendingKcal.toLocaleString()}kcal</span>
             <span className="inline-flex items-center gap-1 text-[14px]">
