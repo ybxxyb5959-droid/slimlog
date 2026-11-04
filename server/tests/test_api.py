@@ -91,8 +91,9 @@ def test_residual_curve_uses_only_my_doses(client, make_user):
     pts = r.json()["points"]
     assert pts and max(p["relative"] for p in pts) == 100 and r.json()["unit"] == "relative"
     assert client.get("/residual-curve", params={"med_id": "mounjaro"}, headers=b.h).json()["points"] == []
+    a.rest("POST", "doses", json={"med_id": "efpe", "dose_mg": 4, "injected_at": (now - timedelta(days=2)).isoformat(), "site": "abdomen_left"}).raise_for_status()
     r = client.get("/residual-curve", params={"med_id": "efpe"}, headers=a.h)
-    assert r.json()["points"] == [] and "반감기" in r.json()["reason"]
+    assert r.json()["half_life_h"] == 157.5 and r.json()["points"]
 
 
 def test_meal_photo_upload_strip_exif_mock_and_delete(client, make_user):
