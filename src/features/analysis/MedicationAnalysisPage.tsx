@@ -5,10 +5,10 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { MEDICATION_LIST, MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
-import { MOCK_SYMPTOMS } from '@/fixtures/records.mock'
 import { formatShortDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { useDoses } from '@/services/doses'
+import { useSymptoms } from '@/services/symptoms'
 import type { MedicationId } from '@/types/domain'
 
 import { ResidualPreviewCard } from '../record/medication/ResidualPreviewCard'
@@ -16,11 +16,12 @@ import { AnalysisNoticeButton } from './AnalysisSection'
 
 export function MedicationAnalysisPage() {
   const doses = useDoses()
+  const symptoms = useSymptoms()
   const [medId, setMedId] = useState<MedicationId>('mounjaro')
   const [showSymptoms, setShowSymptoms] = useState(true)
   const med = MEDICATIONS[medId]
   const symptomTimes = showSymptoms
-    ? MOCK_SYMPTOMS.map((s) => new Date(s.recordedAt).getTime())
+    ? symptoms.map((s) => new Date(s.recordedAt).getTime())
     : []
   const recent = doses.filter((d) => d.medicationId === medId).slice(0, 4)
 
