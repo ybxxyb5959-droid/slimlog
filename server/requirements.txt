@@ -4,6 +4,8 @@ httpx==0.28.1
 pyjwt[crypto]==2.10.1
 pillow==12.2.0
 python-multipart==0.0.20
+# 폰 푸시 (웹 푸시)
+pywebpush==2.0.3
 # 음식 모델 추론 (모델 파일이 있을 때만 사용)
 onnxruntime==1.22.0
 numpy>=2.0

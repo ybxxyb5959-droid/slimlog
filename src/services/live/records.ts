@@ -117,8 +117,8 @@ export async function fetchIntake() {
   const since = new Date()
   since.setDate(since.getDate() - 30)
   const [items, logs] = await Promise.all([
-    db.from('intake_items').select('item_id, kind, name, active').eq('active', true).order('created_at'),
-    db.from('intake_logs').select('log_id, kind, item_id, amount_ml, taken_at').gte('taken_at', since.toISOString()).order('taken_at'),
+    db.from('intake_items').select('item_id, kind, name, active, remind_enabled, remind_hour, remind_asked').eq('active', true).order('created_at'),
+    db.from('intake_logs').select('log_id, kind, item_id, amount_ml, taken_at, status').gte('taken_at', since.toISOString()).order('taken_at'),
   ])
   if (items.error) throw items.error
   if (logs.error) throw logs.error
@@ -136,12 +136,18 @@ export async function deleteIntakeItem(itemId: string) {
   const r = await db.from('intake_items').delete().eq('item_id', itemId)
   if (r.error) throw r.error
 }
-export async function insertIntakeLog(row: { kind: 'water' | 'supplement' | 'medicine'; item_id?: string | null; amount_ml?: number | null; taken_at: string }) {
+export async function insertIntakeLog(row: { kind: 'water' | 'supplement' | 'medicine'; item_id?: string | null; amount_ml?: number | null; taken_at: string; status?: 'taken' | 'skipped' }) {
   const r = await sb().from('intake_logs').insert(row).select('log_id').single()
   if (r.error) throw r.error
   return r.data.log_id
 }
 export async function deleteIntakeLog(logId: string) {
   const r = await sb().from('intake_logs').delete().eq('log_id', logId)
+  if (r.error) throw r.error
+}
+
+/** 알림 설정 (매일 몇 시) */
+export async function updateIntakeReminder(itemId: string, patch: { remind_enabled?: boolean; remind_hour?: number | null; remind_asked?: boolean }) {
+  const r = await sb().from('intake_items').update(patch).eq('item_id', itemId)
   if (r.error) throw r.error
 }

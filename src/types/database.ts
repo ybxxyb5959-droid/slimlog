@@ -223,14 +223,14 @@ isOneToOne: false
                   ]
                 },"intake_items": {
                   Row: {
-                    "active": boolean,"created_at": string,"item_id": string,"kind": string,"name": string,"user_id": string
+                    "active": boolean,"created_at": string,"item_id": string,"kind": string,"last_reminded_on": string | null,"name": string,"remind_asked": boolean,"remind_enabled": boolean,"remind_hour": number | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"created_at"?: string,"item_id"?: string,"kind": string,"name": string,"user_id"?: string
+                    "active"?: boolean,"created_at"?: string,"item_id"?: string,"kind": string,"last_reminded_on"?: string | null,"name": string,"remind_asked"?: boolean,"remind_enabled"?: boolean,"remind_hour"?: number | null,"user_id"?: string
                   }
                   Update: {
-                    "active"?: boolean,"created_at"?: string,"item_id"?: string,"kind"?: string,"name"?: string,"user_id"?: string
+                    "active"?: boolean,"created_at"?: string,"item_id"?: string,"kind"?: string,"last_reminded_on"?: string | null,"name"?: string,"remind_asked"?: boolean,"remind_enabled"?: boolean,"remind_hour"?: number | null,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -243,14 +243,14 @@ isOneToOne: false
                   ]
                 },"intake_logs": {
                   Row: {
-                    "amount_ml": number | null,"item_id": string | null,"kind": string,"log_id": string,"taken_at": string,"user_id": string
+                    "amount_ml": number | null,"item_id": string | null,"kind": string,"log_id": string,"scheduled_at": string | null,"status": string,"taken_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount_ml"?: number | null,"item_id"?: string | null,"kind": string,"log_id"?: string,"taken_at"?: string,"user_id"?: string
+                    "amount_ml"?: number | null,"item_id"?: string | null,"kind": string,"log_id"?: string,"scheduled_at"?: string | null,"status"?: string,"taken_at"?: string,"user_id"?: string
                   }
                   Update: {
-                    "amount_ml"?: number | null,"item_id"?: string | null,"kind"?: string,"log_id"?: string,"taken_at"?: string,"user_id"?: string
+                    "amount_ml"?: number | null,"item_id"?: string | null,"kind"?: string,"log_id"?: string,"scheduled_at"?: string | null,"status"?: string,"taken_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -431,6 +431,26 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"push_subscriptions": {
+                  Row: {
+                    "auth": string,"created_at": string,"endpoint": string,"p256dh": string,"sub_id": string,"user_agent": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "auth": string,"created_at"?: string,"endpoint": string,"p256dh": string,"sub_id"?: string,"user_agent"?: string | null,"user_id"?: string
+                  }
+                  Update: {
+                    "auth"?: string,"created_at"?: string,"endpoint"?: string,"p256dh"?: string,"sub_id"?: string,"user_agent"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_subscriptions_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["user_id"]
+    }
+                  ]
                 },"reports": {
                   Row: {
                     "created_at": string,"detail": string | null,"reason": string,"report_id": string,"reporter_id": string,"status": string,"target_id": string,"target_type": string
@@ -545,6 +565,12 @@ isOneToOne: false
                            },
 "nickname_available":
 { Args: { "name": string }; Returns: boolean
+                           },
+"show_limit":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"show_trgm":
+{ Args: { "": string }; Returns: (string)[]
                            },
 "withdraw_sensitive_consent":
 { Args: Record<PropertyKey, never>; Returns: Json

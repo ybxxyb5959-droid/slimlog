@@ -1,13 +1,19 @@
-import { GlassWater, Pill, Plus, Tablets, Trash2, X } from 'lucide-react'
+import { BellRing, CircleCheck, GlassWater, Pill, Plus, Tablets, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 
 import { AppIcon } from '@/components/common/AppIcon'
 import { BottomSheet } from '@/components/common/BottomSheet'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatTime, toDateTimeLocalValue } from '@/lib/date'
+import { formatTime, hourLabel } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { summarizeIntake, useIntakeStore, type IntakeKind } from '@/stores/intakeStore'
+import { enablePush, pushHint } from '@/lib/push'
+import { summarizeIntake, useIntakeStore, type IntakeItem, type IntakeKind } from '@/stores/intakeStore'
+
+import { HourClock } from './HourClock'
+import { suggest } from './suggestions'
 
 type Tab = 'water' | IntakeKind
 const TABS: { id: Tab; label: string; icon: typeof GlassWater }[] = [
@@ -92,102 +98,215 @@ function WaterTab() {
   )
 }
 
-/** 영양제·복용약 공통 — 등록한 항목 목록 + 실제 섭취(복용) 시각 기록 */
+/**
+ * 영양제·복용약 공통
+ * - 카드를 누르면 오늘 '먹었어요' (다시 누르면 취소), '건너뛰기'도 남길 수 있다
+ * - 처음 먹었어요를 누르면 매일 알림을 받을지 한 번 묻는다 → 확인 시 시계로 '시' 고르기 → 폰 푸시 등록
+ */
 function ItemTab({ kind }: { kind: IntakeKind }) {
-  const { items, logs, addItem, removeItem, logItem, unlog } = useIntakeStore()
+  const { items, logs, addItem, removeItem, logItem, unlog, setReminder } = useIntakeStore()
+  const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
-  const [times, setTimes] = useState<Record<string, string>>({})
-  const [openedAt] = useState(() => Date.now())
+  const [ask, setAsk] = useState<IntakeItem | null>(null)
+  const [clockFor, setClockFor] = useState<IntakeItem | null>(null)
+  const [hour, setHour] = useState(9)
   const mine = items.filter((i) => i.kind === kind)
   const noun = kind === 'supplement' ? '영양제' : '복용약'
   const verb = kind === 'supplement' ? '섭취' : '복용'
-  const nowLocal = () => toDateTimeLocalValue(new Date())
+  const todayOf = (id: string) => logs.filter((l) => l.itemId === id && isToday(l.at)).sort((a, b) => b.at.localeCompare(a.at))[0]
+  const doneCount = mine.filter((i) => todayOf(i.id)?.status !== 'skipped' && todayOf(i.id)).length
+  const hints = suggest(name, items.filter((i) => i.kind === kind).map((i) => i.name), kind === 'supplement' ? undefined : [])
+
+  const register = (n: string) => {
+    if (!n.trim()) return
+    addItem(kind, n.trim())
+    setName('')
+    setAdding(false)
+  }
+
+  const toggleTaken = (item: IntakeItem) => {
+    const t = todayOf(item.id)
+    if (t) return unlog(t.id)
+    logItem(item.id, new Date().toISOString(), 'taken')
+    if (!item.remindAsked) setAsk(item) // 처음 먹었어요 → 매일 알림 받을지 한 번만 묻기
+  }
+
+  const openClock = (item: IntakeItem) => {
+    setHour(item.remindHour ?? new Date().getHours())
+    setClockFor(item)
+  }
+
+  const saveReminder = async () => {
+    if (!clockFor) return
+    setReminder(clockFor.id, { enabled: true, hour, asked: true })
+    setClockFor(null)
+    const r = await enablePush()
+    if (r === 'subscribed') toast.success(`매일 ${hourLabel(hour)}에 알려드릴게요`)
+    else toast(`매일 ${hourLabel(hour)}로 저장했어요`, { description: pushHint(r) })
+  }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {kind === 'medicine' && (
         <p className="rounded-2xl bg-surface-muted px-4 py-3 text-[13px] leading-relaxed text-text-muted">
           마운자로·위고비·에페 같은 주사는 홈의 ‘투약’에서 기록해요. 앱은 약의 복용량이나 복용 주기를 추천하지 않아요.
         </p>
       )}
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!name.trim()) return
-          addItem(kind, name.trim())
-          setName('')
-        }}
-      >
-        <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={30} placeholder={`${noun} 이름 (예: ${kind === 'supplement' ? '유산균' : '처방받은 약 이름'})`} aria-label={`${noun} 이름`} />
-        <Button type="submit" disabled={!name.trim()} className="h-12 shrink-0">
-          <Plus size={18} strokeWidth={1.75} aria-hidden /> 등록
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[18px] font-bold">오늘의 {noun}</h3>
+          <p className="text-[13px] text-text-muted">
+            {doneCount}개 {verb} 완료
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="h-10 rounded-full border-icon px-4 text-icon" aria-expanded={adding} onClick={() => setAdding((v) => !v)}>
+          <Plus size={16} strokeWidth={2} aria-hidden /> 등록
         </Button>
-      </form>
+      </div>
+
+      {adding && (
+        <form
+          className="space-y-2 rounded-2xl bg-surface-muted p-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            register(name)
+          }}
+        >
+          <p className="px-1 text-[14px] font-semibold">새 {noun} 등록</p>
+          <Input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={30}
+            placeholder={`${noun} 이름 입력`}
+            aria-label={`${noun} 이름`}
+            aria-autocomplete="list"
+            aria-controls={`hints-${kind}`}
+            className="rounded-full bg-surface"
+          />
+          {/* 자동완성: 입력칸 바로 아래에 최대 5개 — 위에 겹쳐 띄우지 않아 키보드·화면을 가리지 않음 */}
+          {hints.length > 0 && (
+            <ul id={`hints-${kind}`} role="listbox" aria-label={`${noun} 추천`} className="overflow-hidden rounded-2xl border border-border bg-surface">
+              {hints.map((h) => (
+                <li key={h} role="option" aria-selected={false}>
+                  <button type="button" onClick={() => register(h)} className="flex min-h-11 w-full items-center px-4 text-left text-[15px] hover:bg-surface-muted">
+                    {h}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button type="submit" variant="secondary" className="w-full rounded-full" disabled={!name.trim()}>
+            등록하기
+          </Button>
+        </form>
+      )}
 
       {mine.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-[13px] text-text-muted">
-          등록한 {noun}이 없어요. 이름을 등록하면 매일 {verb} 여부를 기록할 수 있어요.
-        </p>
+        !adding && (
+          <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-[13px] text-text-muted">
+            등록한 {noun}이 없어요. [+ 등록]으로 추가하면 매일 {verb} 여부를 체크할 수 있어요.
+          </p>
+        )
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2.5">
           {mine.map((item) => {
-            const todayLogs = logs.filter((l) => l.itemId === item.id && isToday(l.at)).sort((a, b) => a.at.localeCompare(b.at))
-            const time = times[item.id] ?? nowLocal()
-            const future = new Date(time).getTime() > openedAt + 60_000
+            const t = todayOf(item.id)
+            const done = !!t && t.status !== 'skipped'
+            const skipped = t?.status === 'skipped'
             return (
-              <li key={item.id} className="rounded-2xl border border-border p-4">
-                <div className="flex items-center gap-2">
-                  <p className="flex-1 text-[15px] font-semibold">{item.name}</p>
-                  <span className={cn('text-[12px] font-medium', todayLogs.length ? 'text-primary' : 'text-text-subtle')}>
-                    {todayLogs.length ? `오늘 ${verb} ${todayLogs.length}회` : `오늘 ${verb} 기록 없음`}
+              <li key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3">
+                <button
+                  type="button"
+                  onClick={() => toggleTaken(item)}
+                  aria-pressed={done}
+                  aria-label={`${item.name} ${done ? `${verb} 취소` : `${verb} 완료`}`}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <AppIcon icon={kind === 'supplement' ? Pill : Tablets} size="md" bg="soft" className="size-11 shrink-0 rounded-xl" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[16px] font-semibold">{item.name}</span>
+                    <span className={cn('block text-[13px]', done ? 'text-primary' : 'text-text-muted')}>
+                      {done ? `오늘 ${verb} 완료 · ${formatTime(new Date(t!.at))}` : skipped ? '오늘 건너뛰었어요' : '아직 기록하지 않았어요'}
+                    </span>
                   </span>
-                  <button type="button" onClick={() => removeItem(item.id)} aria-label={`${item.name} 삭제`} className="inline-flex size-9 items-center justify-center rounded-full hover:bg-surface-muted">
-                    <AppIcon icon={Trash2} size="sm" tone="muted" className="size-[18px]" />
-                  </button>
-                </div>
-                {todayLogs.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {todayLogs.map((l) => (
-                      <button
-                        key={l.id}
-                        type="button"
-                        onClick={() => unlog(l.id)}
-                        className="tabular inline-flex h-8 items-center gap-1 rounded-full bg-primary-soft px-3 text-[13px] font-medium text-primary"
-                        aria-label={`${formatTime(new Date(l.at))} ${verb} 기록 취소`}
-                      >
-                        {formatTime(new Date(l.at))} {verb}
-                        <X size={13} strokeWidth={2} aria-hidden />
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-3 flex gap-2">
-                  <Input
-                    type="datetime-local"
-                    value={time}
-                    max={nowLocal()}
-                    onChange={(e) => setTimes((t) => ({ ...t, [item.id]: e.target.value }))}
-                    aria-label={`${item.name} ${verb} 시각`}
-                    className="h-11 flex-1 text-[14px]"
-                  />
-                  <Button
-                    size="sm"
-                    className="h-11 shrink-0"
-                    disabled={future}
-                    onClick={() => {
-                      if (new Date(time).getTime() <= Date.now() + 60_000) logItem(item.id, new Date(time).toISOString())
-                    }}
+                  {done ? (
+                    <AppIcon icon={CircleCheck} size="md" tone="success" />
+                  ) : (
+                    <span aria-hidden className="size-6 shrink-0 rounded-full border-2 border-border bg-surface-muted" />
+                  )}
+                </button>
+                <div className="flex flex-col items-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openClock(item)}
+                    aria-label={`${item.name} 알림 ${item.remindEnabled ? `${hourLabel(item.remindHour ?? 9)} 바꾸기` : '설정'}`}
+                    className={cn('inline-flex h-7 items-center gap-1 rounded-full px-2 text-[12px]', item.remindEnabled ? 'bg-icon-soft text-icon' : 'text-text-subtle hover:bg-surface-muted')}
                   >
-                    {verb} 기록
-                  </Button>
+                    <BellRing size={13} strokeWidth={1.75} aria-hidden />
+                    {item.remindEnabled ? hourLabel(item.remindHour ?? 9) : '알림'}
+                  </button>
+                  <div className="flex">
+                    {!t && (
+                      <button type="button" onClick={() => logItem(item.id, new Date().toISOString(), 'skipped')} className="h-7 rounded-full px-2 text-[12px] text-text-subtle hover:bg-surface-muted">
+                        건너뛰기
+                      </button>
+                    )}
+                    <button type="button" onClick={() => removeItem(item.id)} aria-label={`${item.name} 삭제`} className="inline-flex size-7 items-center justify-center rounded-full hover:bg-surface-muted">
+                      <Trash2 size={14} strokeWidth={1.75} className="text-text-subtle" aria-hidden />
+                    </button>
+                  </div>
                 </div>
-                {future && <p className="mt-1.5 text-[12px] text-danger">미래 시각은 기록할 수 없어요.</p>}
               </li>
             )
           })}
         </ul>
       )}
+      <p className="text-[12px] text-text-subtle">카드를 누르면 오늘 {verb} 완료로 바뀌고, 시간이 자동으로 저장돼요.</p>
+
+      <ConfirmDialog
+        open={!!ask}
+        onOpenChange={(o) => {
+          if (!o && ask) setReminder(ask.id, { asked: true }) // 닫거나 '알림받지 않기' → 다시 묻지 않음
+          if (!o) setAsk(null)
+        }}
+        title="매일 알림을 보내드릴게요"
+        description={ask ? `${ask.name} 먹을 시간에 알려드려요. 시간은 다음 화면에서 정해요.` : undefined}
+        confirmLabel="확인"
+        cancelLabel="알림받지 않기"
+        onConfirm={() => {
+          const it = ask
+          setAsk(null)
+          if (it) openClock(it)
+        }}
+      />
+      <BottomSheet open={!!clockFor} onRequestClose={() => setClockFor(null)} title="알림 시간" description={clockFor ? `${clockFor.name} · 매일` : undefined}>
+        <div className="space-y-5">
+          <HourClock hour={hour} onChange={setHour} />
+          <div className="grid grid-cols-2 gap-2">
+            {clockFor?.remindEnabled ? (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  setReminder(clockFor.id, { enabled: false, asked: true })
+                  setClockFor(null)
+                  toast('알림을 껐어요')
+                }}
+              >
+                알림 끄기
+              </Button>
+            ) : (
+              <Button variant="outline" size="lg" onClick={() => setClockFor(null)}>
+                취소
+              </Button>
+            )}
+            <Button size="lg" onClick={saveReminder}>
+              저장
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   )
 }

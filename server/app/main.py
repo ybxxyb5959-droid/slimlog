@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings
 from .recognizer import Recognizer
-from .routers import body, community, core, meals
+from .routers import body, community, core, meals, push
 
 app = FastAPI(title="SlimLog API", version="0.1.0")
 _settings = Settings()
@@ -23,7 +23,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.allowed_origins,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Cron-Secret"],
 )
 
 
@@ -39,7 +39,30 @@ def validation_error(_: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": {"code": "INVALID_INPUT", "message": "입력값을 확인해 주세요.", "field": field}})
 
 
+@app.on_event("startup")
+async def _push_scheduler():
+    """ENABLE_PUSH_SCHEDULER=1 이면 서버가 5분마다 알림 대상을 확인 (외부 cron 없이 쓸 때). 같은 날 같은 항목은 한 번만 보냄"""
+    import asyncio
+    import os
+
+    if os.environ.get("ENABLE_PUSH_SCHEDULER") != "1":
+        return
+    from .auth import get_db
+    from .routers.push import run_due
+
+    async def loop():
+        while True:
+            try:
+                await asyncio.to_thread(run_due, get_db())
+            except Exception as e:  # 한 번 실패해도 계속
+                print("push scheduler error:", e)
+            await asyncio.sleep(300)
+
+    asyncio.create_task(loop())
+
+
 app.include_router(core.router)
 app.include_router(community.router)
 app.include_router(meals.router)
 app.include_router(body.router)
+app.include_router(push.router)

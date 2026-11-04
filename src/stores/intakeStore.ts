@@ -3,7 +3,7 @@ import { create } from 'zustand'
 
 import { MOCK_TODAY_CHECK } from '@/fixtures/records.mock'
 import { dbErrorMessage, isLive } from '@/lib/supabase'
-import { deleteIntakeItem, deleteIntakeLog, insertIntakeItem, insertIntakeLog } from '@/services/live/records'
+import { deleteIntakeItem, deleteIntakeLog, insertIntakeItem, insertIntakeLog, updateIntakeReminder } from '@/services/live/records'
 
 /**
  * 섭취 관리(물·영양제·복용약) — 목업 상태.
@@ -27,11 +27,19 @@ export interface IntakeItem {
   id: string
   kind: IntakeKind
   name: string
+  /** 매일 알림 (요일 없이 매일) */
+  remindEnabled?: boolean
+  /** 알림 시각 '시' (0~23) */
+  remindHour?: number | null
+  /** 첫 섭취 완료 때 알림 여부를 이미 물어봤는지 */
+  remindAsked?: boolean
 }
 export interface IntakeLog {
   id: string
   itemId: string
   at: string
+  /** 먹었어요 / 건너뛰었어요 (없으면 먹었어요) */
+  status?: 'taken' | 'skipped'
 }
 
 interface IntakeState {
@@ -43,7 +51,8 @@ interface IntakeState {
   removeWater: (id: string) => void
   addItem: (kind: IntakeKind, name: string) => void
   removeItem: (id: string) => void
-  logItem: (itemId: string, at: string) => void
+  logItem: (itemId: string, at: string, status?: 'taken' | 'skipped') => void
+  setReminder: (itemId: string, patch: { enabled?: boolean; hour?: number | null; asked?: boolean }) => void
   unlog: (logId: string) => void
   resetEmpty: () => void
   resetDemo: () => void
@@ -109,14 +118,33 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
     set((s) => ({ items: s.items.filter((i) => i.id !== id), logs: s.logs.filter((l) => l.itemId !== id) }))
     persist(() => deleteIntakeItem(id), () => set(prev))
   },
-  logItem: (itemId, at) => {
-    const log = { id: uid('l'), itemId, at }
+  logItem: (itemId, at, status = 'taken') => {
+    const log = { id: uid('l'), itemId, at, status }
     const kind = get().items.find((i) => i.id === itemId)?.kind ?? 'supplement'
     set((s) => ({ logs: [...s.logs, log] }))
     persist(
-      () => insertIntakeLog({ kind, item_id: itemId, taken_at: at }),
+      () => insertIntakeLog({ kind, item_id: itemId, taken_at: at, status }),
       () => set((s) => ({ logs: s.logs.filter((x) => x.id !== log.id) })),
       (dbId) => set((s) => ({ logs: s.logs.map((x) => (x.id === log.id ? { ...x, id: dbId } : x)) })),
+    )
+  },
+  setReminder: (itemId, patch) => {
+    const prev = get().items
+    set((s) => ({
+      items: s.items.map((i) =>
+        i.id === itemId
+          ? { ...i, remindEnabled: patch.enabled ?? i.remindEnabled, remindHour: patch.hour !== undefined ? patch.hour : i.remindHour, remindAsked: patch.asked ?? i.remindAsked }
+          : i,
+      ),
+    }))
+    persist(
+      () =>
+        updateIntakeReminder(itemId, {
+          ...(patch.enabled !== undefined ? { remind_enabled: patch.enabled } : {}),
+          ...(patch.hour !== undefined ? { remind_hour: patch.hour } : {}),
+          ...(patch.asked !== undefined ? { remind_asked: patch.asked } : {}),
+        }),
+      () => set({ items: prev }),
     )
   },
   unlog: (logId) => {
@@ -133,7 +161,7 @@ const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toD
 /** 홈 카드용 요약 — 실제 기록만 센다 */
 export function summarizeIntake(s: Pick<IntakeState, 'water' | 'logs'>) {
   const ml = s.water.filter((w) => isToday(w.at)).reduce((a, w) => a + w.ml, 0)
-  const taken = s.logs.filter((l) => isToday(l.at)).length
+  const taken = s.logs.filter((l) => isToday(l.at) && l.status !== 'skipped').length
   return { ml, taken }
 }
 

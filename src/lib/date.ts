@@ -63,3 +63,6 @@ export function localInputToIso(v: string) {
   if (!v) return ''
   return v === toDateTimeLocalValue(new Date()) ? new Date().toISOString() : new Date(v).toISOString()
 }
+
+/** 9 → '오전 9시', 21 → '오후 9시', 0 → '오전 12시' */
+export const hourLabel = (h: number) => `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}시`
