@@ -76,6 +76,31 @@ def fetch_all(url: str, key: str, rows: int = 1000, max_pages: int = 0, sleep: f
         time.sleep(sleep)
 
 
+def fetch_all_parallel(url: str, key: str, rows: int = 1000, workers: int = 4, log=print) -> list[dict]:
+    """1쪽으로 전체 건수를 알아낸 뒤 나머지 쪽을 동시에 받는다 (순서는 쪽 번호대로 유지)"""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(page: int) -> list[dict]:
+        for attempt in range(4):
+            try:
+                return fetch_page(url, key, page, rows)[0]
+            except (urllib.error.URLError, TimeoutError, RuntimeError, OSError) as e:
+                if attempt == 3 or "API 오류" in str(e):
+                    raise
+                time.sleep(2 * (attempt + 1))
+        return []
+
+    first, total = fetch_page(url, key, 1, rows)
+    pages = -(-total // rows) if total else 1
+    out: dict[int, list[dict]] = {1: first}
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for n, items in zip(range(2, pages + 1), ex.map(one, range(2, pages + 1))):
+            out[n] = items
+            if n % 10 == 0 or n == pages:
+                log(f"  {n}/{pages}쪽 (누적 {sum(len(v) for v in out.values())} / 전체 {total})")
+    return [it for n in sorted(out) for it in out[n]]
+
+
 def write_csv(items: list[dict], path: Path):
     keys: list[str] = []
     for it in items:
@@ -95,12 +120,16 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--rows", type=int, default=1000)
     ap.add_argument("--max-pages", type=int, default=0, help="시험용: N 쪽까지만")
+    ap.add_argument("--workers", type=int, default=1, help="동시에 받을 쪽 수 (2 이상이면 병렬, 일일 호출 한도 주의)")
     a = ap.parse_args(argv)
     key = os.environ.get("DATA_GO_KR_KEY")
     if not key:
         print("DATA_GO_KR_KEY 환경변수(일반 인증키 Decoding)가 필요해요", file=sys.stderr)
         return 2
-    items = fetch_all(a.url, key, a.rows, a.max_pages)
+    if a.workers > 1 and not a.max_pages:
+        items = fetch_all_parallel(a.url, key, a.rows, a.workers)
+    else:
+        items = fetch_all(a.url, key, a.rows, a.max_pages)
     if not items:
         print("받은 데이터가 없어요", file=sys.stderr)
         return 1

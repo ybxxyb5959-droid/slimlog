@@ -224,3 +224,17 @@ bash supabase/tests/run_local.sh
 
 
 - 2026-11-04: `sql_editor_적용용_007.sql`(음식 검색 trigram 인덱스) 클라우드 적용 (사용자 SQL Editor)
+
+### 2026-11-04 공용 음식(foods) 데이터 넣기
+| 자료 | 원본 | 넣은 개수 | 받은 방법 |
+|---|---|---|---|
+| 음식 (`mfds-D…`) | 19,738행 | 16,791 | 공공데이터포털 CSV |
+| 원재료 (`mfds-R…`) | 3,704행 | 3,693 | 공공데이터포털 CSV |
+| 가공식품 (`mfds-P…`) | 323,182행 | 310,518 | 오픈 API (`fetch_mfds_api.py --workers 6`) |
+| **합계** | | **331,002** | `import_foods.py --dedupe-name --rest` |
+
+- 같은 제품 중복 정리: 이름·제조사가 띄어쓰기·괄호·(주)/주식회사만 다르면 하나만 넣음 (가공식품 12,664개, 음식 2,947개 정리)
+- 분류: 가공식품 273,916 · 음료 42,824 · 그 외 음식 분류
+- 예상 용량 (로컬 Postgres 16 에 같은 표·인덱스로 실측): **166MB** = 표 79MB + 인덱스 87MB (이름 trigram 27MB, 제조사 trigram 17MB, PK 22MB, 이름 22MB)
+- 업로드 중 HTTP 500 한 번 → `--start 273500` 으로 이어 넣음 (upsert 라 겹쳐도 안전)
+- 실제 DB 크기 확인 (SQL Editor): `select pg_size_pretty(pg_database_size(current_database())), pg_size_pretty(pg_total_relation_size('public.foods'));`

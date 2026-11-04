@@ -86,6 +86,35 @@ class UnitTest(unittest.TestCase):
         self.assertEqual(only_ml[0].basis_label, "100mL당(약 100g)")
 
 
+class ProcessedTest(unittest.TestCase):
+    """가공식품(오픈 API) 행 — 필드 이름은 API 그대로, 값은 가짜"""
+
+    def conv(self, rows, dedupe=True):
+        h = list(rows[0].keys())
+        return imp.convert(rows, imp.resolve_columns(h, {}), "t", dedupe_name=dedupe)
+
+    def row(self, **kw):
+        base = {"foodCd": "P1", "foodNm": "테스트과자", "typeNm": "가공식품", "foodLv3Nm": "과자류·빵류 또는 떡류", "nutConSrtrQua": "100g", "enerc": "500", "servSize": "", "foodSize": "1.5kg", "mfrNm": "(주)가짜식품"}
+        return base | kw
+
+    def test_category_serving_units(self):
+        data, _ = self.conv([self.row(), self.row(foodCd="P2", foodNm="테스트주스", foodLv3Nm="음료류", nutConSrtrQua="100mL", servSize="200ml", foodSize="1.8L")])
+        self.assertEqual([d.category for d in data], ["가공식품", "음료"])  # '떡' 이 있어도 밥·면이 아님
+        self.assertEqual(data[0].serving_g, 1500)  # 1회량이 비면 총내용량, kg → g
+        self.assertEqual(data[1].serving_g, 200)  # 1회 섭취참고량 우선
+
+    def test_same_product_dedupe_and_bad_values(self):
+        rows = [self.row(), self.row(foodCd="P2", foodNm="테스트 과자", mfrNm="주식회사 가짜식품"), self.row(foodCd="P3", foodNm="테스트과자", mfrNm="다른회사"), self.row(foodCd="P4", foodNm="이상값", enerc="-5")]
+        data, skipped = self.conv(rows)
+        self.assertEqual([d.food_id for d in data], ["mfds-P1", "mfds-P3"])  # 띄어쓰기·(주) 만 다른 건 같은 제품, 회사가 다르면 따로
+        self.assertTrue(any("이상" in s for s in skipped))
+
+    def test_grams_limits(self):
+        self.assertEqual(imp.grams_of("500mg"), 0.5)
+        self.assertIsNone(imp.grams_of("200kg"))  # DB 한도 초과
+        self.assertIsNone(imp.ok(-1.0, 100))
+
+
 class EncodingAndCliTest(unittest.TestCase):
     def test_cp949(self):
         with tempfile.TemporaryDirectory() as t:
