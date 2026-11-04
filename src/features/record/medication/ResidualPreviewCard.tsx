@@ -62,10 +62,8 @@ export function ResidualPreviewCard({
   )
   // 흡수 모델: 맞은 뒤 tmax 쯤 최고점까지 서서히 올라갔다가 반감기대로 내려감
   const tmax = curveTmaxHours(medication)
-  // 체내 추정량(mg) = 흡수 모델 × 생체이용률. 생체이용률 자료가 없는 약은 100%로 가정하고 그렇게 표시
-  const F = medication.pk.bioavailability?.value ?? 1
-  const fAssumed = !medication.pk.bioavailability
-  const points = useMemo(() => amountCurve(events, halfLife, from, now, 3, tmax, F), [events, halfLife, from, now, tmax, F])
+  // 체내 추정량(mg, 주사량 기준): 한 번 맞으면 서서히 올라 최고점이 맞은 용량, 그 뒤 반감기대로 감소. 반복 투여는 더함
+  const points = useMemo(() => amountCurve(events, halfLife, from, now, 3, tmax), [events, halfLife, from, now, tmax])
   const nowValue = relativeAt(points, now)
   const inRange = events.filter((e) => e.t >= from)
   const markers: CurveMarker[] = inRange.map((e, i) => ({
@@ -92,7 +90,7 @@ export function ResidualPreviewCard({
     if (!latest) return null
     const med = latest.med
     const ev = other.filter((d) => d.med.id === med.id).map(({ t, doseMg }) => ({ t, doseMg }))
-    const pts = amountCurve(ev, med.pk.halfLifeHours?.value ?? null, from, now, 3, curveTmaxHours(med), med.pk.bioavailability?.value ?? 1)
+    const pts = amountCurve(ev, med.pk.halfLifeHours?.value ?? null, from, now, 3, curveTmaxHours(med))
     const peak = Math.max(0, ...pts.map((p) => p.relative))
     return peak > 0.01 ? { med, points: pts } : null
   }, [doses, medication.id, from, now])
@@ -111,7 +109,7 @@ export function ResidualPreviewCard({
             <p className="mt-0.5 text-[20px] font-bold text-text-subtle">계산 없음</p>
           )}
           <p className="text-[12px] break-keep text-text-muted">
-            {medication.ingredient}({medication.name}) · 반감기·흡수 시간 기반 추정{fAssumed ? ' · 생체이용률 자료가 없어 100%로 가정' : ''}
+            {medication.ingredient}({medication.name}) · 주사량 기준 · 반감기·흡수 시간으로 추정
           </p>
           {last && nowValue !== null && (
             <p className="tabular mt-0.5 text-[12px] text-text-subtle">
