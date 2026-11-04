@@ -5,7 +5,6 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 
 import { AppIcon } from '@/components/common/AppIcon'
-import { ChipGroup } from '@/components/common/ChipGroup'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { MockBadge } from '@/components/common/MockBadge'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -25,7 +24,6 @@ import { addSymptom, editSymptom, removeSymptom, saveDaily, useDaily, useSymptom
 import { useRecordsStore } from '@/stores/recordsStore'
 import type { Symptom, SymptomType } from '@/types/domain'
 
-const SCALE = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))
 const TYPES = (Object.keys(SYMPTOM_LABEL) as SymptomType[]).map((t) => ({ value: t, label: SYMPTOM_LABEL[t] }))
 const SEVERITY_TEXT = ['', '약함', '조금', '보통', '꽤 심함', '심함']
 
@@ -187,6 +185,20 @@ function Radio({ name, options }: { name: string; options: { key: string; label:
   )
 }
 
+function SeveritySeg({ name, value, onChange }: { name: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div role="radiogroup" aria-label={name} className="grid grid-cols-3 gap-1 rounded-full bg-surface-muted p-1">
+      {SEVERITY_SEG.map((sv) => (
+        <button key={sv.v} type="button" role="radio" aria-checked={value === sv.v} onClick={() => onChange(sv.v)} className={cn('h-9 rounded-full text-[14px] font-medium', value === sv.v ? 'bg-surface font-semibold text-text shadow-[0_1px_2px_rgba(15,23,42,0.08)]' : 'text-text-muted')}>
+          {sv.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+const ONGOING = '지속 중'
+
 /** 증상 빠른 기록 — 여러 개 고르고, 고른 증상마다 강도·시작·지속을 정한다 */
 function QuickSymptomCard() {
   const [picked, setPicked] = useState<Record<string, QuickEntry>>({})
@@ -211,7 +223,7 @@ function QuickSymptomCard() {
   const save = async () => {
     const inputs: SymptomInput[] = order.map((t) => {
       const e = picked[t.value]
-      return { type: t.value, severity: e.severity, recordedAt: startOf(e), durationH: e.duration ?? null, memo: [e.duration === null ? '지속 중' : '', memo.trim()].filter(Boolean).join(' · ') || null }
+      return { type: t.value, severity: e.severity, recordedAt: startOf(e), durationH: e.duration ?? null, memo: [e.duration === null ? ONGOING : '', memo.trim()].filter(Boolean).join(' · ') || null }
     })
     const err = inputs.map(validateSymptom).find(Boolean)
     if (err) return void toast.error(err)
@@ -263,13 +275,7 @@ function QuickSymptomCard() {
             </div>
             <div>
               <p className="mb-1.5 text-[13px] text-text-muted">증상 강도</p>
-              <div role="radiogroup" aria-label={`${t.label} 강도`} className="grid grid-cols-3 gap-1 rounded-full bg-surface-muted p-1">
-                {SEVERITY_SEG.map((sv) => (
-                  <button key={sv.v} type="button" role="radio" aria-checked={e.severity === sv.v} onClick={() => set(t.value, { severity: sv.v })} className={cn('h-9 rounded-full text-[14px] font-medium', e.severity === sv.v ? 'bg-surface font-semibold text-text shadow-[0_1px_2px_rgba(15,23,42,0.08)]' : 'text-text-muted')}>
-                    {sv.label}
-                  </button>
-                ))}
-              </div>
+              <SeveritySeg name={`${t.label} 강도`} value={e.severity} onChange={(v) => set(t.value, { severity: v })} />
             </div>
             <div>
               <p className="text-[13px] text-text-muted">언제 시작됐나요?</p>
@@ -295,84 +301,6 @@ function QuickSymptomCard() {
         </>
       )}
     </Card>
-  )
-}
-
-interface SymptomDraft {
-  type: SymptomType | null
-  severity: string | null
-  recordedAt: string
-  durationH: string
-  memo: string
-}
-const emptyDraft = (): SymptomDraft => ({ type: null, severity: null, recordedAt: toDateTimeLocalValue(new Date()), durationH: '', memo: '' })
-const toInput = (d: SymptomDraft): Partial<SymptomInput> => ({
-  type: d.type ?? undefined,
-  severity: d.severity ? Number(d.severity) : undefined,
-  recordedAt: d.recordedAt ? localInputToIso(d.recordedAt) : undefined,
-  durationH: d.durationH.trim() === '' ? null : Number(d.durationH),
-  memo: d.memo,
-})
-
-function SymptomForm({ initial, submitLabel, onSubmit, extra }: { initial: SymptomDraft; submitLabel: string; onSubmit: (s: SymptomInput) => Promise<void>; extra?: React.ReactNode }) {
-  const [d, setD] = useState(initial)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const set = (p: Partial<SymptomDraft>) => {
-    setError(null)
-    setD({ ...d, ...p })
-  }
-  return (
-    <form
-      noValidate
-      className="space-y-4"
-      onSubmit={async (e) => {
-        e.preventDefault()
-        if (busy) return
-        const input = toInput(d)
-        const err = validateSymptom(input)
-        if (err) return setError(err)
-        setBusy(true)
-        try {
-          await onSubmit(input as SymptomInput)
-          setD(emptyDraft())
-        } finally {
-          setBusy(false)
-        }
-      }}
-    >
-      <fieldset>
-        <Label asChild>
-          <legend>증상</legend>
-        </Label>
-        <ChipGroup label="증상 선택" columns={3} options={TYPES} value={d.type} onChange={(v) => set({ type: v })} />
-      </fieldset>
-      <fieldset>
-        <Label asChild>
-          <legend>강도 (1 약함 ~ 5 심함){d.severity && <span className="text-text-muted"> · {SEVERITY_TEXT[Number(d.severity)]}</span>}</legend>
-        </Label>
-        <ChipGroup label="강도" columns={5} options={SCALE} value={d.severity} onChange={(v) => set({ severity: v })} />
-      </fieldset>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2 sm:col-span-1">
-          <Label htmlFor="symptomAt">언제부터</Label>
-          <Input id="symptomAt" type="datetime-local" value={d.recordedAt} max={toDateTimeLocalValue(new Date())} onChange={(e) => set({ recordedAt: e.target.value })} />
-        </div>
-        <div className="col-span-2 sm:col-span-1">
-          <Label htmlFor="symptomDur">지속 시간 (시간, 선택)</Label>
-          <Input id="symptomDur" inputMode="decimal" value={d.durationH} onChange={(e) => set({ durationH: e.target.value })} />
-        </div>
-      </div>
-      <div>
-        <Label htmlFor="symptomMemo">메모 (선택)</Label>
-        <Input id="symptomMemo" maxLength={200} placeholder="예: 저녁 먹고 나서" value={d.memo} onChange={(e) => set({ memo: e.target.value })} />
-      </div>
-      {error && <p role="alert" className="text-[13px] text-danger">{error}</p>}
-      <Button type="submit" className="w-full" disabled={busy}>
-        {busy ? '저장 중…' : submitLabel}
-      </Button>
-      {extra}
-    </form>
   )
 }
 
@@ -405,7 +333,7 @@ export function SymptomPage() {
                   <Link to={`/record/symptom/${s.id}`} className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-surface-muted/60" aria-label={`${SYMPTOM_LABEL[s.type]} 기록 수정`}>
                     <div className="min-w-0 flex-1">
                       <p className="text-[15px] font-semibold">
-                        {SYMPTOM_LABEL[s.type]} <span className="text-[13px] font-normal text-text-muted">강도 {s.severity}</span>
+                        {SYMPTOM_LABEL[s.type]} <span className="text-[13px] font-normal text-text-muted">{SEVERITY_TEXT[s.severity] ?? `강도 ${s.severity}`}</span>
                       </p>
                       <p className="tabular truncate text-[13px] text-text-muted">
                         {formatShortDateWithDay(new Date(s.recordedAt))} {formatTime(new Date(s.recordedAt))}
@@ -426,44 +354,130 @@ export function SymptomPage() {
   )
 }
 
-const draftOf = (s: Symptom): SymptomDraft => ({
-  type: s.type,
-  severity: String(s.severity),
-  recordedAt: toDateTimeLocalValue(new Date(s.recordedAt)),
-  durationH: s.durationH?.toString() ?? '',
-  memo: s.memo ?? '',
-})
+/** 저장된 메모에서 '지속 중' 표시를 떼어 낸다 (빠른 기록이 메모 앞에 붙여 저장함) */
+function splitMemo(memo: string | undefined | null) {
+  const m = (memo ?? '').trim()
+  if (m === ONGOING) return { ongoing: true, rest: '' }
+  if (m.startsWith(`${ONGOING} · `)) return { ongoing: true, rest: m.slice(ONGOING.length + 3) }
+  return { ongoing: false, rest: m }
+}
 
-/** /record/symptom/:id — 수정·삭제 */
+/** /record/symptom/:id — 수정·삭제 (빠른 기록과 같은 모양) */
 export function SymptomEditPage() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const s = useRecordsStore((st) => st.symptoms.find((x) => x.id === id))
-  const [confirm, setConfirm] = useState(false)
+  const navigate = useNavigate()
   if (!s) return <EmptyState title="기록을 찾을 수 없어요" action={<Button onClick={() => navigate('/record/symptom')}>목록으로</Button>} />
+  return <SymptomEditor key={s.id} symptom={s} />
+}
+
+function SymptomEditor({ symptom: s }: { symptom: Symptom }) {
+  const navigate = useNavigate()
+  const init = splitMemo(s.memo)
+  const [type, setType] = useState<SymptomType>(s.type)
+  const [severity, setSeverity] = useState(s.severity)
+  const [at, setAt] = useState(toDateTimeLocalValue(new Date(s.recordedAt)))
+  // undefined = 고르지 않음, null = 지속 중, 숫자 = 시간
+  const [duration, setDuration] = useState<number | null | undefined>(init.ongoing ? null : (s.durationH ?? undefined))
+  const [memo, setMemo] = useState(init.rest)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState(false)
+  const label = SYMPTOM_LABEL[type]
+  // 예전 1~5 단계 기록(2·4)이나 직접 적은 지속 시간은 고치기 전까지 그대로 둔다
+  const oldSeverity = !SEVERITY_SEG.some((x) => x.v === severity)
+  const oldDuration = typeof duration === 'number' && !DURATION.some((x) => x.v === duration)
+
+  const save = async () => {
+    const input: SymptomInput = {
+      type,
+      severity,
+      recordedAt: at ? localInputToIso(at) : '',
+      durationH: duration ?? null,
+      memo: [duration === null ? ONGOING : '', memo.trim()].filter(Boolean).join(' · ') || null,
+    }
+    const err = validateSymptom(input)
+    if (err) return setError(err)
+    setBusy(true)
+    try {
+      await editSymptom(s.id, input)
+      toast.success('증상 기록을 수정했어요', { description: savedNote() })
+      navigate('/record/symptom')
+    } catch (e) {
+      toast.error('수정하지 못했어요', { description: dbErrorMessage(e) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
-      <PageHeader title="증상 기록 수정" back="/record/symptom" />
-      <Card className="md:max-w-[420px]">
-        <SymptomForm
-          initial={draftOf(s)}
-          submitLabel="수정 저장"
-          onSubmit={async (input) => {
-            try {
-              await editSymptom(s.id, input)
-              toast.success('증상 기록을 수정했어요', { description: savedNote() })
-              navigate('/record/symptom')
-            } catch (e) {
-              toast.error('수정하지 못했어요', { description: dbErrorMessage(e) })
-              throw e
-            }
-          }}
-          extra={
-            <Button type="button" variant="ghost" className="w-full text-danger hover:bg-danger-soft hover:text-danger" onClick={() => setConfirm(true)}>
-              기록 삭제
-            </Button>
-          }
-        />
+      <PageHeader title="증상 기록 수정" description={`${formatShortDateWithDay(new Date(s.recordedAt))} ${formatTime(new Date(s.recordedAt))}`} back="/record/symptom" />
+      <Card className="space-y-4 md:max-w-2xl">
+        <div>
+          <h2 className="text-[18px] font-bold">어떤 증상이었나요?</h2>
+          <div role="radiogroup" aria-label="증상 종류" className="mt-3 grid grid-cols-3 gap-2">
+            {TYPES.map((t) => {
+              const on = type === t.value
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => {
+                    setError(null)
+                    setType(t.value)
+                  }}
+                  className={cn('flex min-h-12 flex-col items-center justify-center rounded-2xl border px-1 text-[14px] font-semibold transition-colors', on ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface hover:bg-surface-muted')}
+                >
+                  {t.label}
+                  {on && <Check size={14} strokeWidth={2.5} aria-hidden />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <section aria-label={`${label} 자세히`} className="space-y-3 border-t border-border pt-4">
+          <div>
+            <p className="mb-1.5 text-[13px] text-text-muted">증상 강도</p>
+            <SeveritySeg name={`${label} 강도`} value={severity} onChange={setSeverity} />
+            {oldSeverity && <p className="mt-1.5 text-[12px] text-text-subtle">예전 기록 강도 {severity}단계 그대로예요. 위에서 고르면 바뀌어요.</p>}
+          </div>
+          <div>
+            <Label htmlFor="symptomAt" className="text-[13px] font-normal text-text-muted">
+              언제 시작됐나요?
+            </Label>
+            <Input id="symptomAt" type="datetime-local" value={at} max={toDateTimeLocalValue(new Date())} onChange={(e) => {
+              setError(null)
+              setAt(e.target.value)
+            }} className="mt-1" />
+          </div>
+          <div>
+            <p className="text-[13px] text-text-muted">얼마나 지속됐나요?</p>
+            <Radio
+              name={`${label} 지속`}
+              options={[
+                ...(oldDuration ? [{ key: 'old', label: `예전 기록 ${duration}시간`, on: true, pick: () => {} }] : []),
+                ...DURATION.map((d) => ({ key: d.label, label: d.label, on: duration === d.v, pick: () => setDuration(d.v) })),
+              ]}
+            />
+          </div>
+        </section>
+
+        <Textarea aria-label="추가 메모" placeholder="추가로 남길 내용 (선택)" maxLength={150} value={memo} onChange={(e) => setMemo(e.target.value)} className="min-h-20" />
+        {error && (
+          <p role="alert" className="text-[13px] text-danger">
+            {error}
+          </p>
+        )}
+        <Button size="lg" className="w-full rounded-full" disabled={busy} onClick={save}>
+          {busy ? '저장 중…' : '수정 저장'}
+        </Button>
+        <Button type="button" variant="ghost" className="w-full text-danger hover:bg-danger-soft hover:text-danger" onClick={() => setConfirm(true)}>
+          기록 삭제
+        </Button>
       </Card>
       <ConfirmDialog
         open={confirm}
