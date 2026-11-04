@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ApiError, api, apiReady } from '@/lib/api'
+import { toDateTimeLocalValue } from '@/lib/date'
 import { parseInbody, type ParsedInbody } from '@/lib/inbodyParser'
 import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { addBody, type BodyInput } from '@/services/body'
@@ -36,6 +37,8 @@ async function readText(file: File): Promise<{ text: string; confidence: number 
 
 const toDraft = (p: ParsedInbody): BodyDraft => ({
   ...emptyBodyDraft(),
+  // 화면에 측정 시각이 있으면(인바디 앱 '24.09.03 09:56') 그 시각으로, 없으면 지금
+  ...(p.measuredAt ? { measuredAt: toDateTimeLocalValue(p.measuredAt) } : {}),
   weightKg: p.values.weightKg?.toString() ?? '',
   skeletalMuscleKg: p.values.skeletalMuscleKg?.toString() ?? '',
   bodyFatKg: p.values.bodyFatKg?.toString() ?? '',
@@ -91,7 +94,7 @@ export function InbodyOcrPage() {
 
   return (
     <>
-      <PageHeader title="인바디 결과지 등록" description="사진 속 숫자를 읽어 채워 드려요. 꼭 확인해 주세요." back="/analysis?tab=inbody" actions={isLive ? undefined : <MockBadge />} />
+      <PageHeader title="인바디 결과지 등록" description="결과지 사진이나 인바디 앱 화면 캡처의 숫자를 읽어 채워 드려요." back="/analysis?tab=inbody" actions={isLive ? undefined : <MockBadge />} />
       <div className="space-y-4 md:max-w-lg">
         <input ref={camera} type="file" accept="image/*" capture="environment" className="sr-only" aria-label="결과지 촬영" onChange={onFile} />
         <input ref={gallery} type="file" accept="image/*" className="sr-only" aria-label="결과지 사진 선택" onChange={onFile} />
@@ -105,7 +108,7 @@ export function InbodyOcrPage() {
                 <ImageIcon size={18} strokeWidth={1.75} aria-hidden /> 앨범에서
               </Button>
             </div>
-            <p className="text-[12px] leading-relaxed text-text-subtle">결과지 사진은 이 기기 안에서만 읽고 어디에도 올리지 않아요. 지금은 결과지 1종 기준으로 맞춰져 있어 다른 양식은 잘 못 읽을 수 있어요.</p>
+            <p className="text-[12px] leading-relaxed text-text-subtle">사진은 이 기기 안에서만 읽고 어디에도 올리지 않아요. 인바디 앱 '인바디검사 요약' 화면 캡처를 가장 잘 읽어요. 다른 양식은 값을 꼭 확인해 주세요.</p>
           </Card>
         )}
         {stage === 'reading' && (
@@ -126,7 +129,7 @@ export function InbodyOcrPage() {
                 값을 하나씩 결과지와 비교해 고쳐 주세요. 비워 둔 칸은 저장되지 않아요.
               </Notice>
             ) : (
-              <p className="text-[13px] text-text-muted">읽은 값을 결과지와 비교해 확인해 주세요.</p>
+              <p className="text-[13px] text-text-muted">읽은 값을 결과지와 비교해 확인해 주세요. 화면에 없는 항목(예: 체지방량)은 빈칸으로 두면 저장되지 않아요.</p>
             )}
             {parsed.problems.length > 0 && (
               <ul className="space-y-1 text-[13px] text-review" aria-label="확인 필요 항목">

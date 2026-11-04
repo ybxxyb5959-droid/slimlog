@@ -28,3 +28,30 @@ test('체중을 못 찾거나 교차 검증 2개 이상 실패 → 수동 입력
   expect(bad.problems.filter((p) => p.field === 'cross').length).toBeGreaterThanOrEqual(2)
   expect(bad.manualRecommended).toBe(true)
 })
+
+// 인바디 앱 '인바디검사 요약' 화면을 OCR 했을 때 나올 수 있는 글자 (사용자 캡처를 보고 옮긴 테스트용 텍스트)
+test('인바디 앱 화면: 나란한 3칸(라벨 한 줄·숫자 한 줄) + 측정 시각', () => {
+  const text = [
+    'InBody 5031님 TOUCH',
+    '대시보드 상세 변화 랭킹',
+    '인바디검사 요약 표시항목설정',
+    '체중 (kg) 골격근량 (kg) 체지방률 (%)',
+    '79.2 33.9 24.6',
+    '표준이상 표준 표준이상',
+    '24.09.03 09:56 79.2kg',
+    '80.0',
+    '79.0',
+    '78.0',
+    '09.03',
+  ].join('\n')
+  const r = parseInbody(text)
+  expect(r.values).toEqual({ weightKg: 79.2, skeletalMuscleKg: 33.9, bodyFatPct: 24.6 })
+  expect(r.measuredAt?.getFullYear()).toBe(2024)
+  expect([r.measuredAt?.getMonth(), r.measuredAt?.getDate(), r.measuredAt?.getHours(), r.measuredAt?.getMinutes()]).toEqual([8, 3, 9, 56])
+  expect(r.problems).toEqual([])
+})
+
+test('인바디 앱 화면: 칸마다 세로로 읽히고 소수점이 띄어진 경우 (79 .2)', () => {
+  const r = parseInbody(['체중 (kg)', '79 .2', '표준이상', '골격근량 (kg)', '33 .9', '표준', '체지방률 (%)', '24 .6', '표준이상'].join('\n'))
+  expect(r.values).toEqual({ weightKg: 79.2, skeletalMuscleKg: 33.9, bodyFatPct: 24.6 })
+})

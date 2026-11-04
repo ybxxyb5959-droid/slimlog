@@ -643,6 +643,7 @@ test.describe('분석 3탭', () => {
     await page.getByRole('link', { name: /결과지 사진으로 등록/ }).click()
     await expect(page).toHaveURL('/record/inbody')
     await expect(page.getByText('어디에도 올리지 않아요', { exact: false })).toBeVisible()
+    await expect(page.getByText('인바디 앱', { exact: false }).first()).toBeVisible()
   })
 })
 

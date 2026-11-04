@@ -1,5 +1,5 @@
 /**
- * 인바디 결과지 OCR 글자 → 수치 (계획서 6.4)
+ * 인바디 결과지 · 인바디 앱 화면 캡처의 OCR 글자 → 수치 (계획서 6.4)
  * 상대 import 만 쓴다 (단위 테스트에서 그대로 불러오기 위함).
  *
  * - 라벨 근처의 숫자를 찾는다: '체중 72.4', '골격근량 30.1 kg', '체지방률 (%) 25.3'
@@ -10,6 +10,8 @@ export type InbodyField = 'weightKg' | 'skeletalMuscleKg' | 'bodyFatKg' | 'bodyF
 
 export interface ParsedInbody {
   values: Partial<Record<InbodyField, number>>
+  /** 화면에서 찾은 측정 시각 (예: 인바디 앱 '24.09.03 09:56') — 없으면 undefined */
+  measuredAt?: Date
   problems: { field: InbodyField | 'cross'; message: string }[]
   /** 필수(체중) 인식 실패 또는 교차 검증 2개 이상 실패 → 수동 입력 권장 */
   manualRecommended: boolean
@@ -30,7 +32,37 @@ const RANGE: Record<InbodyField, [number, number]> = {
 }
 
 function fixOcr(s: string) {
-  return s.replace(/(?<=\d)[oO](?=\d|\b)/g, '0').replace(/(?<=\d)[lI](?=\d)/g, '1').replace(/(\d),(\d)/g, '$1.$2')
+  return s
+    .replace(/(?<=\d)[oO](?=\d|\b)/g, '0')
+    .replace(/(?<=\d)[lI](?=\d)/g, '1')
+    .replace(/(\d),(\d)/g, '$1.$2')
+    // 인바디 앱은 정수는 크게, 소수는 작게 써서 OCR 이 '79 .2' 처럼 띄어 읽는다 → '79.2'
+    .replace(/(\d{1,3})\s+[.·]\s*(\d)\b/g, '$1.$2')
+}
+
+/** 한 줄에 라벨이 여러 개(옆으로 나란한 카드)면, 다음 줄 숫자를 순서대로 짝짓는다 */
+function columnValues(lines: string[]): Partial<Record<InbodyField, number>> {
+  const out: Partial<Record<InbodyField, number>> = {}
+  for (let i = 0; i < lines.length - 1; i++) {
+    const found = (Object.keys(LABELS) as InbodyField[])
+      .map((f) => ({ f, at: lines[i].search(LABELS[f]) }))
+      .filter((x) => x.at >= 0)
+      .sort((a, b) => a.at - b.at)
+    if (found.length < 2) continue
+    const nums = (lines[i + 1].match(/\d{1,3}(?:\.\d{1,2})?/g) ?? []).map(Number)
+    if (nums.length !== found.length) continue
+    found.forEach((x, k) => (out[x.f] = nums[k]))
+  }
+  return out
+}
+
+/** '24.09.03 09:56' · '2024.09.03 09:56' · '2024-09-03 09:56' */
+function findDate(text: string): Date | undefined {
+  const m = text.match(/\b(\d{2}|\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})\.?\s+(\d{1,2}):(\d{2})/)
+  if (!m) return undefined
+  const y = m[1].length === 2 ? 2000 + Number(m[1]) : Number(m[1])
+  const d = new Date(y, Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]))
+  return Number.isNaN(d.getTime()) || d.getTime() > Date.now() + 60_000 ? undefined : d
 }
 
 /** 라벨이 나온 줄(또는 바로 다음 줄)에서 첫 번째 소수 숫자 */
@@ -47,10 +79,11 @@ function valueAfter(lines: string[], re: RegExp): number | undefined {
 
 export function parseInbody(text: string): ParsedInbody {
   const lines = fixOcr(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const columns = columnValues(lines)
   const values: ParsedInbody['values'] = {}
   const problems: ParsedInbody['problems'] = []
   for (const f of Object.keys(LABELS) as InbodyField[]) {
-    const v = valueAfter(lines, LABELS[f])
+    const v = columns[f] ?? valueAfter(lines, LABELS[f])
     if (v === undefined) continue
     const [lo, hi] = RANGE[f]
     if (v < lo || v > hi) problems.push({ field: f, message: `${lo}~${hi} 범위를 벗어났어요` })
@@ -73,5 +106,5 @@ export function parseInbody(text: string): ParsedInbody {
       problems.push({ field: 'cross', message: '체지방량 ÷ 체중과 체지방률이 1% 넘게 달라요' })
     }
   }
-  return { values, problems, manualRecommended: values.weightKg === undefined || crossFails >= 2 }
+  return { values, measuredAt: findDate(fixOcr(text)), problems, manualRecommended: values.weightKg === undefined || crossFails >= 2 }
 }
