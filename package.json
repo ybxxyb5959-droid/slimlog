@@ -10,9 +10,17 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "test:e2e": "playwright test",
-    "build:preview": "tsc -b && VITE_PREVIEW=1 vite build --base ./ --outDir dist-preview"
+    "build:preview": "tsc -b && VITE_PREVIEW=1 vite build --base ./ --outDir dist-preview",
+    "postinstall": "patch-package",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.6.0",
+    "@capgo/capacitor-native-biometric": "8.9.1",
     "@supabase/supabase-js": "^2.118.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -29,6 +37,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.4",
@@ -40,6 +49,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.14.0",
+    "patch-package": "8.0.1",
     "tailwindcss": "^4.3.4",
     "typescript": "~6.0.0",
     "typescript-eslint": "^8.72.1",

@@ -1,5 +1,5 @@
 import { Fingerprint, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { AppIcon } from '@/components/common/AppIcon'
@@ -160,6 +160,15 @@ export function PasswordGate({ mode, onDone }: { mode: 'new' | 'locked'; onDone:
       setProgress(null)
     }
   }
+
+  // 지문을 켜 둔 경우 잠금 화면이 뜨자마자 한 번만 지문 창을 띄운다. 취소하면 다시 띄우지 않고 비밀번호 칸을 보여 줌
+  const autoTried = useRef(false)
+  useEffect(() => {
+    if (mode !== 'locked' || !canBio || autoTried.current) return
+    autoTried.current = true
+    void run(async () => (await unlockWithBiometric(), onDone()))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, canBio])
 
   if (step.s === 'code') return <RecoveryCodeView code={step.code} reason={step.reason} migrated={step.migrated} onDone={onDone} />
 

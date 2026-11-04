@@ -139,46 +139,56 @@ test('설정: 비밀번호 변경 · 복구 코드 새로 만들기(예전 코�
   await expect(page.getByLabel('새 비밀번호 (6자 이상)')).toBeVisible()
 })
 
-test('지문(테스트용 가짜 저장소): 웹 기본은 사용 불가 → 켜기(비밀번호 확인) → 지문으로 열기 · 취소 · 지문으로 비밀번호 재설정 · 끄기', async ({ page }) => {
+test('지문(테스트용 가짜 저장소): 웹 기본은 사용 불가 → 켜기(비밀번호 확인) → 잠금 화면에서 지문 창 자동 1회 · 취소하면 비밀번호 · 버튼으로 다시 · 지문으로 비밀번호 재설정 · 끄기', async ({ page }) => {
   onlyMobile()
+  const fake = (pass: boolean) => page.evaluate((p) => (window as unknown as { __eyebodyFakeBiometric: (p: boolean) => void }).__eyebodyFakeBiometric(p), pass)
   await create(page)
   await page.getByRole('button', { name: '눈바디 설정' }).click()
   await expect(page.getByRole('switch', { name: '지문 잠금' })).toBeDisabled()
   await expect(page.getByText('갤럭시 앱에서만 쓸 수 있어요')).toBeVisible()
   await page.keyboard.press('Escape')
-  // 가짜 지문 연결 후 다시 열기
-  await page.evaluate(() => (window as unknown as { __eyebodyFakeBiometric: (p: boolean) => void }).__eyebodyFakeBiometric(true))
+  // 가짜 지문 연결 후 켜기
+  await fake(true)
   await page.getByRole('button', { name: '눈바디 설정' }).click()
   await page.getByRole('switch', { name: '지문 잠금' }).click()
   await page.getByLabel('비밀번호', { exact: true }).fill(PW)
   await page.getByRole('button', { name: '지문 잠금 켜기' }).click()
   await expect(page.getByText('지문 잠금을 켰어요')).toBeVisible()
   await expect(page.getByRole('switch', { name: '지문 잠금' })).toBeChecked()
+  // 잠그면 지문 창이 자동으로 떠서 바로 열림
   await page.getByRole('button', { name: '지금 잠그기' }).click()
+  await expect(page.getByRole('tablist', { name: '눈바디 화면' })).toBeVisible()
+  // 지문 취소 → 자동은 한 번만, 비밀번호 칸이 남음
+  await fake(false)
+  await page.getByRole('button', { name: '눈바디 설정' }).click()
+  await page.getByRole('button', { name: '지금 잠그기' }).click()
+  await expect(page.getByRole('alert')).toContainText('지문 인증을 취소했어요')
+  await expect(page.getByLabel('비밀번호 (6자 이상)')).toBeVisible()
+  // 버튼으로 다시 시도
+  await fake(true)
   await page.getByRole('button', { name: '지문으로 열기' }).click()
   await expect(page.getByRole('tablist', { name: '눈바디 화면' })).toBeVisible()
-  // 지문 취소
-  await lockNow(page)
-  await page.evaluate(() => (window as unknown as { __eyebodyFakeBiometric: (p: boolean) => void }).__eyebodyFakeBiometric(false))
-  await page.getByRole('button', { name: '지문으로 열기' }).click()
-  await expect(page.getByRole('alert')).toContainText('지문 인증을 취소했어요')
   // 지문으로 비밀번호 재설정
-  await page.evaluate(() => (window as unknown as { __eyebodyFakeBiometric: (p: boolean) => void }).__eyebodyFakeBiometric(true))
+  await fake(false)
+  await page.getByRole('button', { name: '눈바디 설정' }).click()
+  await page.getByRole('button', { name: '지금 잠그기' }).click()
+  await expect(page.getByRole('alert')).toContainText('지문 인증을 취소했어요')
+  await fake(true)
   await page.getByRole('button', { name: '비밀번호를 잊었어요' }).click()
   await page.getByRole('button', { name: /지문으로 열고/ }).click()
   await page.getByLabel('새 비밀번호 (6자 이상)').fill('finger9')
   await page.getByLabel('새 비밀번호 확인').fill('finger9')
   await page.getByRole('button', { name: '새 비밀번호로 저장' }).click()
   await expect(page.getByText('새 비밀번호로 바꿨어요')).toBeVisible()
-  await lockNow(page)
-  await unlockPw(page, 'finger9')
-  await expect(page.getByRole('tablist', { name: '눈바디 화면' })).toBeVisible()
-  // 끄면 지문 버튼이 사라지고 보호 저장값도 지움
+  // 끄면 자동 지문 창·버튼 없음, 새 비밀번호로 열림
   await page.getByRole('button', { name: '눈바디 설정' }).click()
   await page.getByRole('switch', { name: '지문 잠금' }).click()
   await expect(page.getByText('지문 잠금을 껐어요')).toBeVisible()
   await page.getByRole('button', { name: '지금 잠그기' }).click()
+  await expect(page.getByText('눈바디 잠금 해제')).toBeVisible()
   await expect(page.getByRole('button', { name: '지문으로 열기' })).toHaveCount(0)
+  await unlockPw(page, 'finger9')
+  await expect(page.getByRole('tablist', { name: '눈바디 화면' })).toBeVisible()
 })
 
 test('자동 잠금: 앱이 백그라운드로 가면 바로 잠기고 사진이 화면에서 사라짐 · 5분 무입력 잠금', async ({ page }) => {

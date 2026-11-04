@@ -29,6 +29,7 @@ import {
   type Angle,
   type PhotoMeta,
 } from '@/lib/eyebodyVault'
+import { clearCaptureFiles, isNativeApp, setSecureScreen } from '@/lib/native'
 import { cn } from '@/lib/utils'
 import { useBodyLogs } from '@/services/body'
 import { useAuthStore } from '@/stores/authStore'
@@ -114,6 +115,11 @@ export function EyebodyPage() {
   const [settings, setSettings] = useState(false)
 
   const reload = useCallback(async () => setPhotos(await listPhotos()), [])
+  // 갤럭시 앱: 눈바디 화면에 있는 동안만 FLAG_SECURE (최근 앱 미리보기·스크린샷 차단)
+  useEffect(() => {
+    void setSecureScreen(true)
+    return () => void setSecureScreen(false)
+  }, [])
   useEffect(() => {
     if (state === 'unlocked') listPhotos().then(setPhotos)
   }, [state])
@@ -248,11 +254,14 @@ function RecordView({
       setBusy(false)
     }
   }
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     endPicker()
-    const f = e.target.files?.[0]
+    const picked = e.target.files?.[0]
     e.target.value = ''
-    if (!f) return
+    if (!picked) return
+    // 갤럭시 앱: 촬영 임시 파일(평문 JPG)을 메모리로 옮긴 뒤 바로 지운다. 저장은 암호화된 것만
+    const f = isNativeApp() ? new File([await picked.arrayBuffer()], picked.name, { type: picked.type || 'image/jpeg' }) : picked
+    void clearCaptureFiles()
     setRegOpen(false)
     const existing = groups.get(date)?.get(regAngle) ?? []
     if (existing.length) setPending({ file: f, angle: regAngle, replace: existing })

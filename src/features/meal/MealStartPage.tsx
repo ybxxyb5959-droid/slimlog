@@ -1,3 +1,4 @@
+import { clearCaptureFiles, isNativeApp } from '@/lib/native'
 import { Camera, ChevronRight, Image as ImageIcon, Search, Sparkles, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -45,9 +46,14 @@ export function MealStartPage() {
     else if (id === 'gallery') gallery.current?.click()
     else startPhoto({ kind: 'sample' })
   }
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (f) startPhoto({ kind: 'file', url: URL.createObjectURL(f), file: f })
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0]
+    e.target.value = ''
+    if (!picked) return
+    // 갤럭시 앱: 촬영 임시 파일을 메모리로 옮긴 뒤 바로 지운다 (평문 사진이 기기에 남지 않게). 웹에서는 그대로
+    const f = isNativeApp() ? new File([await picked.arrayBuffer()], picked.name, { type: picked.type || 'image/jpeg' }) : picked
+    void clearCaptureFiles()
+    startPhoto({ kind: 'file', url: URL.createObjectURL(f), file: f })
   }
 
   return (

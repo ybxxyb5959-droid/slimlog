@@ -29,6 +29,9 @@ python3 -m venv .venv
 ```bash
 SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_JWT_SECRET=... ALLOWED_ORIGINS=http://localhost:5173 .venv/bin/uvicorn app.main:app --port 8000
 ```
+
+> 갤럭시 앱(Capacitor)은 `https://localhost` 에서 요청을 보낸다. 배포 서버의 `ALLOWED_ORIGINS` 에 웹 주소와 함께 `https://localhost` 를 꼭 넣을 것 (예: `ALLOWED_ORIGINS=https://slimlog.vercel.app,https://localhost`).
+
 - `SUPABASE_JWT_SECRET`: HS256 프로젝트(로컬 Supabase 등)만 필요. 신형 프로젝트는 JWKS 로 자동 검증
 - `FOOD_MODEL_PATH`: ONNX 모델 경로 (같은 이름의 `.json` 에 classes·thresholds·mean·std). 없으면 목업 모드
 
