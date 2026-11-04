@@ -24,10 +24,13 @@ process.env.LIVE_SUPABASE_JWT_SECRET = sb.jwt
 
 export default defineConfig({
   testDir: './tests/live',
+  globalTeardown: './tests/live/teardown.ts',
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],
-  timeout: 60_000,
+  timeout: 90_000,
+  // 클라우드(실서비스 DB)는 로컬보다 응답이 느려 화면 확인 대기를 넉넉히
+  expect: { timeout: 15_000 },
   use: {
     baseURL: 'http://localhost:5174',
     viewport: { width: 390, height: 844 },
@@ -47,7 +50,9 @@ export default defineConfig({
       command: 'server/.venv/bin/uvicorn app.main:app --app-dir server --port 8001',
       url: 'http://localhost:8001/health',
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: 90_000,
+  // 클라우드(실서비스 DB)는 로컬보다 응답이 느려 화면 확인 대기를 넉넉히
+  expect: { timeout: 15_000 },
       env: { SUPABASE_URL: sb.url, SUPABASE_SERVICE_ROLE_KEY: sb.service, SUPABASE_JWT_SECRET: sb.jwt, ALLOWED_ORIGINS: 'http://localhost:5174', FOOD_MODEL_PATH: 'server/models/__none__.onnx' },
     },
   ],
