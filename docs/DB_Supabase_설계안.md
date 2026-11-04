@@ -222,3 +222,5 @@ bash supabase/tests/run_local.sh
 - `rls_test_sql_editor.sql` → **46 PASS / 0 FAIL** (클라우드)
 - 마이그레이션 기록 맞추기(나중에 CLI 쓸 때): `npx supabase migration repair --status applied 20261103000001 20261103000002 20261103000003 20261103000004 20261104000005 20261104000006`
 
+
+- 2026-11-04: `sql_editor_적용용_007.sql`(음식 검색 trigram 인덱스) 클라우드 적용 (사용자 SQL Editor)
