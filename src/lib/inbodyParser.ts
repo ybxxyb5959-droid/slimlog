@@ -65,14 +65,47 @@ function findDate(text: string): Date | undefined {
   return Number.isNaN(d.getTime()) || d.getTime() > Date.now() + 60_000 ? undefined : d
 }
 
-/** 라벨이 나온 줄(또는 바로 다음 줄)에서 첫 번째 소수 숫자 */
+/**
+ * 줄에서 '값'으로 볼 숫자만 남긴다 (종이 결과지 대응)
+ * - 표준 범위 '(62.6~84.0)' 제거
+ * - 막대 그래프 눈금(55 70 85 100 … 처럼 같은 간격으로 3개 이상 이어진 숫자) 제거
+ */
+function valueCandidates(segment: string): number[] {
+  const cleaned = segment.replace(/\(\s*[\d.]+\s*[~∼-]\s*[\d.]+\s*\)/g, ' ')
+  const tokens = cleaned.match(/\d{1,3}(?:\.\d{1,2})?/g) ?? []
+  const nums = tokens.map(Number)
+  const tick = new Array(nums.length).fill(false)
+  for (let i = 0; i + 2 < nums.length; i++) {
+    const d = nums[i + 1] - nums[i]
+    if (d <= 0) continue
+    let j = i + 1
+    while (j + 1 < nums.length && Math.abs(nums[j + 1] - nums[j] - d) < 1e-9) j++
+    if (j - i >= 2) for (let k = i; k <= j; k++) tick[k] = true
+  }
+  return nums.filter((_, i) => !tick[i])
+}
+
+/**
+ * 라벨 값 찾기
+ * 1) 라벨이 나온 줄 안에서 (눈금·범위를 뺀) 값 — 처음 나온 줄 우선 (아래 '신체변화' 이력표보다 먼저)
+ * 2) 없으면 라벨 바로 다음 줄의 첫 숫자 (앱 화면처럼 라벨과 숫자가 다른 줄일 때)
+ */
 function valueAfter(lines: string[], re: RegExp): number | undefined {
+  const hits: { i: number; rest: string }[] = []
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(re)
-    if (!m) continue
-    const rest = lines[i].slice((m.index ?? 0) + m[0].length) + ' ' + (lines[i + 1] ?? '')
-    const n = rest.match(/(\d{1,3}(?:\.\d{1,2})?)/)
-    if (n) return Number(n[1])
+    if (m) hits.push({ i, rest: lines[i].slice((m.index ?? 0) + m[0].length) })
+  }
+  for (const h of hits) {
+    const c = valueCandidates(h.rest)
+    if (c.length) {
+      const dec = c.filter((n) => !Number.isInteger(n))
+      return (dec.length ? dec : c)[0]
+    }
+  }
+  for (const h of hits) {
+    const c = valueCandidates(lines[h.i + 1] ?? '')
+    if (c.length) return c[0]
   }
   return undefined
 }

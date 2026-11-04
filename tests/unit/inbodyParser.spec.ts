@@ -55,3 +55,38 @@ test('인바디 앱 화면: 칸마다 세로로 읽히고 소수점이 띄어진
   const r = parseInbody(['체중 (kg)', '79 .2', '표준이상', '골격근량 (kg)', '33 .9', '표준', '체지방률 (%)', '24 .6', '표준이상'].join('\n'))
   expect(r.values).toEqual({ weightKg: 79.2, skeletalMuscleKg: 33.9, bodyFatPct: 24.6 })
 })
+
+// InBody970 종이 결과지를 OCR 했을 때 나올 법한 글자 (사용자가 올린 결과지 이미지를 보고 옮김, 이름은 넣지 않음)
+const SHEET_970 = [
+  'InBody [InBody970] [Yscope]',
+  '회원번호 신장 연령 성별 검사일시',
+  '183cm 50 남성 2018.10.25. 15:44',
+  '체성분분석 Body Composition Analysis',
+  '체수분 단백질 무기질 체지방 체중',
+  '체수분 Total Body Water (L) 45.0 (41.4~50.6) 45.0 57.7 61.1 89.5',
+  '단백질 Protein (kg) 12.0 (11.1~13.5) (53.3~65.0) (56.4~68.9) (62.6~84.0)',
+  '무기질 Minerals (kg) 4.14 (3.83~4.69)',
+  '체지방 Body Fat Mass (kg) 28.4 (8.9~17.7)',
+  '골격근·지방분석 Muscle-Fat Analysis',
+  '체중 Weight (kg) 55 70 85 100 115 130 145 160 175 190 205 % 89.5',
+  '골격근량 Skeletal Muscle Mass (kg) 70 80 90 100 110 120 130 140 150 160 170 % 34.3',
+  '체지방량 Body Fat Mass (kg) 40 60 80 100 160 220 280 340 400 460 520 % 28.4',
+  '비만분석 Obesity Analysis',
+  'BMI Body Mass Index (kg/m2) 10.0 15.0 18.5 21.0 25.0 30.0 35.0 40.0 45.0 50.0 55.0 26.7',
+  '체지방률 Percent Body Fat (%) 8.0 13.0 18.0 23.0 28.0 33.0 38.0 43.0 48.0 53.0 58.0 31.7',
+  '인바디점수 61/100점',
+  '체중조절 -15.8 kg 지방조절 -17.3 kg 근육조절 +1.5 kg',
+  '신체변화 Body Composition History',
+  '체중 Weight (kg) 96.0 95.5 95.0 95.3 95.0 93.2 93.2 89.5',
+  '골격근량 (kg) 33.6 33.8 33.9 33.8 34.0 34.1 34.7 34.3',
+  '체지방률 (%) 37.2 36.7 36.2 36.5 36.0 34.5 33.7 31.7',
+].join('\n')
+
+test('InBody970 종이 결과지: 눈금·표준범위·이력표를 건너뛰고 값만', () => {
+  const r = parseInbody(SHEET_970)
+  expect(r.values).toEqual({ weightKg: 89.5, skeletalMuscleKg: 34.3, bodyFatKg: 28.4, bodyFatPct: 31.7 })
+  expect(r.problems).toEqual([])
+  expect(r.manualRecommended).toBe(false)
+  const d = r.measuredAt!
+  expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()]).toEqual([2018, 9, 25, 15, 44])
+})
