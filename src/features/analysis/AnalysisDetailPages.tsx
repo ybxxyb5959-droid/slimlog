@@ -220,10 +220,10 @@ export function NutritionPage() {
                   <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
                     <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
                     <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                    <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} domain={[0, (max: number) => Math.max(max, proteinGoal ?? 0)]} />
+                    <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} domain={[0, (max: number) => Math.ceil((Math.max(max, proteinGoal ?? 0) * 1.1) / 10) * 10]} />
                     <Tooltip cursor={{ fill: 'var(--surface-muted)' }} content={({ active, payload }) => (active && payload?.[0] ? <ChartTooltipBox title={String(payload[0].payload.label)} rows={payload[0].payload.empty ? [{ label: '기록', value: '없음' }] : [{ label: '단백질', value: `${payload[0].payload.protein}g` }]} /> : null)} />
                     <Bar dataKey="protein" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-                    {proteinGoal ? <ReferenceLine y={proteinGoal} stroke="var(--text-muted)" strokeDasharray="4 4" label={{ value: `목표 ${proteinGoal}g`, position: 'insideTopRight', fill: 'var(--text-muted)', fontSize: 12 }} /> : null}
+                    {proteinGoal ? <ReferenceLine y={proteinGoal} stroke="var(--text-muted)" strokeDasharray="4 4" /> : null}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
