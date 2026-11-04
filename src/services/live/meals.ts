@@ -41,12 +41,26 @@ export const rowToFood = (r: FoodRow): FoodItem => ({
   custom: r.owner_id !== null,
 })
 
-/** 이름·브랜드 검색 (공용 + 내 음식, RLS 가 남의 음식은 숨김) */
-export async function searchFoodsRemote(q: string, limit = 30): Promise<FoodItem[]> {
+let rpcMissing = false
+/**
+ * 이름·브랜드 검색 (공용 + 내 음식)
+ * - 013 의 search_foods 함수: 인덱스로 빠르게 찾고 '같은 이름 → 앞부분 일치 → 일반 음식 → 짧은 이름' 순
+ * - 함수가 아직 없으면(013 적용 전) 예전 방식. 단 '이름순 정렬'은 빼서 DB 가 맞는 걸 30개 찾으면 바로 멈추게
+ */
+export async function searchFoodsRemote(q: string, limit = 30, signal?: AbortSignal): Promise<FoodItem[]> {
   const term = q.trim().replace(/[%_,()]/g, '')
   if (!term) return []
-  // 음식 이름 또는 브랜드(제조사)로 찾기 — '허닭', '햇반'처럼 브랜드만 쳐도 나오게
-  const r = await sb().from('foods').select(FOOD_COLS).or(`name.ilike.%${term}%,brand.ilike.%${term}%`).order('name').limit(limit)
+  if (!rpcMissing) {
+    let req = sb().rpc('search_foods', { q: term, lim: limit })
+    if (signal) req = req.abortSignal(signal)
+    const r = await req
+    if (!r.error) return (r.data as unknown as FoodRow[]).map(rowToFood)
+    if (r.error.code !== 'PGRST202' && r.error.code !== '42883') throw r.error
+    rpcMissing = true
+  }
+  let req = sb().from('foods').select(FOOD_COLS).or(`name.ilike.%${term}%,brand.ilike.%${term}%`).limit(limit)
+  if (signal) req = req.abortSignal(signal)
+  const r = await req
   if (r.error) throw r.error
   return r.data.map(rowToFood)
 }
