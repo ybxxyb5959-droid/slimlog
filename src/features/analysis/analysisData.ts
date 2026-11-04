@@ -16,6 +16,8 @@ export interface DayRow {
   weightKg: number | null
   kcal: number | null
   proteinG: number | null
+  carbG: number | null
+  fatG: number | null
   nutritionIncomplete: boolean
   meals: number
   symptoms: Symptom[]
@@ -49,6 +51,8 @@ export function buildDays(src: Sources, days: number, now = new Date()): DayRow[
       weightKg: weights.at(-1)?.weightKg ?? null,
       kcal: n ? n.kcal : null,
       proteinG: n ? n.proteinG : null,
+      carbG: n ? n.carbG : null,
+      fatG: n ? n.fatG : null,
       nutritionIncomplete: !!n?.incomplete,
       meals: meals.length,
       symptoms: src.symptoms.filter((s) => key(s.recordedAt) === k),

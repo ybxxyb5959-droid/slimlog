@@ -51,6 +51,6 @@ export const ANALYSIS_MENUS: MenuItem[] = [
   { to: '/analysis/timeline', label: '통합 타임라인', icon: CalendarRange, description: '투약 · 식단 · 증상 같은 날짜축' },
   { to: '/analysis/body', label: '바디 변화', icon: PersonStanding, description: '체성분 + 눈바디' },
   { to: '/analysis/medication', label: '참고용 잔존량', icon: TrendingDown, description: '실제 혈중농도 아님' },
-  { to: '/analysis/nutrition', label: '식단 · 영양', icon: Utensils, description: '단백질 목표 대비' },
+  { to: '/analysis/nutrition', label: '식단 · 영양', icon: Utensils, description: '칼로리 · 탄단지 · 날짜별' },
   { to: '/analysis/consult', label: '상담 준비', icon: ClipboardList, description: '진료 때 보여줄 요약' },
 ]

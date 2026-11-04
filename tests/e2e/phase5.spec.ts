@@ -32,8 +32,8 @@ test('통합 타임라인·바디 변화·식단 영양·상담 준비가 기록
   await expect(page.getByRole('img', { name: '체중 변화 그래프' })).toBeVisible()
 
   await softGo(page, '/analysis/nutrition')
-  await expect(page.getByText('평균 열량')).toBeVisible()
-  await expect(page.getByRole('img', { name: '날짜별 열량 막대 그래프' })).toBeVisible()
+  await expect(page.getByText('일평균 섭취 칼로리')).toBeVisible()
+  await expect(page.getByRole('img', { name: '날짜별 칼로리 막대 그래프' })).toBeVisible()
 
   await softGo(page, '/analysis/consult')
   const summary = page.getByLabel('상담 준비 요약')

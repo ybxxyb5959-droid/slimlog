@@ -706,8 +706,35 @@ test('설정: 단백질 목표 저장 → 식단 분석 단백질 그래프에 �
   })
   const notice = page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })
   await notice.getByRole('button', { name: '확인했어요' }).click({ timeout: 2000 }).catch(() => {})
+  await expect(page.getByText('목표 대비', { exact: false })).toBeVisible()
+  await page.getByRole('tab', { name: '단백질' }).click()
   await expect(page.getByRole('img', { name: /단백질 막대 그래프, 목표 60g 점선/ })).toBeVisible()
   await expect(page.getByText(/목표 60g 넘긴 날/)).toBeVisible()
+})
+
+test('식단 분석: 칼로리 요약 → 탄·단·지 일평균 → 영양소 탭 추이 → 날짜별 끼니 상세', async ({ page }) => {
+  await page.goto('/analysis/nutrition')
+  await page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' }).getByRole('button', { name: '확인했어요' }).click({ timeout: 2000 }).catch(() => {})
+  await expect(page.getByRole('heading', { name: '식단 · 영양 분석' })).toBeVisible()
+  await expect(page.getByText('일평균 섭취 칼로리')).toBeVisible()
+  for (const name of ['탄수화물 열량 비율', '단백질 열량 비율', '지방 열량 비율']) await expect(page.getByRole('meter', { name })).toBeVisible()
+  // 탭 전환
+  const tabs = page.getByRole('tablist', { name: '영양소' })
+  await expect(tabs.getByRole('tab', { name: '칼로리' })).toHaveAttribute('aria-selected', 'true')
+  await tabs.getByRole('tab', { name: '지방' }).click()
+  await expect(page.getByRole('img', { name: '날짜별 지방 막대 그래프' })).toBeVisible()
+  // 날짜별 상세: 가장 최근 기록한 날이 기본, 끼니별로 보이고 수정으로 이동
+  const detail = page.getByRole('list', { name: '끼니별 기록' })
+  await expect(detail.locator('> li').first()).toBeVisible()
+  await expect(detail).toContainText('kcal')
+  // 기록 없는 날을 고르면 빈 안내
+  const input = page.getByLabel('상세 볼 날짜')
+  const min = await input.getAttribute('min')
+  await input.fill(min!)
+  await expect(page.getByText('이날은 식단 기록이 없어요')).toBeVisible()
+  // 상단 달력 버튼 → 날짜 칸으로
+  await page.getByRole('button', { name: '날짜별 상세 보기' }).click()
+  await expect(input).toBeFocused()
 })
 
 test('설정: 화면 밝기 어둡게 → 바로 적용되고 새로고침 후에도 유지', async ({ page }) => {

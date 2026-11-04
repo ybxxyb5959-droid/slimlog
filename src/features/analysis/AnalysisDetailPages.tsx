@@ -1,10 +1,8 @@
 import { Activity, Droplets, Printer, Scale, Syringe, Utensils } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { BodyCompositionChart } from '@/components/charts/BodyCompositionChart'
-import { AXIS_TICK, ChartTooltipBox } from '@/components/charts/ChartTooltip'
 import { WeightChart } from '@/components/charts/WeightChart'
 import { AppIcon } from '@/components/common/AppIcon'
 import { MockBadge } from '@/components/common/MockBadge'
@@ -165,77 +163,6 @@ export function BodyChangePage() {
   )
 }
 
-/** /analysis/nutrition — 날짜별 열량·단백질 */
-export function NutritionPage() {
-  const [period, setPeriod] = useState<Period>(7)
-  const src = useSources()
-  const rows = buildDays(src, period)
-  const withMeals = rows.filter((r) => r.kcal !== null)
-  const avgKcal = withMeals.length ? Math.round(withMeals.reduce((a, r) => a + r.kcal!, 0) / withMeals.length) : null
-  const avgProtein = withMeals.length ? Math.round((withMeals.reduce((a, r) => a + (r.proteinG ?? 0), 0) / withMeals.length) * 10) / 10 : null
-  const data = rows.map((r) => ({ label: r.date.slice(5).replace('-', '/'), kcal: r.kcal ?? 0, protein: r.proteinG ?? 0, empty: r.kcal === null }))
-  const proteinGoal = useIntakeStore((s) => s.proteinGoalG)
-  const goalDays = proteinGoal ? withMeals.filter((r) => (r.proteinG ?? 0) >= proteinGoal).length : 0
-  return (
-    <>
-      <Header title="식단 · 영양" description="기록한 식사로 하루 열량과 단백질을 모아 봐요." period={period} setPeriod={setPeriod} />
-      <div className="space-y-4 md:max-w-2xl">
-        {withMeals.length === 0 ? (
-          <EmptyState icon={Utensils} title="이 기간에 식단 기록이 없어요" action={<Button asChild><Link to="/record/meal/new">식단 기록하기</Link></Button>} />
-        ) : (
-          <>
-            <Card>
-              <dl className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-2xl bg-surface-muted px-2 py-3"><dt className="text-[12px] text-text-muted">기록한 날</dt><dd className="tabular text-[18px] font-bold">{withMeals.length}/{period}일</dd></div>
-                <div className="rounded-2xl bg-surface-muted px-2 py-3"><dt className="text-[12px] text-text-muted">평균 열량</dt><dd className="tabular text-[18px] font-bold">{avgKcal?.toLocaleString()}kcal</dd></div>
-                <div className="rounded-2xl bg-surface-muted px-2 py-3"><dt className="text-[12px] text-text-muted">평균 단백질</dt><dd className="tabular text-[18px] font-bold">{avgProtein}g</dd></div>
-              </dl>
-              <div className="mt-4 h-[220px]" role="img" aria-label="날짜별 열량 막대 그래프">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-                    <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
-                    <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                    <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} />
-                    <Tooltip cursor={{ fill: 'var(--surface-muted)' }} content={({ active, payload }) => (active && payload?.[0] ? <ChartTooltipBox title={String(payload[0].payload.label)} rows={payload[0].payload.empty ? [{ label: '기록', value: '없음' }] : [{ label: '열량', value: `${payload[0].payload.kcal}kcal` }, { label: '단백질', value: `${payload[0].payload.protein}g` }]} /> : null)} />
-                    <Bar dataKey="kcal" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="text-[15px] font-semibold">단백질</h2>
-                {proteinGoal ? (
-                  <p className="tabular text-[13px] text-text-muted">
-                    목표 {proteinGoal}g 넘긴 날 <span className="font-semibold text-text">{goalDays}일</span> / 기록한 {withMeals.length}일
-                  </p>
-                ) : (
-                  <Link to="/my/settings/app" className="text-[13px] font-medium text-primary underline-offset-2 hover:underline">
-                    목표 정하기
-                  </Link>
-                )}
-              </div>
-              <div className="mt-3 h-[180px]" role="img" aria-label={proteinGoal ? `날짜별 단백질 막대 그래프, 목표 ${proteinGoal}g 점선` : '날짜별 단백질 막대 그래프'}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-                    <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
-                    <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                    <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} domain={[0, (max: number) => Math.ceil((Math.max(max, proteinGoal ?? 0) * 1.1) / 10) * 10]} />
-                    <Tooltip cursor={{ fill: 'var(--surface-muted)' }} content={({ active, payload }) => (active && payload?.[0] ? <ChartTooltipBox title={String(payload[0].payload.label)} rows={payload[0].payload.empty ? [{ label: '기록', value: '없음' }] : [{ label: '단백질', value: `${payload[0].payload.protein}g` }]} /> : null)} />
-                    <Bar dataKey="protein" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-                    {proteinGoal ? <ReferenceLine y={proteinGoal} stroke="var(--text-muted)" strokeDasharray="4 4" /> : null}
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              {withMeals.some((r) => r.nutritionIncomplete) && <p className="mt-2 text-[12px] text-text-subtle">영양 정보가 없는 음식이 있는 날은 단백질이 실제보다 적게 보일 수 있어요.</p>}
-            </Card>
-            <p className="text-[12px] text-text-subtle">기록하지 않은 날은 0이 아니라 '기록 없음'이에요. 평균은 기록한 날만으로 계산해요.</p>
-          </>
-        )}
-      </div>
-    </>
-  )
-}
 
 /** /analysis/consult — 진료·상담 때 보여줄 기록 요약 (인쇄·PDF 저장) */
 export function ConsultPage() {

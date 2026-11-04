@@ -36,6 +36,10 @@
   --chart-2: #12a06e;
   --chart-residual: #3478f6;
   --chart-grid: #eceef0;
+  /* 영양소 3색 (탄수화물·단백질·지방) — 식단 분석 */
+  --nutri-carb: #e08a1e;
+  --nutri-protein: #12a06e;
+  --nutri-fat: #5b72d6;
 
   --radius: 16px;
 }
@@ -66,6 +70,9 @@
   --chart-2: #34c68c;
   --chart-residual: #5b93f8;
   --chart-grid: #2a302d;
+  --nutri-carb: #f0a73a;
+  --nutri-protein: #34c68c;
+  --nutri-fat: #8b9cf0;
 }
 
 @theme inline {
