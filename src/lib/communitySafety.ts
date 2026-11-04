@@ -23,6 +23,8 @@ const RULES: { level: Exclude<SafetyLevel, 'LOW'>; rule: string; words: string[]
   { level: 'BLOCKED', rule: '판매·구매', words: ['판매', '팝니다', '삽니다', '구매원해', '구합니다', '직거래', '택배거래'] },
   { level: 'BLOCKED', rule: '양도·나눔', words: ['양도', '나눔', '드려요', '드립니다', '무료로드', '쪽지주세요', '연락주세요'] },
   { level: 'BLOCKED', rule: '처방전 없이 구매', words: ['처방전없이', '처방없이', '처방안받고'] },
+  // 쉽게 처방해 주는 병원을 가리키는 은어('성지')·약 이름 은어 — 처방 쇼핑·광고로 이어져서 차단
+  { level: 'BLOCKED', rule: '병원·약 은어', words: ['성지', '스시자로'] },
   // 관리자 검토(REVIEW) 단계는 없앰: 용량 질문·병원 이야기는 질문 탭에 자연스럽게 올라올 수 있어서. 차단 규칙만 유지
 ]
 

@@ -17,7 +17,7 @@ interface MockRecordState {
 export const useMockRecordStore = create<MockRecordState>((set) => ({
   doses: MOCK_DOSES,
   addDose: (input) => {
-    const dose = { ...input, id: `local-${Date.now()}` }
+    const dose = { ...input, id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }
     set((s) => ({ doses: [...s.doses, dose] }))
     return dose
   },

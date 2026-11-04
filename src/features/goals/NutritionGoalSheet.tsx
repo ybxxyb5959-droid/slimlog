@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { ACTIVITY_OPTIONS, parseBirthYear, SEX_OPTIONS, type ActivityLevel, type Sex } from '@/lib/bodyProfile'
 import { parseMeasure, RANGES } from '@/lib/measure'
 import { MACRO_META } from '@/lib/nutritionMeta'
-import { calcTarget, DEFICIT, FAT_RATIO, KCAL_FLOOR, PROTEIN_PER_KG, type TargetResult } from '@/lib/nutritionTarget'
+import { calcTarget, FAT_RATIO, KCAL_FLOOR, KCAL_PER_KG_FAT, MAX_DEFICIT_RATIO, PROTEIN_MIN_G, PROTEIN_PER_KG, WEEKLY_LOSS_RATE, type TargetResult } from '@/lib/nutritionTarget'
 import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { useBodyLogs } from '@/services/body'
@@ -206,7 +206,7 @@ function Field({ id, label, unit, value, onChange, error, placeholder }: { id: s
 
 function HowCalculated({ r, weightKg, heightCm, sex }: { r: TargetResult; weightKg: number; heightCm: number; sex: Sex }) {
   const act = ACTIVITY_OPTIONS.find((a) => a.value === r.activity)!
-  const basisNote = r.proteinBasis === 'goal' ? ' (BMI 30 이상이라 목표 체중 기준)' : r.proteinBasis === 'bmi25' ? ' (BMI 30 이상이라 BMI 25 체중 기준)' : ''
+  const basisNote = r.proteinBasis === 'goal' ? ' (BMI 25 이상이라 목표 체중 기준)' : r.proteinBasis === 'bmi25' ? ' (BMI 25 이상이라 BMI 25 체중 기준)' : ''
   return (
     <details className="group rounded-2xl bg-surface-muted">
       <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2.5 px-4 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">
@@ -221,7 +221,7 @@ function HowCalculated({ r, weightKg, heightCm, sex }: { r: TargetResult; weight
           10×{weightKg} + 6.25×{heightCm} − 5×{r.age} {sex === 'male' ? '+ 5' : '− 161'} = <b className="text-text">{n(r.bmr)}kcal</b>
         </li>
         <li>
-          <b className="text-text">2. 하루 소비 열량</b>
+          <b className="text-text">2. 유지 열량</b> (지금 체중을 유지하는 열량)
           <br />
           {n(r.bmr)} × {act.factor} ({act.label}
           {r.activityAssumed ? ' · 안 골라서 가정' : ''}) = <b className="text-text">{n(r.tdee)}kcal</b>
@@ -229,14 +229,25 @@ function HowCalculated({ r, weightKg, heightCm, sex }: { r: TargetResult; weight
         <li>
           <b className="text-text">3. 감량용 열량</b>
           <br />
-          {n(r.tdee)} × {1 - DEFICIT} ({DEFICIT * 100}% 덜 먹기) ≈ <b className="text-text">{n(r.kcal)}kcal</b>
-          {r.floored && ` · 너무 낮게 나와서 최저선 ${n(KCAL_FLOOR[sex])}kcal로 맞췄어요`}
+          {r.mode === 'maintain' ? (
+            <>목표 체중에 이미 닿아서 유지 열량을 그대로 써요.</>
+          ) : (
+            <>
+              주 {WEEKLY_LOSS_RATE * 100}% 감량 속도: {weightKg} × {WEEKLY_LOSS_RATE * 100}% × {n(KCAL_PER_KG_FAT)} ÷ 7 = 하루 {n(r.deficitByRate)}kcal 줄이기
+              {r.deficitCapped && ` → 유지 열량의 ${MAX_DEFICIT_RATIO * 100}%까지만 줄여요`}
+              <br />
+              {n(r.tdee)} − {n(r.deficit)} ≈ <b className="text-text">{n(r.kcal)}kcal</b>
+              {r.floored && ` · 너무 낮게 나와서 최저선 ${n(KCAL_FLOOR[sex])}kcal로 맞췄어요`}
+              <br />이대로면 일주일에 약 {r.weeklyLossKg}kg{r.weeksToGoal ? ` · 목표 체중까지 약 ${r.weeksToGoal}주` : ''} (참고값)
+            </>
+          )}
         </li>
         <li>
-          <b className="text-text">4. 단백질</b> — 근육 유지용
+          <b className="text-text">4. 단백질</b> — 감량 중 근육 유지용
           <br />
           {r.proteinBasisKg}kg × {PROTEIN_PER_KG}g = <b className="text-text">{r.proteinG}g</b>
           {basisNote}
+          {Math.round(r.proteinBasisKg * PROTEIN_PER_KG) < PROTEIN_MIN_G && ` · 최소 ${PROTEIN_MIN_G}g로 맞췄어요`}
         </li>
         <li>
           <b className="text-text">5. 지방</b>

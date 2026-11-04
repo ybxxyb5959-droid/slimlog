@@ -217,19 +217,19 @@ test('하루 영양 목표: 온보딩 정보로 참고 계산 → 내 목표로 
   await sheet.getByLabel('출생연도').fill(String(new Date().getFullYear() - 34))
   await sheet.getByLabel('키').fill('165')
   await sheet.getByLabel('평소 활동량').selectOption('light')
-  await expect(sheet.getByLabel('하루 참고 열량')).toContainText('1,650')
+  await expect(sheet.getByLabel('하루 참고 열량')).toContainText('1,440')
   await sheet.getByRole('button', { name: '내 목표로 쓰기' }).click()
   await expect(page.getByText('하루 영양 목표를 저장했어요')).toBeVisible()
   const [h] = await adminSelect('user_health', `user_id=eq.${uid}&select=kcal_goal,carb_goal_g,protein_goal_g,fat_goal_g,activity_level,birth_year,height_cm`)
   expect({ ...h, height_cm: Number(h.height_cm) }).toEqual({
-    kcal_goal: 1650,
-    carb_goal_g: 209,
-    protein_goal_g: 100,
-    fat_goal_g: 46,
+    kcal_goal: 1440,
+    carb_goal_g: 181,
+    protein_goal_g: 89,
+    fat_goal_g: 40,
     activity_level: 'light',
     birth_year: new Date().getFullYear() - 34,
     height_cm: 165,
   })
   await page.reload()
-  await expect(page.getByLabel('하루 열량 목표')).toHaveValue('1650')
+  await expect(page.getByLabel('하루 열량 목표')).toHaveValue('1440')
 })

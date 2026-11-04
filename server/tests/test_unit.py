@@ -52,3 +52,10 @@ def test_clean_photo_rejects_non_image():
     except NotAnImage:
         return
     raise AssertionError("이미지가 아닌데 통과함")
+
+
+def test_slang_blocked():
+    from app.safety import check
+
+    assert check("강남 성지 어디예요?")[0] == "BLOCKED"
+    assert check("스시 자로 맞는 중")[0] == "BLOCKED"

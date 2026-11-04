@@ -139,6 +139,40 @@ test('설정: 비밀번호 변경 · 복구 코드 새로 만들기(예전 코�
   await expect(page.getByLabel('새 비밀번호 (6자 이상)')).toBeVisible()
 })
 
+test('비밀번호 만든 직후 지문 켜기 시트: 지문 확인되면 켜지고, 취소하면 켜지지 않는다', async ({ page }) => {
+  onlyMobile()
+  const fake = (pass: boolean) => page.evaluate((p) => (window as unknown as { __eyebodyFakeBiometric: (p: boolean) => void }).__eyebodyFakeBiometric(p), pass)
+  const makeVault = async () => {
+    await page.getByLabel('비밀번호 (6자 이상)').fill(PW)
+    await page.getByLabel('비밀번호 확인').fill(PW)
+    await page.getByRole('button', { name: '만들기' }).click()
+    await page.getByLabel('안전한 곳에 적어 뒀어요').check()
+    await page.getByRole('button', { name: '확인' }).click()
+  }
+  // 1) 지문 확인 실패(취소) → 켜지지 않음 → 나중에
+  await page.goto('/record/eyebody')
+  await fake(false)
+  await makeVault()
+  const sheet = page.getByRole('dialog', { name: '지문으로 바로 열까요?' })
+  await expect(sheet).toBeVisible()
+  await sheet.getByRole('button', { name: '지문 켜기' }).click()
+  await expect(sheet.getByRole('alert')).toContainText('지문 확인이 끝나지 않아 지문 잠금을 켜지 않았어요')
+  await sheet.getByRole('button', { name: '나중에' }).click()
+  await expect(page.getByRole('tablist', { name: '눈바디 화면' })).toBeVisible()
+  await page.getByRole('button', { name: '눈바디 설정' }).click()
+  await expect(page.getByRole('switch', { name: '지문 잠금' })).not.toBeChecked()
+  // 2) 새로 시작(전부 지우기 대신 새 페이지 + 저장소 삭제) → 지문 확인 성공 → 켜짐
+  await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('slimlog-eyebody'); q.onsuccess = q.onerror = q.onblocked = r }))
+  await page.goto('/record/eyebody')
+  await fake(true)
+  await makeVault()
+  await page.getByRole('dialog', { name: '지문으로 바로 열까요?' }).getByRole('button', { name: '지문 켜기' }).click()
+  await expect(page.getByText('지문 잠금을 켰어요')).toBeVisible()
+  await expect(page.getByRole('tablist', { name: '눈바디 화면' })).toBeVisible()
+  await page.getByRole('button', { name: '눈바디 설정' }).click()
+  await expect(page.getByRole('switch', { name: '지문 잠금' })).toBeChecked()
+})
+
 test('지문(테스트용 가짜 저장소): 웹 기본은 사용 불가 → 켜기(비밀번호 확인) → 잠금 화면에서 지문 창 자동 1회 · 취소하면 비밀번호 · 버튼으로 다시 · 지문으로 비밀번호 재설정 · 끄기', async ({ page }) => {
   onlyMobile()
   const fake = (pass: boolean) => page.evaluate((p) => (window as unknown as { __eyebodyFakeBiometric: (p: boolean) => void }).__eyebodyFakeBiometric(p), pass)

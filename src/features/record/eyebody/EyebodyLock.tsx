@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { AppIcon } from '@/components/common/AppIcon'
+import { BottomSheet } from '@/components/common/BottomSheet'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Notice } from '@/components/common/Notice'
 import { Button } from '@/components/ui/button'
@@ -129,7 +130,60 @@ export function RecoveryCodeView({ code, reason, migrated, onDone }: { code: str
   )
 }
 
-type GateStep = { s: 'form' } | { s: 'code'; code: string; reason: 'new' | 'migrated'; migrated?: { moved: number; total: number } } | { s: 'forgot' } | { s: 'recover' } | { s: 'newpw' }
+type GateStep = { s: 'form' } | { s: 'bio' } | { s: 'code'; code: string; reason: 'new' | 'migrated'; migrated?: { moved: number; total: number } } | { s: 'forgot' } | { s: 'recover' } | { s: 'newpw' }
+
+/** 비밀번호 만든 직후 한 번: '지문으로 열까요?' → 켜기를 누르면 지문을 한 번 받아 확인한 뒤 켠다 */
+function BioOfferSheet({ password, onDone }: { password: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <BottomSheet
+      open
+      onRequestClose={() => !busy && onDone()}
+      title="지문으로 바로 열까요?"
+      description="다음부터 눈바디에 들어올 때 비밀번호 대신 지문으로 열 수 있어요."
+      footer={
+        <div className="grid grid-cols-[1fr_2fr] gap-2">
+          <Button variant="outline" size="lg" disabled={busy} onClick={onDone}>
+            나중에
+          </Button>
+          <Button
+            size="lg"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              setError(null)
+              try {
+                await enableBiometric(password)
+                toast.success('지문 잠금을 켰어요')
+                onDone()
+              } catch (e) {
+                setError((e as Error).message)
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            {busy ? '지문을 확인하는 중…' : '지문 켜기'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3 pb-2">
+        <div className="flex items-center gap-3 rounded-2xl bg-primary-soft px-4 py-3">
+          <AppIcon icon={Fingerprint} bg="soft" />
+          <p className="text-[14px] break-keep text-text">‘지문 켜기’를 누르면 지문을 한 번 확인해요. 확인이 끝나야 켜져요.</p>
+        </div>
+        <p className="text-[12px] break-keep text-text-subtle">설정에서 언제든 끌 수 있어요. 휴대폰에 지문을 새로 등록하면 다시 켜야 해요.</p>
+        {error && (
+          <p role="alert" className="text-[13px] text-danger">
+            {error}
+          </p>
+        )}
+      </div>
+    </BottomSheet>
+  )
+}
 
 /** 잠금 화면 — 만들기 / 열기 / 비밀번호 잊었어요(지문·복구 코드·전부 지우기) */
 export function PasswordGate({ mode, onDone }: { mode: 'new' | 'locked'; onDone: () => void }) {
@@ -170,7 +224,17 @@ export function PasswordGate({ mode, onDone }: { mode: 'new' | 'locked'; onDone:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, canBio])
 
-  if (step.s === 'code') return <RecoveryCodeView code={step.code} reason={step.reason} migrated={step.migrated} onDone={onDone} />
+  if (step.s === 'code')
+    return (
+      <RecoveryCodeView
+        code={step.code}
+        reason={step.reason}
+        migrated={step.migrated}
+        // 비밀번호를 새로 만든 직후, 지문을 쓸 수 있는 기기면 바로 물어본다
+        onDone={async () => (step.reason === 'new' && (await biometric.available()).ok ? setStep({ s: 'bio' }) : onDone())}
+      />
+    )
+  if (step.s === 'bio') return <BioOfferSheet password={pw} onDone={onDone} />
 
   return (
     <Card className="space-y-4 md:max-w-md">

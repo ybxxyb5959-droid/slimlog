@@ -155,6 +155,13 @@ export async function insertDose(d: Omit<Dose, 'id'>): Promise<Dose> {
   return rowToDose(r.data)
 }
 
+/** 여러 회차를 한 번에 (가입 때 '전부터 투약 중' 자동 채우기) */
+export async function insertDoses(list: Omit<Dose, 'id'>[]): Promise<Dose[]> {
+  const r = await sb().from('doses').insert(list.map(doseToRow)).select(DOSE_COLS)
+  if (r.error) throw r.error
+  return r.data.map(rowToDose)
+}
+
 export async function updateDoseRow(d: Dose): Promise<Dose> {
   const r = await sb().from('doses').update(doseToRow(d)).eq('dose_id', d.id).select(DOSE_COLS).single()
   if (r.error) throw r.error
