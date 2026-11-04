@@ -266,20 +266,33 @@ def to_sql(rows: list[Row], batch: int = 500) -> str:
     return "\n".join(parts) + "\n"
 
 
-def push_rest(rows: list[Row], url: str, key: str, batch: int = 500) -> int:
+def push_rest(rows: list[Row], url: str, key: str, batch: int = 500, start: int = 0, log=print) -> int:
+    """start: 앞의 N 개는 이미 들어갔다고 보고 건너뜀 (중간에 끊겼을 때 이어 넣기). 실패한 묶음은 4번까지 다시 시도"""
+    import time
+    import urllib.error
+
     sent = 0
-    for i in range(0, len(rows), batch):
+    for i in range(start, len(rows), batch):
         body = json.dumps([{c: getattr(r, c) for c in COLS} for r in rows[i : i + batch]], ensure_ascii=False).encode()
         req = urllib.request.Request(
             f"{url.rstrip('/')}/rest/v1/foods?on_conflict=food_id",
             data=body,
             method="POST",
-            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"},
+            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=minimal"},
         )
-        with urllib.request.urlopen(req) as res:  # noqa: S310 (사용자가 지정한 Supabase 주소)
-            if res.status >= 300:
-                raise SystemExit(f"업로드 실패: HTTP {res.status}")
+        for attempt in range(5):
+            try:
+                with urllib.request.urlopen(req, timeout=120) as res:  # noqa: S310 (사용자가 지정한 Supabase 주소)
+                    if res.status >= 300:
+                        raise SystemExit(f"업로드 실패: HTTP {res.status}")
+                break
+            except (urllib.error.URLError, TimeoutError) as e:
+                if attempt == 4 or (isinstance(e, urllib.error.HTTPError) and e.code < 500):
+                    raise SystemExit(f"업로드 실패 ({i}번째부터): {e} → --start {i} 로 이어 넣기")
+                time.sleep(3 * (attempt + 1))
         sent += len(rows[i : i + batch])
+        if (i // batch) % 100 == 0:
+            log(f"  {i + len(rows[i : i + batch])} / {len(rows)}")
     return sent
 
 
@@ -290,6 +303,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, help="SQL 파일로 저장")
     ap.add_argument("--chunk", type=int, default=0, help="SQL 을 N 행씩 여러 파일로 나눔 (SQL Editor 붙여넣기용)")
     ap.add_argument("--rest", action="store_true", help="SUPABASE_URL·SUPABASE_SERVICE_ROLE_KEY 환경변수로 바로 업로드")
+    ap.add_argument("--start", type=int, default=0, help="--rest 이어 넣기: 앞의 N 개 건너뜀")
     ap.add_argument("--map", action="append", default=[], help="컬럼 직접 지정: key=컬럼명 (예: kcal=에너지(kcal))")
     ap.add_argument("--limit", type=int, default=0, help="앞에서 N 개만 (시험용)")
     ap.add_argument("--dedupe-name", action="store_true", help="같은 이름(·제조사) 중복 행은 처음 것만")
@@ -327,7 +341,7 @@ def main(argv=None) -> int:
         if not url or not key:
             print("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요해요", file=sys.stderr)
             return 2
-        print("업로드:", push_rest(data, url, key), "개")
+        print("업로드:", push_rest(data, url, key, start=a.start), "개")
     return 0
 
 
