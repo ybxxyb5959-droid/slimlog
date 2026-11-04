@@ -24,7 +24,7 @@ export function PhotoZoom({ photo, title, onClose }: { photo: { id: string } | n
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/90" />
         <DialogPrimitive.Content aria-describedby={undefined} className="fixed inset-0 z-50 flex flex-col outline-none">
-          <div className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 text-white">
+          <div className="flex items-center justify-between px-4 pt-[max(0.75rem,var(--sat))] pb-2 text-white">
             <DialogPrimitive.Title className="text-[15px] font-semibold">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Close aria-label="닫기" className="inline-flex size-11 items-center justify-center rounded-full hover:bg-white/10">
               <X size={22} aria-hidden />
@@ -37,7 +37,7 @@ export function PhotoZoom({ photo, title, onClose }: { photo: { id: string } | n
               </div>
             )}
           </div>
-          <div className="flex items-center justify-center gap-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] text-white">
+          <div className="flex items-center justify-center gap-3 pt-2 pb-[max(1rem,var(--sab))] text-white">
             <button type="button" aria-label="축소" disabled={scale <= 1} onClick={() => set(scale - 0.5)} className="inline-flex size-11 items-center justify-center rounded-full bg-white/10 disabled:opacity-30">
               <Minus size={20} aria-hidden />
             </button>

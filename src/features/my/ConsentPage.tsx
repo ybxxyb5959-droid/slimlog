@@ -63,7 +63,7 @@ export function ConsentPage() {
     if (pending !== 'sensitive') {
       // 이용약관·개인정보 철회 = 탈퇴 → 사진 파일까지 지워야 해서 서버 API 로
       setPending(null)
-      if (!apiReady) return void toast('준비 중 · 이 동의 철회는 회원 탈퇴로 처리돼요. 탈퇴는 서버 연결 후 열려요.')
+      if (!apiReady) return void toast('이 동의 철회는 회원 탈퇴로 처리돼요. 지금은 처리할 수 없어요. 잠시 후 다시 시도해 주세요.')
       return navigate('/my/account')
     }
     setBusy(true)

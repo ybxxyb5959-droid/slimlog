@@ -31,7 +31,7 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
   const tmax = curveTmaxHours(medication)
   const rows: { label: string; value: string; use: string; source?: ApprovalSource }[] = [
     { label: '제거 반감기', value: pk.halfLifeHours?.text ?? '확인 못 함', use: pk.halfLifeHours ? '계산에 사용' : '곡선 미생성', source: pk.halfLifeHours?.source },
-    { label: '생체이용률', value: pk.bioavailability?.text ?? '확인 못 함', use: '검토만 · 미사용', source: pk.bioavailability?.source },
+    { label: '생체이용률', value: pk.bioavailability?.text ?? '확인 못 함', use: pk.bioavailability ? '계산에 사용' : '100%로 가정', source: pk.bioavailability?.source },
     { label: '최고농도 도달', value: pk.tmaxHours?.text ?? '확인 못 함', use: tmax ? `대표값 ${tmax}시간 사용` : '미사용', source: pk.tmaxHours?.source },
     { label: '흡수 속도(ka)', value: pk.absorptionRateKa?.text ?? '허가자료에 없음', use: tmax ? '대표 tmax 로 역산' : '흡수 모델 비활성' },
   ]
@@ -41,7 +41,7 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
       open={open}
       onRequestClose={onClose}
       title="참고용 잔존량 계산 안내"
-      description={`${medication.name} · 흡수·반감기 기반 상대값`}
+      description={`${medication.name} · 흡수·반감기 기반 체내 추정량(mg)`}
       footer={
         <Button size="lg" className="w-full" onClick={onClose}>
           닫기
@@ -54,7 +54,7 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
             맞은 뒤 약이 천천히 흡수돼 {tmax ? `약 ${tmax}시간` : '며칠'} 뒤 가장 높아지고, 그다음 반감기만큼 시간이 지날 때마다 절반으로 줄어드는 모양(1차 흡수 모델)으로 계산해요.
             이전 투여분과 새 투여분을 모두 더해요.
           </p>
-          <p>그래프는 표시 기간 중 가장 높은 시점을 100%로 둔 상대값이에요. 선택한 약의 기록만 계산해요.</p>
+          <p>맞은 용량에 생체이용률(몸에 흡수되는 비율)을 곱해 몸속에 남아 있는 양을 mg으로 추정해요. 선택한 약의 기록만 계산해요.</p>
         </Section>
 
         <Section title={`사용한 파라미터 · ${medication.name}`}>
@@ -74,10 +74,10 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
           <p className="text-[13px]">약마다 파라미터를 따로 쓰며 다른 약의 값을 섞지 않아요.</p>
         </Section>
 
-        <Section title="mg으로 표시하지 않는 이유">
+        <Section title="mg 값을 볼 때 주의할 점">
           <p>
-            체내에 남은 양을 mg으로 추정하려면 흡수 속도(ka)가 필요한데, 허가자료에는 최고농도 도달 시간의 넓은 범위만 있고 ka 값은 없어요.
-            이 범위 안에서 ka를 고르는 방식에 따라 최고점 시각과 높이가 크게 달라져서, 검증 전까지 mg 표시는 꺼 두었어요.
+            흡수 속도(ka)는 허가자료에 없어서 최고농도 도달 시간 범위의 중간값으로 역산했어요. 이 범위가 넓어서 실제 최고점의 시각과 높이는 꽤 다를 수 있어요. 숫자는 흐름을 보는
+            참고용으로만 봐 주세요.
           </p>
         </Section>
 
@@ -91,7 +91,7 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
         </Section>
 
         <Section title="실제 혈중농도와의 차이">
-          <p>혈액검사로 잰 농도가 아니고 체내 잔존량을 직접 측정한 값도 아니에요. 단위가 없는 상대값이라 다른 사람이나 다른 약과 비교할 수 없어요.</p>
+          <p>혈액검사로 잰 농도가 아니고 체내 잔존량을 직접 측정한 값도 아니에요. 모델로 계산한 추정치라 다른 사람이나 다른 약과 비교할 수 없어요.</p>
         </Section>
 
         <Section title="이 그래프로 할 수 없는 것">

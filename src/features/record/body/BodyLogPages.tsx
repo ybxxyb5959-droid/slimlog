@@ -19,7 +19,7 @@ import { savedNote } from '@/services/doses'
 import { useMyProfile } from '@/services/profile'
 import { useRecordsStore, type BodyEntry } from '@/stores/recordsStore'
 
-import { BodyForm } from './BodyForm'
+import { WeightScaleForm } from './WeightScaleForm'
 import { emptyBodyDraft, type BodyDraft } from './bodyDraft'
 
 const fmt = (n?: number) => (n === undefined ? null : n.toFixed(1))
@@ -128,7 +128,11 @@ export function BodyLogEditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const existing = useRecordsStore((s) => s.bodyLogs.find((x) => x.id === id))
-  const [draft, setDraft] = useState<BodyDraft>(() => (existing ? toDraft(existing) : emptyBodyDraft()))
+  // 새 기록은 가장 최근 체중을 미리 띄워 두고 ± 몇 번으로 끝나게
+  const lastWeight = useRecordsStore((s) => [...s.bodyLogs].sort((a, b) => b.measuredAt.localeCompare(a.measuredAt))[0]?.weightKg)
+  const [draft, setDraft] = useState<BodyDraft>(() =>
+    existing ? toDraft(existing) : { ...emptyBodyDraft(), weightKg: lastWeight ? (Math.round(lastWeight * 10) / 10).toFixed(1) : '' },
+  )
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [dupFor, setDupFor] = useState<BodyInput | null>(null)
   const isNew = !id
@@ -163,9 +167,9 @@ export function BodyLogEditPage() {
           {existing.bodyFatPct !== undefined && ` · 체지방률 ${existing.bodyFatPct}%`}
         </p>
       )}
-      <Card className="md:max-w-[420px]">
-        <BodyForm
-          weightOnly
+      <div className="md:max-w-[420px]">
+        <WeightScaleForm
+          initialWeight={isNew ? lastWeight : undefined}
           draft={draft}
           onChange={setDraft}
           submitLabel={isNew ? '저장' : '수정 저장'}
@@ -181,7 +185,7 @@ export function BodyLogEditPage() {
             ))
           }
         />
-      </Card>
+      </div>
       <ConfirmDialog
         open={!!dupFor}
         onOpenChange={(o) => !o && setDupFor(null)}

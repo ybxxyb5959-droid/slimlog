@@ -74,7 +74,7 @@ function EmptyInbody() {
           <AppIcon icon={ClipboardPen} size="sm" /> 수치 직접 입력
         </Link>
       </div>
-      <p className="mt-4 text-[12px] text-text-subtle">결과지 자동 인식(OCR)은 아직 연결되지 않았어요. 연결 후에도 인식한 숫자는 내가 확인한 뒤 저장돼요.</p>
+      <p className="mt-4 text-[12px] text-text-subtle">결과지 사진이나 인바디 앱 화면 캡처를 올리면 숫자를 읽어 채워 줘요. 읽은 숫자는 확인한 뒤 저장돼요.</p>
     </Card>
   )
 }

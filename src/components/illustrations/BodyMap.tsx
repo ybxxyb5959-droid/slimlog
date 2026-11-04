@@ -1,12 +1,8 @@
-import { useState } from 'react'
-
 import { cn } from '@/lib/utils'
 import type { BodyArea, InjectionSite } from '@/types/domain'
 
 /**
- * 주사 부위 선택용 인체 일러스트 (정면/후면).
- * - 정면: 나를 마주 본 그림 → 화면 왼쪽 = 내 오른쪽
- * - 후면: 내 뒷모습 → 화면 왼쪽 = 내 왼쪽
+ * 주사 부위 선택용 인체 일러스트 (정면만 — 나를 마주 본 그림: 화면 왼쪽 = 내 오른쪽)
  * 기록용 UI이며 위치를 추천하지 않는다.
  */
 type View = 'front' | 'back'
@@ -55,49 +51,27 @@ export function BodyMap({
   onChange,
   allowedAreas,
   siteLabel,
+  className,
 }: {
   value: InjectionSite | null
   onChange: (site: InjectionSite) => void
   /** null이면 허가 부위 정보 없음 → 모든 부위 선택 가능 */
   allowedAreas: BodyArea[] | null
   siteLabel: (s: InjectionSite) => string
+  className?: string
 }) {
-  const [view, setView] = useState<View>(value?.startsWith('arm') ? 'front' : 'front')
   const isAllowed = (area: BodyArea) => !allowedAreas || allowedAreas.includes(area)
-  const hasArm = isAllowed('upper_arm')
-  const list = zones(view)
+  const list = zones('front')
 
   return (
-    <div>
-      {hasArm && (
-        <div role="radiogroup" aria-label="그림 방향" className="mx-auto mb-3 flex w-fit rounded-xl bg-surface-muted p-1">
-          {(['front', 'back'] as View[]).map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="radio"
-              aria-checked={view === v}
-              onClick={() => setView(v)}
-              className={cn(
-                'h-9 min-w-16 rounded-lg px-3 text-[13px] font-medium',
-                view === v ? 'bg-surface font-semibold text-text shadow-[0_1px_2px_rgba(15,23,42,0.08)]' : 'text-text-muted',
-              )}
-            >
-              {v === 'front' ? '앞모습' : '뒷모습'}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="mx-auto flex max-w-[300px] items-start justify-between text-[12px] font-semibold text-text-muted">
-        <span>{view === 'front' ? '내 오른쪽' : '내 왼쪽'}</span>
-        <span className="text-[11px] font-medium text-text-subtle">{view === 'front' ? '나를 마주 본 모습' : '내 뒷모습'}</span>
-        <span>{view === 'front' ? '내 왼쪽' : '내 오른쪽'}</span>
+    <div className={className}>
+      <div className="flex items-start justify-between px-1 text-[12px] font-semibold text-text-muted">
+        <span>내 오른쪽</span>
+        <span>내 왼쪽</span>
       </div>
-
-      <svg viewBox="0 0 200 400" className="mx-auto mt-1 block h-[320px] w-auto max-w-full" role="group" aria-label="주사 부위 선택 그림">
+      <svg viewBox="0 0 200 400" className="mx-auto mt-1 block h-[300px] w-auto max-w-full" role="group" aria-label="주사 부위 선택 그림 (나를 마주 본 모습)">
         <Silhouette />
-        {view === 'front' && <circle cx="100" cy="170" r="2.5" className="fill-border" />}
+        <circle cx="100" cy="170" r="2.5" className="fill-border" />
         {list.map((z) => {
           const allowed = isAllowed(z.area)
           const selected = value === z.site
@@ -118,22 +92,38 @@ export function BodyMap({
                 }
               }}
               className={cn(
-                'outline-none [&>*]:transition-colors',
+                'outline-none [&>rect]:transition-colors',
                 allowed ? 'cursor-pointer' : 'cursor-not-allowed',
                 selected
-                  ? '[&>*]:fill-primary [&>*]:stroke-primary'
+                  ? '[&>rect]:fill-primary [&>rect]:stroke-primary'
                   : allowed
-                    ? '[&>*]:fill-primary-soft [&>*]:stroke-primary/50 hover:[&>*]:fill-primary/25 focus-visible:[&>*]:stroke-primary'
-                    : '[&>*]:fill-transparent [&>*]:stroke-transparent',
+                    ? '[&>rect]:fill-primary-soft [&>rect]:stroke-primary/60 hover:[&>rect]:fill-primary/25 focus-visible:[&>rect]:stroke-primary'
+                    : '[&>rect]:fill-transparent [&>rect]:stroke-transparent',
               )}
               strokeWidth={selected ? 2 : 1.5}
-              strokeDasharray={selected ? undefined : '4 3'}
             >
               {z.shape}
+              {selected && <SelectedCheck site={z.site} />}
             </g>
           )
         })}
       </svg>
     </div>
   )
+}
+
+/** 고른 부위 가운데 체크 표시 */
+const CHECK_AT: Partial<Record<string, [number, number]>> = {
+  abdomen_right: [83.5, 169],
+  abdomen_left: [116.5, 169],
+  thigh_right: [83.5, 279],
+  thigh_left: [116.5, 279],
+  arm_right: [38.2, 124.5],
+  arm_left: [161.8, 124.5],
+}
+function SelectedCheck({ site }: { site: InjectionSite }) {
+  const at = CHECK_AT[site]
+  if (!at) return null
+  const [x, y] = at
+  return <path d={`M${x - 5} ${y}l3.5 3.5 6.5 -7`} fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
 }

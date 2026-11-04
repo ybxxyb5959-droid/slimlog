@@ -105,7 +105,7 @@ test('참고 곡선 화면은 고정 면책 문구를 항상 표시한다', asyn
 
 test('참고 곡선 화면: 약 바꿔 보기 버튼·증상 겹쳐 보기 없이 내 약 곡선만', async ({ page }) => {
   await page.goto('/analysis/medication')
-  await expect(page.getByText('마OOO 투약 기록으로 계산한 상대값 곡선이에요.')).toBeVisible()
+  await expect(page.getByText('마OOO 투약 기록으로 계산한 체내 추정량(mg)이에요.')).toBeVisible()
   await expect(page.getByRole('radio', { name: '위OO' })).toHaveCount(0)
   await expect(page.getByText('증상 기록 겹쳐 보기')).toHaveCount(0)
   await expect(page.getByText('곡선을 만들지 않아요', { exact: true })).toHaveCount(0)
@@ -201,7 +201,14 @@ test('첫 투약 등록 5단계: 순서대로 진행·이전·요약·확인', a
   await expect(sheet.getByRole('button', { name: '다음', exact: true })).toBeDisabled()
   await expect(sheet.getByRole('radio', { name: /왼쪽 허벅지/ })).toHaveAttribute('aria-disabled', 'true')
   await sheet.getByRole('radio', { name: '배 오른쪽' }).click()
-  await expect(sheet.getByText('배 오른쪽 (내 몸 기준)')).toBeVisible()
+  const picked = sheet.getByRole('region', { name: '선택한 부위' })
+  await expect(picked).toContainText('복부')
+  await expect(picked.getByRole('radio', { name: '오른쪽' })).toHaveAttribute('aria-checked', 'true')
+  // 빠른 선택: 허가 부위가 아닌 허벅지·위팔은 막힘
+  await expect(sheet.getByRole('button', { name: '허벅지', exact: true })).toBeDisabled()
+  await expect(sheet.getByRole('button', { name: '위팔', exact: true })).toBeDisabled()
+  await expect(sheet.getByText('같은 부위에 연속 사용을 하지 말아주세요.')).toBeVisible()
+  await expect(sheet.getByRole('radio', { name: '뒷모습' })).toHaveCount(0)
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
   // STEP 4: 미래 날짜 선택 불가, 시간 모름 허용
   await expect(sheet.getByRole('button', { name: /선택할 수 없음/ }).first()).toBeDisabled()
@@ -259,29 +266,31 @@ test('용량 선택기: 좌우 스와이프로 값이 바뀐다', async ({ page 
   await expect(sheet.getByText('2 / 6')).toBeVisible()
 })
 
-test('참고 곡선: 기간 전환·툴팁·mg 표시 없음', async ({ page }) => {
+test('참고 곡선: 기간 전환·툴팁·체내 추정량 mg 표시', async ({ page }) => {
   await page.goto('/analysis/medication')
-  await expect(page.getByText('현재 참고 수준')).toBeVisible()
+  await expect(page.getByText('현재 체내 추정량')).toBeVisible()
   for (const label of ['2주', '3개월', '1개월']) {
     await page.getByRole('radio', { name: label, exact: true }).click()
     await expect(page.getByRole('radio', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true')
   }
-  const chart = page.getByRole('img', { name: /참고용 잔존량 상대값 곡선/ })
+  const chart = page.getByRole('img', { name: /체내 추정량\(mg\) 곡선/ })
   // 기본: 오늘 값 말풍선, 누르면 그 시점 값으로 바뀐다
   const bubble = page.locator('.residual-bubble-value')
   const before = await bubble.textContent()
   const box = (await chart.boundingBox())!
   await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2)
   await expect(bubble).not.toHaveText(before!)
-  // mg 단위는 곡선 값에 쓰지 않는다
-  await expect(page.getByText(/잔존량 \d+(\.\d+)?\s?mg/)).toHaveCount(0)
+  // 값은 mg 으로 (소수 둘째 자리) — 말풍선·큰 숫자 모두
+  await expect(bubble).toHaveText(/^\d+\.\d{2}mg$/)
+  await expect(page.getByText('현재 체내 추정량').locator('..')).toContainText(/\d+\.\d{2}\s*mg/)
 })
 
 test('참고 곡선 ⓘ: 계산 방식·파라미터·출처 안내', async ({ page }) => {
   await page.goto('/analysis/medication')
   await page.getByRole('button', { name: '참고용 잔존량 계산 안내 보기' }).click()
   const sheet = page.getByRole('dialog', { name: '참고용 잔존량 계산 안내' })
-  await expect(sheet.getByText('mg으로 표시하지 않는 이유')).toBeVisible()
+  await expect(sheet.getByText('mg 값을 볼 때 주의할 점')).toBeVisible()
+  await expect(sheet.getByText('계산에 사용').first()).toBeVisible()
   await expect(sheet.getByText('약 5일')).toBeVisible()
   await expect(sheet.getByText('허가자료에 없음')).toBeVisible()
 })
@@ -759,10 +768,10 @@ test.describe('분석 3탭', () => {
   test('탭 전환 시 선택된 콘텐츠만 표시, 주소에 탭 유지', async ({ page }) => {
     await page.goto('/analysis')
     await expect(page.getByRole('tab', { name: '체내 용량' })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByText('현재 참고 수준')).toBeVisible()
+    await expect(page.getByText('현재 체내 추정량')).toBeVisible()
     await page.getByRole('tab', { name: '체중 변화' }).click()
     await expect(page).toHaveURL('/analysis?tab=weight')
-    await expect(page.getByText('현재 참고 수준')).toHaveCount(0)
+    await expect(page.getByText('현재 체내 추정량')).toHaveCount(0)
     await expect(page.getByRole('radiogroup', { name: '기간' })).toBeVisible()
     await expect(page.getByRole('img', { name: '체중 변화 그래프' })).toBeVisible()
     await page.reload()
@@ -939,10 +948,15 @@ test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {
 test.describe('식단 기록', () => {
   const kcalTotal = (page: import('@playwright/test').Page) => page.getByText('총 섭취 열량').locator('..')
   const saveBtn = (page: import('@playwright/test').Page) => page.getByRole('button', { name: /식단 (저장|수정)하기/ })
+  // 갤러리에서 사진 고르기 (목업은 사진 내용과 상관없이 같은 인식 결과)
+  const pickPhoto = async (page: import('@playwright/test').Page) => {
+    const jpg = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64')
+    await page.getByLabel('갤러리에서 선택').setInputFiles({ name: 'meal.jpg', mimeType: 'image/jpeg', buffer: jpg })
+  }
 
   test('1. 사진 1장 → 음식 인식(목업) → 확인 필요 고르기·수정·제외 → 저장', async ({ page }) => {
     await page.goto('/record/meal/new')
-    await page.getByRole('button', { name: '예시 사진' }).click()
+    await pickPhoto(page)
     // 영역 그리기 UI는 없다
     await expect(page.getByRole('application')).toHaveCount(0)
     await expect(page.getByText('영역')).toHaveCount(0)
@@ -966,7 +980,7 @@ test.describe('식단 기록', () => {
     await page.getByRole('button', { name: '검색해서 고르기' }).click()
     const sheet = page.getByRole('dialog', { name: '음식 검색' })
     await sheet.getByLabel('음식 검색').fill('계란말이')
-    await sheet.getByRole('button', { name: /^계란말이 100g당/ }).click()
+    await sheet.getByRole('button', { name: /^계란말이 1인분/ }).click()
     // 인식 결과 수정 + 제외
     await page.getByRole('radiogroup', { name: '김치찌개 인식 후보' }).getByRole('radio', { name: '순두부찌개' }).click()
     await expect(page.getByText('직접 고침').first()).toBeVisible()
@@ -985,7 +999,7 @@ test.describe('식단 기록', () => {
 
   test('2. 사진 1장 → 인식 → 확인 필요 빼고 음식 직접 추가 → 저장', async ({ page }) => {
     await page.goto('/record/meal/new')
-    await page.getByRole('button', { name: '예시 사진' }).click()
+    await pickPhoto(page)
     await page.getByRole('button', { name: '음식 인식하기' }).click()
     await page.getByRole('button', { name: '확인 필요 1 제외' }).click()
     await page.getByRole('button', { name: '확인 필요 1 제외' }).click()
@@ -1004,7 +1018,7 @@ test.describe('식단 기록', () => {
     await page.goto('/record/meal/new')
     await page.getByRole('link', { name: /음식명 또는 제품명/ }).click()
     await page.getByLabel('음식 검색').fill('닭가슴')
-    await page.getByRole('button', { name: /^닭가슴살 100g당/ }).click()
+    await page.getByRole('button', { name: /^닭가슴살 1인분\(/ }).click()
     await expect(page.getByText('100g당').first()).toBeVisible()
     const grams = page.getByLabel('직접 입력')
     await grams.fill('100')
@@ -1026,7 +1040,7 @@ test.describe('식단 기록', () => {
     await page.getByRole('button', { name: '쌀밥 1인분 바로 추가' }).click()
     // 닭가슴살 100g
     await page.getByLabel('음식 검색').fill('닭가슴살')
-    await page.getByRole('button', { name: /^닭가슴살 100g당/ }).click()
+    await page.getByRole('button', { name: /^닭가슴살 1인분\(/ }).click()
     await page.getByLabel('직접 입력').fill('100')
     await page.getByRole('button', { name: '식단에 추가' }).click()
     // 배추김치 50g — 작성 화면의 '음식 직접 추가하기'에서
@@ -1078,10 +1092,10 @@ test.describe('식단 기록', () => {
     await page.goto('/record/meal')
     for (const food of ['바나나', '사과']) {
       // 목업 상태는 새로고침하면 초기화되므로 앱 안에서 이동
-      await page.getByRole('button', { name: '기록하기' }).click()
+      await page.getByRole('button', { name: '간식 추가' }).click()
       await page.getByRole('link', { name: /음식명 또는 제품명/ }).click()
       await page.getByLabel('음식 검색').fill(food)
-      await page.getByRole('button', { name: `${food} 1인분 바로 추가` }).click()
+      await page.getByRole('button', { name: `${food} 1개 바로 추가` }).click()
       await page.getByRole('button', { name: '뒤로 가기' }).click()
       await page.getByRole('radio', { name: '간식' }).click()
       await saveBtn(page).click()
@@ -1157,7 +1171,7 @@ test.describe('약 변경', () => {
     await expect(page).toHaveURL('/record/medication')
     // 분석: 사용 중인 약이 위OO 로, 이전 약은 따로 점선
     await go(page, '/analysis/medication')
-    await expect(page.getByText('위OO 투약 기록으로 계산한 상대값 곡선이에요.')).toBeVisible()
+    await expect(page.getByText('위OO 투약 기록으로 계산한 체내 추정량(mg)이에요.')).toBeVisible()
     const legend = page.getByRole('list', { name: '곡선 범례' })
     await expect(legend).toContainText('지금 약 · 세마글루타이드(위OO)')
     await expect(legend).toContainText('이전 약 · 터제파타이드(마OOO)')
@@ -1175,4 +1189,76 @@ test.describe('약 변경', () => {
     await expect(page.getByRole('dialog', { name: '약을 바꾸셨나요?' })).toHaveCount(0)
     await expect(sheet.getByRole('slider')).toBeVisible()
   })
+})
+
+test('키보드가 올라오면(화면 높이 줄어듦) 입력 중인 칸이 보이고 하단 탭바는 숨는다', async ({ page }) => {
+  test.skip(test.info().project.name !== 'mobile-390', '폰 화면에서만')
+  await page.goto('/community/write')
+  const body = page.getByLabel('내용')
+  await body.click()
+  // 키보드가 화면 아래 절반을 차지한 것처럼
+  await page.setViewportSize({ width: 390, height: 420 })
+  await expect(page.locator('html')).toHaveAttribute('data-keyboard-open', '')
+  await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeHidden()
+  await expect(body).toBeInViewport()
+  // 키보드 내림 → 원래대로
+  await page.setViewportSize({ width: 390, height: 844 })
+  await body.blur()
+  await expect(page.locator('html')).not.toHaveAttribute('data-keyboard-open', '')
+  await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeVisible()
+})
+
+test.describe('체중 기록 화면 (체중계)', () => {
+  test('지난 체중이 미리 뜨고, ±0.1·눈금·직접 입력·벽 달력/시계로 기록', async ({ page }) => {
+    await page.goto('/record/body/new')
+    const input = page.getByLabel('체중', { exact: true })
+    // 예시 사용자 최근 체중이 미리 떠 있음
+    const start = Number(await input.inputValue())
+    expect(start).toBeGreaterThan(20)
+    await page.getByRole('button', { name: '0.1kg 더하기' }).click()
+    await page.getByRole('button', { name: '0.1kg 더하기' }).click()
+    await page.getByRole('button', { name: '0.1kg 빼기' }).click()
+    await expect(input).toHaveValue((start + 0.1).toFixed(1))
+    // 눈금: 키보드 방향키로 0.1씩
+    const ruler = page.getByRole('slider', { name: '체중 드래그로 조절' })
+    await ruler.focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(input).toHaveValue(start.toFixed(1))
+    // 체중계 화면을 눌러 직접 입력
+    await input.fill('72.4')
+    await expect(ruler).toHaveAttribute('aria-valuetext', '72.4kg')
+    // 벽 달력 → 날짜 시트, 벽시계 → 시간 시트
+    await page.getByRole('button', { name: /^측정 날짜:/ }).click()
+    await expect(page.getByRole('dialog', { name: '측정 날짜' })).toBeVisible()
+    await page.getByRole('dialog').getByRole('button', { name: '어제', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '선택', exact: true }).click()
+    const y = new Date(Date.now() - 86_400_000)
+    await expect(page.getByRole('button', { name: /^측정 날짜:/ })).toHaveAccessibleName(new RegExp(`${y.getMonth() + 1}월 ${y.getDate()}일`))
+    await page.getByRole('button', { name: /^측정 시간:/ }).click()
+    await expect(page.getByRole('dialog', { name: '측정 시간' })).toBeVisible()
+    await page.getByRole('dialog').getByRole('button', { name: '취소' }).click()
+    await page.getByRole('button', { name: '저장' }).click()
+    await expect(page.getByText('체중을 기록했어요')).toBeVisible()
+    await expect(page).toHaveURL('/record/body')
+    await expect(page.getByText('72.4kg').first()).toBeVisible()
+  })
+})
+
+test('분석 체내 용량: 그래프 쉽게 보기(약마다 반감기·최고 도달) + 주사·컨디션 요약 카드', async ({ page }) => {
+  await page.goto('/analysis')
+  await expect(page.getByText('예시 데이터').first()).toBeHidden()
+  await expect(page.getByText('약 바꿔 보기')).toHaveCount(0)
+  await page.getByRole('button', { name: '그래프 쉽게 보기' }).first().click()
+  const sheet = page.getByRole('dialog', { name: '그래프 쉽게 보기' })
+  await expect(sheet).toContainText('터제파타이드 반감기')
+  await expect(sheet).toContainText('약 5일')
+  await expect(sheet).toContainText('8~72시간')
+  await expect(sheet.getByRole('img', { name: /최고점/ })).toBeVisible()
+  await expect(sheet.getByText('반감기란?')).toBeVisible()
+  await sheet.getByRole('button', { name: '확인' }).click()
+  const card = page.getByRole('heading', { name: '주사 · 컨디션 요약' }).locator('..').locator('..')
+  await expect(card.getByText('마지막 투약')).toBeVisible()
+  await expect(card.getByText('다음 예정')).toBeVisible()
+  await expect(card.getByText('최근 7일 컨디션')).toBeVisible()
+  await expect(card.getByRole('link', { name: /오늘 컨디션 · 부작용 기록하기/ })).toHaveAttribute('href', '/record/symptom')
 })

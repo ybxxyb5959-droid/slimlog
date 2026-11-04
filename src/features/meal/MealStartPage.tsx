@@ -1,5 +1,6 @@
+import { servingUnit } from '@/lib/foodServing'
 import { clearCaptureFiles, isNativeApp } from '@/lib/native'
-import { Camera, ChevronRight, Image as ImageIcon, Search, Sparkles, Star } from 'lucide-react'
+import { Camera, ChevronRight, Image as ImageIcon, Search, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -35,18 +36,16 @@ export function MealStartPage() {
   }, [])
   const pendingKcal = sumNutrients(draft.items.filter((i) => i.foodId)).kcal
 
-  const startPhoto = (p: { kind: 'sample' } | { kind: 'file'; url: string; file: File }) => {
+  const startPhoto = (p: { kind: 'file'; url: string; file: File }) => {
     if (draft.editingId) draft.reset()
     draft.setPhoto(p)
     navigate('/record/meal/photo')
   }
-  const pickSource = (id: 'camera' | 'gallery' | 'sample') => {
+  const pickSource = (id: 'camera' | 'gallery') => {
     // 실서비스: 사진 기록은 서버가 EXIF 제거·저장·인식까지 해야 해서 서버 연결 전에는 막는다 (목업 결과로 실제 기록을 만들지 않음)
-    if (isLive && !apiReady) return void toast('사진 인식은 서버 연결 후 열려요', { description: '지금은 직접 검색해서 기록해 주세요.' })
-    if (isLive && id === 'sample') return void toast('예시 사진은 목업 모드에서만 쓸 수 있어요', { description: '카메라나 갤러리에서 실제 사진을 골라 주세요.' })
+    if (isLive && !apiReady) return void toast('지금은 사진 인식을 쓸 수 없어요', { description: '지금은 직접 검색해서 기록해 주세요.' })
     if (id === 'camera') camera.current?.click()
-    else if (id === 'gallery') gallery.current?.click()
-    else startPhoto({ kind: 'sample' })
+    else gallery.current?.click()
   }
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0]
@@ -69,12 +68,11 @@ export function MealStartPage() {
           </h2>
           <input ref={camera} type="file" accept="image/*" capture="environment" className="sr-only" aria-label="카메라로 촬영" onChange={onFile} />
           <input ref={gallery} type="file" accept="image/*" className="sr-only" aria-label="갤러리에서 선택" onChange={onFile} />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {(
               [
                 { id: 'camera', label: '카메라 촬영', icon: Camera },
                 { id: 'gallery', label: '갤러리', icon: ImageIcon },
-                { id: 'sample', label: '예시 사진', icon: Sparkles },
               ] as const
             ).map((b) => (
               <button key={b.label} type="button" onClick={() => pickSource(b.id)} className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface text-[13px] font-medium hover:bg-surface-muted">
@@ -83,7 +81,7 @@ export function MealStartPage() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[12px] text-text-subtle">{isLive && !apiReady ? '준비 중 · 사진 인식은 서버(FastAPI) 연결 후 열려요. 지금은 직접 검색해서 기록해 주세요.' : '한 상 차림도 사진 한 장으로 음식을 한꺼번에 찾아요.'}</p>
+          <p className="mt-2 text-[12px] text-text-subtle">{isLive && !apiReady ? '사진 인식은 아직 쓸 수 없어요. 지금은 직접 검색해서 기록해 주세요.' : '한 상 차림도 사진 한 장으로 음식을 한꺼번에 찾아요.'}</p>
         </section>
 
         {publicFoods === 0 && (
@@ -123,7 +121,7 @@ export function MealStartPage() {
             </div>
           </div>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {(tab === 'recent' ? recents.map((r) => ({ food: r.food, grams: r.grams })) : favFoods.map((f) => ({ food: f!, grams: f!.servingGrams }))).map(({ food, grams }) => {
+            {(tab === 'recent' ? recents.map((r) => ({ food: r.food, grams: r.grams })) : favFoods.map((f) => ({ food: f!, grams: servingUnit(f!).grams }))).map(({ food, grams }) => {
               const n = nutrientsFor(food, grams)
               return (
                 <li key={food.id}>
@@ -132,7 +130,7 @@ export function MealStartPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium">{food.name}</span>
                       <span className="tabular block text-[12px] text-text-muted">
-                        {tab === 'recent' ? '지난번' : '1인분'} {grams}g · 단백질 {fmtG(n.proteinG)}
+                        {tab === 'recent' ? '지난번' : servingUnit(food).label} {grams}g · 단백질 {fmtG(n.proteinG)}
                       </span>
                     </span>
                     <span className="tabular text-[14px] font-semibold">{n.kcal}kcal</span>
@@ -149,7 +147,7 @@ export function MealStartPage() {
       </div>
 
       {pending && (
-        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 px-5 pb-3 md:bottom-4 md:left-20 lg:left-60">
+        <div className="hide-on-keyboard fixed inset-x-0 bottom-[calc(4rem+var(--sab))] z-20 px-5 pb-3 md:bottom-4 md:left-20 lg:left-60">
           <Link to="/record/meal/review" className="mx-auto flex h-14 max-w-lg items-center justify-between rounded-2xl bg-text px-5 text-surface shadow-lg">
             <span className="text-[14px] font-semibold">작성 중인 식단 {draft.items.length}개 · {pendingKcal.toLocaleString()}kcal</span>
             <span className="inline-flex items-center gap-1 text-[14px]">

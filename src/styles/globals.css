@@ -103,7 +103,29 @@
   --radius-card: var(--radius);
 }
 
+/* 갤럭시 앱은 화면 끝까지 그려서(상단바 아래까지) 상단바 높이만큼 비워야 한다.
+   Capacitor 가 --safe-area-inset-* 를 넣어 주고, 웹은 env() 로 (없으면 0) */
+:root {
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+/* 키보드가 열려 있으면 하단 탭바·하단 고정 버튼이 입력칸을 가리지 않게 숨긴다 (src/lib/keyboard.ts) */
+html[data-keyboard-open] .hide-on-keyboard {
+  display: none !important;
+}
+
 @layer base {
+  /* 스크롤한 내용이 상단바(시계·배터리) 뒤로 비치지 않게 그 높이만큼 배경색으로 덮는다 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: var(--sat);
+    background: var(--background);
+    z-index: 40;
+    pointer-events: none;
+  }
   * {
     border-color: var(--border);
   }

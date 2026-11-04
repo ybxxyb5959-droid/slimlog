@@ -14,7 +14,7 @@ export function AppLayout() {
     <div className="min-h-dvh">
       <Sidebar />
       <main className="md:pl-20 lg:pl-60">
-        <div className="mx-auto w-full max-w-[1120px] px-5 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-12">
+        <div className="mx-auto w-full max-w-[1120px] px-5 pt-[calc(1.5rem+var(--sat))] pb-[calc(6rem+var(--sab))] md:px-8 md:pt-[calc(2rem+var(--sat))] md:pb-12">
           <Outlet />
         </div>
       </main>

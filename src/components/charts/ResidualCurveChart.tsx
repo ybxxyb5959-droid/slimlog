@@ -31,7 +31,7 @@ function DoseBadge({ viewBox, value }: { viewBox?: { x: number; y: number }; val
 }
 
 /** 선택한 시점의 값 말풍선 */
-function Bubble({ viewBox, point, chartWidth }: { viewBox?: { x: number; y: number }; point: RelativePoint; chartWidth: number }) {
+function Bubble({ viewBox, point, chartWidth, unit }: { viewBox?: { x: number; y: number }; point: RelativePoint; chartWidth: number; unit: 'percent' | 'mg' }) {
   if (!viewBox) return null
   const w = 96
   const h = 42
@@ -49,7 +49,7 @@ function Bubble({ viewBox, point, chartWidth }: { viewBox?: { x: number; y: numb
         fill="var(--text)"
       />
       <text className="residual-bubble-value" x={left + w / 2} y={top + 17} textAnchor="middle" fontSize={14} fontWeight={700} fill="var(--surface)">
-        {Math.round(point.relative)}%
+        {unit === 'mg' ? `${point.relative.toFixed(2)}mg` : `${Math.round(point.relative)}%`}
       </text>
       <text x={left + w / 2} y={top + 33} textAnchor="middle" fontSize={10.5} fill="var(--surface)" fillOpacity={0.75}>
         {formatShortDate(d)} {formatTime(d)}
@@ -59,7 +59,7 @@ function Bubble({ viewBox, point, chartWidth }: { viewBox?: { x: number; y: numb
 }
 
 /**
- * 참고용 잔존량 곡선 — 상대값(표시 기간 최댓값 = 100)만 그린다. mg·농도 단위 금지.
+ * 참고용 잔존량 곡선 — 체내 추정량(mg) 또는 상대값(표시 기간 최댓값 = 100). 실제 혈중농도가 아니라 모델 추정치.
  * 그래프를 누르거나(터치 후 좌우로 끌기) 클릭하면 그 시점의 값을 말풍선으로 고정해 보여준다.
  * 보간: monotone (데이터 사이에 없는 최고점을 만들지 않음).
  */
@@ -71,6 +71,7 @@ export function ResidualCurveChart({
   symptomTimes = [],
   height = 240,
   prevPoints,
+  unit = 'percent',
 }: {
   points: RelativePoint[]
   doseMarkers: CurveMarker[]
@@ -80,6 +81,8 @@ export function ResidualCurveChart({
   height?: number
   /** 약을 바꾼 경우 이전 약 곡선 (회색 점선, 따로 계산 · 더하지 않음) */
   prevPoints?: RelativePoint[]
+  /** percent: 기간 최고점=100 상대값 / mg: 체내 추정량 (point.relative 칸에 mg) */
+  unit?: 'percent' | 'mg'
 }) {
   const wrap = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -113,6 +116,12 @@ export function ResidualCurveChart({
     setSelectedIdx(best)
   }
   const dose = selected && doseMarkers.find((m) => Math.abs(m.t - selected.t) < 90 * 60 * 1000)
+  // mg: 보기 좋은 눈금 (0.5·1·2·5 단위)
+  const dataMax = Math.max(0.01, ...points.map((p) => p.relative), ...(prevPoints ?? []).map((p) => p.relative))
+  const step = unit === 'mg' ? [0.25, 0.5, 1, 2, 2.5, 5, 10, 20].find((s) => dataMax * 1.08 <= s * 4) ?? 50 : 25
+  const yMax = unit === 'mg' ? step * 4 : 100
+  const yTicks = [0, 1, 2, 3, 4].map((i) => i * step)
+  const fmtVal = (v: number) => (unit === 'mg' ? `${v.toFixed(2)}mg` : `${Math.round(v)}%`)
 
   return (
     <div
@@ -129,14 +138,14 @@ export function ResidualCurveChart({
       onPointerCancel={() => (pressed.current = false)}
     >
       <div className="sr-only" aria-live="polite">
-        {selected && `${formatShortDateWithDay(new Date(selected.t))} ${formatTime(new Date(selected.t))}, 최고 시점 대비 ${Math.round(selected.relative)}%${dose ? `, 투약 ${dose.doseMg}mg` : ''}`}
+        {selected && `${formatShortDateWithDay(new Date(selected.t))} ${formatTime(new Date(selected.t))}, ${unit === 'mg' ? '체내 추정' : '최고 시점 대비'} ${fmtVal(selected.relative)}${dose ? `, 투약 ${dose.doseMg}mg` : ''}`}
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={points}
           margin={{ top: PLOT_TOP, right: 0, bottom: 0, left: PLOT_LEFT }}
           role="img"
-          aria-label="참고용 잔존량 상대값 곡선. 누르면 그 시점의 값을 보여줍니다"
+          aria-label={unit === 'mg' ? '체내 추정량(mg) 곡선. 누르면 그 시점의 값을 보여줍니다' : '참고용 잔존량 상대값 곡선. 누르면 그 시점의 값을 보여줍니다'}
         >
           <defs>
             <linearGradient id="residualFill" x1="0" y1="0" x2="0" y2="1">
@@ -158,9 +167,9 @@ export function ResidualCurveChart({
           />
           <YAxis
             orientation="right"
-            domain={[0, 100]}
-            ticks={[0, 25, 50, 75, 100]}
-            tickFormatter={(v: number) => `${v}%`}
+            domain={[0, yMax]}
+            ticks={yTicks}
+            tickFormatter={(v: number) => (unit === 'mg' ? (v === 0 ? '0' : `${step < 1 ? v.toFixed(2) : v}mg`) : `${v}%`)}
             tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
@@ -203,7 +212,7 @@ export function ResidualCurveChart({
             isAnimationActive={false}
           />
           {symptomTimes.map((t) => (
-            <ReferenceDot key={`s${t}`} x={t} y={4} r={4} fill="var(--text-muted)" stroke="var(--surface)" strokeWidth={2} />
+            <ReferenceDot key={`s${t}`} x={t} y={yMax * 0.04} r={4} fill="var(--text-muted)" stroke="var(--surface)" strokeWidth={2} />
           ))}
           {nowValue !== null && selected?.t !== points.at(-1)?.t && (
             <ReferenceDot x={now} y={nowValue} r={5} fill={LINE} stroke="var(--surface)" strokeWidth={2} />
@@ -218,7 +227,7 @@ export function ResidualCurveChart({
                 fill="var(--surface)"
                 stroke={LINE}
                 strokeWidth={2.5}
-                label={<Bubble point={selected} chartWidth={width - Y_AXIS_W} />}
+                label={<Bubble point={selected} chartWidth={width - Y_AXIS_W} unit={unit} />}
               />
             </>
           )}

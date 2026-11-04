@@ -21,18 +21,17 @@ test('식단: 공용 음식 서버 검색 + 내 음식 등록 → 한 끼 저장
 
   // 실서비스에서 예시(가짜) 사진으로는 기록을 만들지 않음
   await page.goto('/record/meal/new')
-  await page.getByRole('button', { name: '예시 사진' }).click()
-  await expect(page.getByText('예시 사진은 목업 모드에서만 쓸 수 있어요')).toBeVisible()
+  await expect(page.getByRole('button', { name: '예시 사진' })).toHaveCount(0)
   await expect(page).toHaveURL('/record/meal/new')
 
   // 공용 음식: 서버에서 검색 → 1인분 바로 담기
   await page.goto('/record/meal/search')
   await page.getByLabel('음식 검색').fill('E2E공용')
-  await page.getByRole('button', { name: 'E2E공용쌀밥 1인분 바로 추가' }).click()
+  await page.getByRole('button', { name: 'E2E공용쌀밥 1회분 바로 추가' }).click()
 
   // 브랜드명만 쳐도 검색됨
   await page.getByLabel('음식 검색').fill('E2E브랜드')
-  await expect(page.getByRole('button', { name: 'E2E공용쌀밥 1인분 바로 추가' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'E2E공용쌀밥 1회분 바로 추가' })).toBeVisible()
 
   // 내 음식 등록 → 담기
   await page.getByLabel('음식 검색').fill('엄마표곤드레밥')

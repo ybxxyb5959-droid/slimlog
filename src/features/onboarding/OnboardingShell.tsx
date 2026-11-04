@@ -24,7 +24,7 @@ export function OnboardingShell({
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-10 bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-10 bg-background/95 pt-[var(--sat)] backdrop-blur">
         <div className="mx-auto w-full max-w-[480px] px-5 pt-4 pb-3">
           <div className="flex items-center justify-between">
             <Logo size={26} />
@@ -55,7 +55,7 @@ export function OnboardingShell({
       </main>
 
       <footer className="sticky bottom-0 z-10 border-t border-border/60 bg-background/95 backdrop-blur">
-        <div className="mx-auto w-full max-w-[480px] px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</div>
+        <div className="mx-auto w-full max-w-[480px] px-5 pt-3 pb-[max(0.75rem,var(--sab))]">{footer}</div>
       </footer>
     </div>
   )

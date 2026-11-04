@@ -79,7 +79,7 @@ export function BottomSheet({
           }}
           className={cn(
             'sheet-content fixed z-50 flex flex-col bg-surface outline-none',
-            'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-[28px]',
+            'inset-x-0 bottom-0 max-h-[min(92dvh,calc(100dvh-var(--sat)-12px))] rounded-t-[28px]',
             'md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[min(760px,90dvh)] md:w-[min(560px,calc(100vw-48px))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl',
             className,
           )}
@@ -120,7 +120,7 @@ export function BottomSheet({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-4 md:px-6">{children}</div>
 
           {footer && (
-            <div className="shrink-0 border-t border-border px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6 md:pb-5">{footer}</div>
+            <div className="shrink-0 border-t border-border px-5 pt-3 pb-[max(1rem,var(--sab))] md:px-6 md:pb-5">{footer}</div>
           )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

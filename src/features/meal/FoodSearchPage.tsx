@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/common/PageHeader'
+import { servingUnit } from '@/lib/foodServing'
 import { makeItem } from '@/stores/mealStore'
 import { useMealDraftStore } from '@/stores/mealDraftStore'
 
@@ -20,8 +21,9 @@ export function FoodSearchPage() {
           autoFocus
           onPick={(f) => navigate(`/record/meal/food/${f.id}`)}
           onQuickAdd={(f) => {
-            addItems([makeItem(f, f.servingGrams)])
-            toast.success(`${f.name} 1인분을 담았어요`, { action: { label: '식단 보기', onClick: () => navigate('/record/meal/review') } })
+            const u = servingUnit(f)
+            addItems([makeItem(f, u.grams)])
+            toast.success(`${f.name} ${u.label}을 담았어요`, { action: { label: '식단 보기', onClick: () => navigate('/record/meal/review') } })
           }}
           onCreateCustom={(name) => navigate(`/record/meal/custom?name=${encodeURIComponent(name)}`)}
         />

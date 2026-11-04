@@ -20,7 +20,7 @@ export function DialogContent({
         className={cn(
           'fixed z-50 w-full bg-surface p-6 outline-none',
           // 모바일: 하단 시트 / 데스크톱: 가운데 모달
-          'inset-x-0 bottom-0 rounded-t-3xl pb-[max(1.5rem,env(safe-area-inset-bottom))]',
+          'inset-x-0 bottom-0 rounded-t-3xl pb-[max(1.5rem,var(--sab))]',
           'md:inset-auto md:top-1/2 md:left-1/2 md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl md:pb-6',
           className,
         )}

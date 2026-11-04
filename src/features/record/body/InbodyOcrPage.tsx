@@ -24,11 +24,39 @@ import { emptyBodyDraft, type BodyDraft } from './bodyDraft'
  * 브라우저 안에서 글자 인식 (Tesseract.js) — 결과지 사진은 서버로 보내지 않는다.
  * 언어 데이터(kor+eng)만 처음 한 번 내려받는다. 사용자가 확인·수정한 숫자만 저장.
  */
+/**
+ * 글자 인식 전 다듬기 (기기 안에서만): 작은 사진은 키우고(종이 결과지는 글자가 작아서 키워야 읽힘),
+ * 흑백 + 대비를 올린다. 실패하면 원본 그대로.
+ */
+async function prepare(file: File): Promise<Blob> {
+  try {
+    const bmp = await createImageBitmap(file)
+    const k = Math.min(3, Math.max(1, 2400 / bmp.width))
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * k)
+    c.height = Math.round(bmp.height * k)
+    const g = c.getContext('2d')!
+    g.imageSmoothingQuality = 'high'
+    g.drawImage(bmp, 0, 0, c.width, c.height)
+    bmp.close()
+    const d = g.getImageData(0, 0, c.width, c.height)
+    const a = d.data
+    for (let i = 0; i < a.length; i += 4) {
+      const y = Math.max(0, Math.min(255, (0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2] - 128) * 1.6 + 140))
+      a[i] = a[i + 1] = a[i + 2] = y
+    }
+    g.putImageData(d, 0, 0)
+    return await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('blob'))), 'image/png'))
+  } catch {
+    return file
+  }
+}
+
 async function readText(file: File): Promise<{ text: string; confidence: number }> {
   const { createWorker } = await import('tesseract.js')
   const worker = await createWorker(['kor', 'eng'])
   try {
-    const { data } = await worker.recognize(file)
+    const { data } = await worker.recognize(await prepare(file))
     return { text: data.text, confidence: (data.confidence ?? 0) / 100 }
   } finally {
     await worker.terminate()
@@ -82,7 +110,7 @@ export function InbodyOcrPage() {
         })
         useRecordsStore.setState({ bodyLogs: await fetchBodyLogs() })
       } else if (isLive) {
-        return void toast('결과지 저장은 서버 연결 후 열려요', { description: '같은 값을 체중 기록에서 직접 입력할 수 있어요.' })
+        return void toast('지금은 결과지를 저장할 수 없어요', { description: '같은 값을 체중 기록에서 직접 입력할 수 있어요.' })
       } else await addBody(input)
       toast.success('인바디 결과를 저장했어요', { description: isLive ? undefined : '목업 · 화면에만 저장돼요.' })
       navigate('/analysis?tab=inbody')
@@ -124,6 +152,14 @@ export function InbodyOcrPage() {
         )}
         {stage === 'confirm' && parsed && (
           <>
+            <p className="text-[13px] font-medium text-text-muted" aria-label="읽은 화면 종류">
+              {parsed.kind === 'app' ? '인바디 앱 화면으로 읽었어요' : parsed.kind === 'paper' ? '종이 결과지로 읽었어요' : '어떤 화면인지 몰라서 숫자만 찾아봤어요'}
+            </p>
+            {parsed.kind === 'paper' && parsed.manualRecommended && (
+              <Notice tone="review" title="종이 결과지를 잘 읽지 못했어요">
+                결과지가 사진에 꽉 차게, 밝은 곳에서 정면으로 다시 찍으면 더 잘 읽어요. 인바디 앱에 같은 기록이 있다면 앱 화면 캡처가 가장 정확해요.
+              </Notice>
+            )}
             {parsed.manualRecommended ? (
               <Notice tone="review" title="자동으로 읽은 값이 불확실해요">
                 값을 하나씩 결과지와 비교해 고쳐 주세요. 비워 둔 칸은 저장되지 않아요.
