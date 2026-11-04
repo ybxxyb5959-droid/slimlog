@@ -45,6 +45,9 @@ export async function quickOnboarding(page: Page, opts: { nickname?: string; wei
   await expect(page).toHaveURL('/onboarding/medication')
   await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
   await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+  // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
   await expect(page).toHaveURL('/home')
 }
 
@@ -86,4 +89,31 @@ export async function adminPatch(table: string, query: string, patch: Record<str
   const key = process.env.LIVE_SUPABASE_SERVICE_KEY!
   const res = await fetch(`${url}/rest/v1/${table}?${query}`, { method: 'PATCH', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })
   if (!res.ok) throw new Error(`${table} patch ${res.status}`)
+}
+
+/** 투약 추가 — 5단계 바텀시트 (약 → 용량 → 부위 → 날짜·시간(오늘·지금) → 확인) */
+export async function addDoseViaSheet(page: Page, opts: { med?: '마OOO' | '위OO' | '에O'; mg: string; site: string }) {
+  await page.goto('/record/medication/new')
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByRole('progressbar')).toBeVisible()
+  // 지난 기록이 있으면 2단계(용량)부터 열림 → 약을 바꾸려면 1단계로
+  if (opts.med && (await sheet.getByRole('slider').isVisible().catch(() => false))) await sheet.getByRole('button', { name: '이전 단계' }).click()
+  if (await sheet.getByRole('radio', { name: /마OOO/ }).isVisible().catch(() => false)) {
+    await sheet.getByRole('radio', { name: new RegExp(opts.med ?? '마OOO') }).click()
+    // 지난 투약과 다른 약이면 '약을 바꾸셨나요?' 확인
+    const sw = page.getByRole('dialog', { name: '약을 바꾸셨나요?' })
+    if (await sw.waitFor({ state: 'visible', timeout: 1500 }).then(() => true, () => false)) await sw.getByRole('button', { name: '네, 바꿨어요' }).click()
+  }
+  const slider = sheet.getByRole('slider')
+  await slider.press('Home')
+  for (let i = 0; i < 10 && (await slider.getAttribute('aria-valuetext')) !== opts.mg; i++) await slider.press('ArrowRight')
+  await expect(slider).toHaveAttribute('aria-valuetext', opts.mg)
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await sheet.getByRole('radio', { name: opts.site }).click()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click() // 오늘 · 지금
+  await sheet.getByRole('button', { name: '확인', exact: true }).click()
+  await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
+  await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
+  await expect(page).toHaveURL('/record/medication')
 }

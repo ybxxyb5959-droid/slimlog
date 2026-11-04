@@ -31,7 +31,7 @@ export function useMyProfile() {
       heightCm: parseMeasure(o.heightCm, RANGES.height.min, RANGES.height.max, 'cm').value,
       startWeightKg: parseMeasure(o.weightKg, RANGES.weight.min, RANGES.weight.max, 'kg').value,
       goalWeightKg: parseMeasure(o.goalKg, RANGES.weight.min, RANGES.weight.max, 'kg').value,
-      medicationId: MOCK_PROFILE.medicationId as MedicationId | null,
+      medicationId: (o.currentMedId ?? MOCK_PROFILE.medicationId) as MedicationId | null,
       sex: o.sex,
       birthYear: parseBirthYear(o.birthYear).value,
       activity: o.activity,
@@ -43,11 +43,24 @@ export function useMyProfile() {
     heightCm: 172 as number | null,
     startWeightKg: MOCK_PROFILE.startWeightKg as number | null,
     goalWeightKg: MOCK_PROFILE.goalWeightKg as number | null,
-    medicationId: MOCK_PROFILE.medicationId as MedicationId | null,
+    medicationId: (o.currentMedId ?? MOCK_PROFILE.medicationId) as MedicationId | null,
     // 예시 사용자 — 참고 계산 화면을 보여 주기 위한 예시 값
     sex: 'female' as Sex | null,
     birthYear: 1992 as number | null,
     activity: 'light' as ActivityLevel | null,
     isExample: true,
   }
+}
+
+/**
+ * 사용 중인 약 바꾸기 — 투약 중 약을 바꿨을 때(마OOO↔위OO 등) 투약 기록 저장 뒤 호출.
+ * 실서비스: 민감정보 동의가 있을 때만 user_health.current_med_id 저장 (동의 없으면 투약 기록만 남음)
+ */
+export async function setCurrentMedication(medId: MedicationId): Promise<void> {
+  if (!isLive) return useOnboardingStore.getState().set({ currentMedId: medId })
+  const account = useAuthStore.getState().account
+  if (!account || account.currentMedId === medId || !account.consents.includes('sensitive')) return
+  const { updateHealth } = await import('./live/account')
+  await updateHealth(account.userId, { current_med_id: medId })
+  useAuthStore.setState({ account: { ...account, currentMedId: medId } })
 }

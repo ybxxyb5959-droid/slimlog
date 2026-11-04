@@ -70,6 +70,7 @@ export function ResidualCurveChart({
   nowValue,
   symptomTimes = [],
   height = 240,
+  prevPoints,
 }: {
   points: RelativePoint[]
   doseMarkers: CurveMarker[]
@@ -77,6 +78,8 @@ export function ResidualCurveChart({
   nowValue: number | null
   symptomTimes?: number[]
   height?: number
+  /** 약을 바꾼 경우 이전 약 곡선 (회색 점선, 따로 계산 · 더하지 않음) */
+  prevPoints?: RelativePoint[]
 }) {
   const wrap = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -175,6 +178,20 @@ export function ResidualCurveChart({
           <ReferenceLine x={now} stroke="var(--text)" strokeOpacity={0.25} />
           {/* 호버 시 세로 안내선만 (값은 누르면 말풍선으로) */}
           <Tooltip cursor={{ stroke: 'var(--text-subtle)', strokeDasharray: '3 3' }} content={() => null} />
+          {prevPoints && prevPoints.length > 0 && (
+            <Area
+              data={prevPoints}
+              type="monotone"
+              dataKey="relative"
+              stroke="var(--text-subtle)"
+              strokeWidth={2}
+              strokeDasharray="5 4"
+              fill="none"
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+            />
+          )}
           <Area
             type="monotone"
             dataKey="relative"

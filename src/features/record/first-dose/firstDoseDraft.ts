@@ -8,6 +8,33 @@ export interface FirstDoseDraft {
   time: string // HH:MM
   timeUnknown: boolean
   dateApproximate: boolean
+  /** '전부터 투약 중': 회차별 날짜 (YYYY-MM-DD). 첫 날짜부터 7일 간격으로 자동, 사용자가 고치거나 뺄 수 있음 */
+  seriesDates?: string[]
+}
+
+/** 하루 단위로 7일씩 — 첫 투약일부터 오늘까지 (최대 104회 = 2년) */
+export const SERIES_INTERVAL_DAYS = 7
+export const SERIES_MAX = 104
+export function weeklyDates(first: Date, today = new Date()): string[] {
+  const out: string[] = []
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const d = new Date(first.getFullYear(), first.getMonth(), first.getDate())
+  while (d <= end && out.length < SERIES_MAX) {
+    out.push(dateKey(d))
+    d.setDate(d.getDate() + SERIES_INTERVAL_DAYS)
+  }
+  return out
+}
+const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** 회차 날짜 문자열 + 초안의 시간 → Date 목록 (겹치는 날은 하나로, 오래된 순) */
+export function seriesDateTimes(d: FirstDoseDraft): Date[] {
+  const keys = [...new Set(d.seriesDates ?? [])].sort()
+  return keys.flatMap((k) => {
+    const [y, m, day] = k.split('-').map(Number)
+    const at = combineDateTime({ ...d, date: new Date(y, m - 1, day) })
+    return at ? [at] : []
+  })
 }
 
 export const EMPTY_DRAFT: FirstDoseDraft = {

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { acceptRequiredConsents, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
+import { acceptRequiredConsents, addDoseViaSheet, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
 
 /** Phase 1 — 마이페이지 (프로필·신체 목표·동의 관리) 실제 저장 */
 
@@ -20,7 +20,7 @@ test('프로필: 닉네임 변경 저장, 남이 쓰는 닉네임은 거절, 사
   await quickOnboarding(page)
   await page.goto('/my/profile')
   await page.getByLabel(/닉네임/).fill(taken)
-  await page.getByRole('radio', { name: '위고비' }).click()
+  await page.getByRole('radio', { name: '위OO' }).click()
   await page.getByRole('button', { name: '저장' }).click()
   await expect(page.getByText('이미 사용 중인 닉네임이에요.')).toBeVisible()
   const mine = `바뀐${Date.now() % 100000}`
@@ -35,7 +35,7 @@ test('프로필: 닉네임 변경 저장, 남이 쓰는 닉네임은 거절, 사
   await page.reload()
   await page.goto('/my/profile')
   await expect(page.getByLabel(/닉네임/)).toHaveValue(mine)
-  await expect(page.getByRole('radio', { name: '위고비' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByRole('radio', { name: '위OO' })).toHaveAttribute('aria-checked', 'true')
 })
 
 test('신체 정보·목표: 시작 체중을 바꾸면 최초 체중 기록이 고쳐지고 새로 생기지 않음', async ({ page }) => {
@@ -65,11 +65,7 @@ test('동의 관리: 선택 동의 켜고 끄기 + 민감정보 철회 시 투�
   const uid = await userIdOf(email)
 
   // 투약 하나 기록
-  await page.goto('/record/medication/new')
-  await page.getByRole('radio', { name: '5 mg', exact: true }).click()
-  await page.getByRole('radio', { name: '배 왼쪽' }).click()
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page.getByText('투약 기록을 저장했어요')).toBeVisible()
+  await addDoseViaSheet(page, { med: '마OOO', mg: '5mg', site: '배 왼쪽' })
 
   // 선택 동의: 이벤트·소식 알림 켰다 끄기
   await page.goto('/my/consent')
@@ -104,7 +100,7 @@ test('동의 관리: 선택 동의 켜고 끄기 + 민감정보 철회 시 투�
   await page.getByRole('button', { name: '동의하고 시작하기' }).click()
   await expect(page).toHaveURL('/home')
   await page.goto('/record/medication')
-  await expect(page.getByText(/마운자로 5mg/)).toHaveCount(0)
+  await expect(page.getByText(/마OOO 5mg/)).toHaveCount(0)
 })
 
 test('온보딩 4단계: 성별·출생연도·키·체중 → 목표 체중·활동량이 user_health 에 저장되고 신체 정보에서 고칠 수 있음', async ({ page }) => {
@@ -138,6 +134,9 @@ test('온보딩 4단계: 성별·출생연도·키·체중 → 목표 체중·�
   expect(u.onboarding_step).toBe(3)
   await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
   await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+  // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
   await expect(page).toHaveURL('/home')
 
   // 신체 정보에서 수정 (새로고침 후에도 값이 채워져 있음)

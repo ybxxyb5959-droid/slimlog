@@ -7,6 +7,7 @@ import { MockBadge } from '@/components/common/MockBadge'
 import { RESIDUAL_DISCLAIMER } from '@/components/common/Notice'
 import { EmptyState } from '@/components/common/StateViews'
 import { Card } from '@/components/ui/card'
+import { curveTmaxHours, MEDICATIONS } from '@/fixtures/medications.mock'
 import { DAY_MS } from '@/lib/date'
 import { relativeAt, relativeCurve, type DoseEvent } from '@/lib/pk/residual'
 import { cn } from '@/lib/utils'
@@ -55,7 +56,9 @@ export function ResidualPreviewCard({
         .sort((a, b) => a.t - b.t),
     [doses, medication.id, now],
   )
-  const points = useMemo(() => relativeCurve(events, halfLife, from, now), [events, halfLife, from, now])
+  // 흡수 모델: 맞은 뒤 tmax 쯤 최고점까지 서서히 올라갔다가 반감기대로 내려감
+  const tmax = curveTmaxHours(medication)
+  const points = useMemo(() => relativeCurve(events, halfLife, from, now, 3, tmax), [events, halfLife, from, now, tmax])
   const nowValue = relativeAt(points, now)
   const inRange = events.filter((e) => e.t >= from)
   const markers: CurveMarker[] = inRange.map((e, i) => ({
@@ -65,6 +68,22 @@ export function ResidualPreviewCard({
     showBadge: days <= 30 || i === 0 || i === inRange.length - 1 || e.doseMg !== inRange[i - 1].doseMg,
   }))
   const last = events.at(-1)
+
+  // 약을 바꾼 경우: 이 기간 안의 '이전 약'은 그 약의 반감기·흡수 시간으로 따로 계산해 회색 점선으로만 보여 준다.
+  // 두 약은 서로 다른 물질이라 더하지 않는다 (각자 기간 최고점 = 100% 기준)
+  const prev = useMemo(() => {
+    const other = doses
+      .filter((d) => d.medicationId !== medication.id)
+      .map((d) => ({ med: MEDICATIONS[d.medicationId], t: new Date(d.administeredAt).getTime(), doseMg: d.doseMg }))
+      .filter((d) => d.med && d.t <= now)
+      .sort((a, b) => a.t - b.t)
+    const latest = other.at(-1)
+    if (!latest) return null
+    const med = latest.med
+    const ev = other.filter((d) => d.med.id === med.id).map(({ t, doseMg }) => ({ t, doseMg }))
+    const pts = relativeCurve(ev, med.pk.halfLifeHours?.value ?? null, from, now, 3, curveTmaxHours(med))
+    return pts.some((p) => p.relative > 0.5) ? { med, points: pts } : null
+  }, [doses, medication.id, from, now])
 
   return (
     <Card className="min-w-0">
@@ -139,7 +158,21 @@ export function ResidualPreviewCard({
             nowValue={nowValue}
             symptomTimes={symptomTimes.filter((t) => t >= from && t <= now)}
             height={height}
+            prevPoints={prev?.points}
           />
+        )}
+        {prev && points.length > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-text-muted" aria-label="곡선 범례">
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden className="h-0.5 w-5 rounded-full bg-[var(--chart-residual)]" />
+              지금 약 · {medication.ingredient}({medication.name})
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden className="w-5 border-t-2 border-dashed border-text-subtle" />
+              이전 약 · {prev.med.ingredient}({prev.med.name})
+            </li>
+            <li className="basis-full text-text-subtle">두 약은 각자 따로 계산했고 더하지 않았어요.</li>
+          </ul>
         )}
       </div>
 

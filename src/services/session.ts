@@ -1,10 +1,10 @@
 import { toast } from 'sonner'
 
-import { combineDateTime, type FirstDoseDraft } from '@/features/record/first-dose/firstDoseDraft'
+import { combineDateTime, seriesDateTimes, type FirstDoseDraft } from '@/features/record/first-dose/firstDoseDraft'
 import { MOCK_BODY_LOGS, MOCK_DOSES, MOCK_SYMPTOMS } from '@/fixtures/records.mock'
 import type { ActivityLevel, Sex } from '@/lib/bodyProfile'
 import { dbErrorMessage, isLive, sb } from '@/lib/supabase'
-import { insertDose } from '@/services/live/account'
+import { insertDose, insertDoses } from '@/services/live/account'
 import { fetchBodyLogs } from '@/services/live/records'
 import { useAuthStore } from '@/stores/authStore'
 import { useIntakeStore } from '@/stores/intakeStore'
@@ -147,6 +147,36 @@ export async function saveOnboardingDose(d: FirstDoseDraft): Promise<boolean> {
   try {
     const saved = await insertDose(input)
     useMockRecordStore.setState((s) => ({ doses: [saved, ...s.doses] }))
+    return true
+  } catch (e) {
+    toast.error('투약 기록을 저장하지 못했어요', { description: dbErrorMessage(e) })
+    return false
+  }
+}
+
+/** '전부터 투약 중': 회차 날짜마다 같은 약·용량·부위·시간으로 한꺼번에 저장 */
+export async function saveOnboardingSeries(d: FirstDoseDraft): Promise<boolean> {
+  const times = seriesDateTimes(d)
+  if (!d.medicationId || !d.doseMg || !d.site || times.length === 0) return false
+  const now = Date.now()
+  // 오늘 회차가 아직 안 온 시각(예: '시간 모름' = 정오인데 지금은 오전)이면 빼지 않고 지금 시각으로 맞춘다
+  const list = times
+    .map((t) => (t.getTime() > now ? new Date(now) : t))
+    .map((at) => ({
+      medicationId: d.medicationId!,
+      doseMg: d.doseMg!,
+      site: d.site!,
+      administeredAt: at.toISOString(),
+      timeUnknown: d.timeUnknown || undefined,
+      dateApproximate: d.dateApproximate || undefined,
+    }))
+  if (!isLive) {
+    for (const x of list) useMockRecordStore.getState().addDose(x)
+    return true
+  }
+  try {
+    const saved = await insertDoses(list)
+    useMockRecordStore.setState((s) => ({ doses: [...saved.sort((a, b) => b.administeredAt.localeCompare(a.administeredAt)), ...s.doses] }))
     return true
   } catch (e) {
     toast.error('투약 기록을 저장하지 못했어요', { description: dbErrorMessage(e) })

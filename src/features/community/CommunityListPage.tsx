@@ -1,5 +1,6 @@
 import { Heart, MessageCircle, PenLine, ShieldCheck } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { wakeServer } from '@/lib/api'
 import { Link, useSearchParams } from 'react-router'
 
 import { AppIcon } from '@/components/common/AppIcon'
@@ -24,6 +25,8 @@ const FILTERS: { value: Filter; label: string }[] = [
 ]
 
 export function CommunityListPage() {
+  // 무료 서버(Render)가 잠들어 있으면 미리 깨워 둔다
+  useEffect(() => wakeServer(), [])
   const posts = useCommunityStore((s) => s.posts)
   const { loading, error, retry } = useCommunityLoad()
   const [params] = useSearchParams()

@@ -1,3 +1,4 @@
+import { curveTmaxHours } from '@/fixtures/medications.mock'
 import { ExternalLink } from 'lucide-react'
 
 import { BottomSheet } from '@/components/common/BottomSheet'
@@ -27,11 +28,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 /** 참고 곡선 상세 설명 — 그래프의 ⓘ 버튼으로 연다 */
 export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean; onClose: () => void; medication: Medication }) {
   const pk = medication.pk
+  const tmax = curveTmaxHours(medication)
   const rows: { label: string; value: string; use: string; source?: ApprovalSource }[] = [
     { label: '제거 반감기', value: pk.halfLifeHours?.text ?? '확인 못 함', use: pk.halfLifeHours ? '계산에 사용' : '곡선 미생성', source: pk.halfLifeHours?.source },
     { label: '생체이용률', value: pk.bioavailability?.text ?? '확인 못 함', use: '검토만 · 미사용', source: pk.bioavailability?.source },
-    { label: '최고농도 도달', value: pk.tmaxHours?.text ?? '확인 못 함', use: '검토만 · 미사용', source: pk.tmaxHours?.source },
-    { label: '흡수 속도(ka)', value: pk.absorptionRateKa?.text ?? '허가자료에 없음', use: '흡수 모델 비활성' },
+    { label: '최고농도 도달', value: pk.tmaxHours?.text ?? '확인 못 함', use: tmax ? `대표값 ${tmax}시간 사용` : '미사용', source: pk.tmaxHours?.source },
+    { label: '흡수 속도(ka)', value: pk.absorptionRateKa?.text ?? '허가자료에 없음', use: tmax ? '대표 tmax 로 역산' : '흡수 모델 비활성' },
   ]
 
   return (
@@ -39,7 +41,7 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
       open={open}
       onRequestClose={onClose}
       title="참고용 잔존량 계산 안내"
-      description={`${medication.name} · 반감기 기반 상대값`}
+      description={`${medication.name} · 흡수·반감기 기반 상대값`}
       footer={
         <Button size="lg" className="w-full" onClick={onClose}>
           닫기
@@ -48,7 +50,10 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
     >
       <div className="space-y-6">
         <Section title="계산 방식">
-          <p>각 투약 기록의 용량 × (1/2)^(경과 시간 ÷ 반감기)를 모두 더해요. 이전 투여분과 새 투여분이 함께 반영돼요.</p>
+          <p>
+            맞은 뒤 약이 천천히 흡수돼 {tmax ? `약 ${tmax}시간` : '며칠'} 뒤 가장 높아지고, 그다음 반감기만큼 시간이 지날 때마다 절반으로 줄어드는 모양(1차 흡수 모델)으로 계산해요.
+            이전 투여분과 새 투여분을 모두 더해요.
+          </p>
           <p>그래프는 표시 기간 중 가장 높은 시점을 100%로 둔 상대값이에요. 선택한 약의 기록만 계산해요.</p>
         </Section>
 
@@ -78,7 +83,8 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
 
         <Section title="계산의 한계">
           <ul className="list-disc space-y-1 pl-5">
-            <li>흡수 과정을 반영하지 않아 투약 시점에 곧바로 올라가는 모양으로 그려져요.</li>
+            <li>흡수 속도는 허가자료의 최고농도 도달 시간 범위 중간값으로 근사했어요. 실제로는 사람마다 더 빠르거나 느릴 수 있어요.</li>
+            {medication.id === 'efpe' && <li>에O는 단회 투여 값이 없어 반복 투여(항정상태) 중앙값 48시간을 썼어요.</li>}
             <li>체중, 주사 부위, 개인차, 놓친 투약은 반영하지 않아요.</li>
             <li>입력한 기록이 틀리거나 빠지면 곡선도 달라져요.</li>
           </ul>

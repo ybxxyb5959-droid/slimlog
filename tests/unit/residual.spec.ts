@@ -136,3 +136,42 @@ test.describe('모델 B — 1차 흡수 1구획 (검증·비교용, 화면 미�
     expect(batemanSum(doses, F, ka, ke, t)).toBeCloseTo(separate, 10)
   })
 })
+
+test.describe('화면 곡선 — 흡수 모델(tmax 대표값)', () => {
+  const T0h = Date.UTC(2026, 9, 1, 12)
+  const one: DoseEvent[] = [{ t: T0h, doseMg: 2.5 }]
+  const from = T0h - 24 * H
+  const to = T0h + 14 * 24 * H
+
+  test('맞은 순간은 0 에 가깝고, 약 40시간 뒤 최고점(100), 그 뒤 서서히 감소', () => {
+    const pts = relativeCurve(one, MOUNJARO_T12, from, to, 1, 40)
+    const at = (h: number) => pts.reduce((b, p) => (Math.abs(p.t - (T0h + h * H)) < Math.abs(b.t - (T0h + h * H)) ? p : b)).relative
+    expect(at(0)).toBeLessThan(1)
+    expect(at(6)).toBeLessThan(at(24))
+    const peak = pts.reduce((b, p) => (p.relative > b.relative ? p : b))
+    expect(Math.abs((peak.t - T0h) / H - 40)).toBeLessThanOrEqual(1)
+    expect(peak.relative).toBeCloseTo(100, 5)
+    expect(at(24 * 7)).toBeLessThan(at(24 * 3))
+  })
+
+  test('tmax 를 안 주면 예전 지수 감소 모델 그대로 (맞은 직후 최고점)', () => {
+    const pts = relativeCurve(one, MOUNJARO_T12, from, to, 1)
+    const peak = pts.reduce((b, p) => (p.relative > b.relative ? p : b))
+    expect(peak.t).toBe(T0h)
+  })
+})
+
+test('흡수 모델: 방금 맞으면 0%에서 시작하고, 최고점 전이면 100% 미만 (맞자마자 최고점 아님)', () => {
+  const H = 3600 * 1000
+  const to = Date.UTC(2026, 10, 4, 9)
+  const half = 7 * 24
+  const now = relativeCurve([{ t: to, doseMg: 0.25 }], half, to - 30 * 24 * H, to, 3, 48)
+  expect(now.at(-1)!.relative).toBeLessThan(1)
+  const dayAgo = relativeCurve([{ t: to - 24 * H, doseMg: 0.25 }], half, to - 30 * 24 * H, to, 3, 48)
+  const v = dayAgo.at(-1)!.relative
+  expect(v).toBeGreaterThan(30)
+  expect(v).toBeLessThan(100)
+  // 최고점이 기간 안에 지나갔으면 그 최고점이 100
+  const weekAgo = relativeCurve([{ t: to - 7 * 24 * H, doseMg: 0.25 }], half, to - 30 * 24 * H, to, 3, 48)
+  expect(Math.max(...weekAgo.map((p) => p.relative))).toBeCloseTo(100, 0)
+})

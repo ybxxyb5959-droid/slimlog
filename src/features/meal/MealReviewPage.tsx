@@ -1,3 +1,4 @@
+import { DateTimeField } from '@/components/common/DateTimePicker'
 import { Camera, Check, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -11,7 +12,6 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/StateViews'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { localInputToIso, toDateTimeLocalValue } from '@/lib/date'
 import { amountLabel, fmtG, sumNutrients } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
@@ -145,7 +145,7 @@ export function MealReviewPage() {
           <label htmlFor="eatenAt" className="mb-1.5 block text-[13px] font-medium text-text-muted">
             식사 날짜 · 시간
           </label>
-          <Input id="eatenAt" type="datetime-local" value={d.eatenAt} max={toDateTimeLocalValue(new Date())} aria-invalid={future} onChange={(e) => d.setMeta({ eatenAt: e.target.value })} />
+          <DateTimeField id="eatenAt" label="식사 날짜 · 시간" mode="datetime" value={d.eatenAt} max={toDateTimeLocalValue(new Date())} invalid={future} onChange={(v) => d.setMeta({ eatenAt: v })} />
           {future && <p className="mt-1.5 text-[13px] text-danger">아직 지나지 않은 시간이에요.</p>}
         </div>
 

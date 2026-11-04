@@ -63,6 +63,10 @@ def delete_me(user: CurrentUser = Depends(current_user), db: Supabase = Depends(
     from ..config import get_settings
 
     bucket = get_settings().photo_bucket
-    db.remove(bucket, db.list_folder(bucket, user.id))
-    db.delete_auth_user(user.id)
+    try:
+        db.remove(bucket, db.list_folder(bucket, user.id))
+        db.delete_auth_user(user.id)
+    except Exception as e:  # 그냥 500 이면 CORS 헤더가 빠져 앱에선 '연결 실패'로만 보인다 → 이유를 담아 돌려준다
+        print("delete_me failed:", user.id, e)
+        raise ApiError(502, "DELETE_FAILED", "탈퇴를 끝내지 못했어요. 잠시 후 다시 시도해 주세요.") from e
     return Response(status_code=204)

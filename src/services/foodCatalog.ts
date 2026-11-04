@@ -25,14 +25,36 @@ export function cacheFoods(list: FoodItem[]) {
   })
 }
 
-/** 서버 검색 → 캐시에 추가 (실서비스 전용) */
+/** 같은 검색어는 5분 동안 다시 묻지 않음 */
+const recent = new Map<string, number>()
+let inflight: AbortController | null = null
+
+/**
+ * 서버 검색 → 캐시에 추가 (실서비스 전용)
+ * 글자를 더 치면 앞 요청은 취소한다 (느린 옛 결과가 늦게 와서 화면을 덮지 않게)
+ */
 export async function searchFoodsLive(query: string) {
-  if (!isLive || !query.trim()) return
+  const q = query.trim()
+  if (!isLive || !q) return
+  const at = recent.get(q)
+  if (at && Date.now() - at < 5 * 60 * 1000) return
+  inflight?.abort()
+  const ctl = new AbortController()
+  inflight = ctl
   useFoodCache.setState({ searching: true })
   try {
-    cacheFoods(await searchFoodsRemote(query))
+    const found = await searchFoodsRemote(q, 30, ctl.signal)
+    if (ctl.signal.aborted) return
+    cacheFoods(found)
+    recent.set(q, Date.now())
+  } catch (e) {
+    if (ctl.signal.aborted || (e as Error).name === 'AbortError') return
+    throw e
   } finally {
-    useFoodCache.setState({ searching: false })
+    if (inflight === ctl) {
+      inflight = null
+      useFoodCache.setState({ searching: false })
+    }
   }
 }
 
@@ -52,7 +74,14 @@ export function searchFoods(query: string): FoodItem[] {
   if (!q) return []
   return allFoods()
     .filter((f) => norm(f.name).includes(q) || (f.brand && norm(f.brand).includes(q)))
-    .sort((a, b) => Number(norm(b.name).startsWith(q)) - Number(norm(a.name).startsWith(q)) || a.name.localeCompare(b.name, 'ko'))
+    // 서버(search_foods)와 같은 순서: 같은 이름 → 앞부분 일치 → 일반 음식(가공식품 아님) → 짧은 이름
+    .sort((a, b) => {
+      const rank = (f: FoodItem) => [norm(f.name) === q ? 0 : 1, norm(f.name).startsWith(q) ? 0 : 1, String(f.category) === '가공식품' ? 1 : 0, f.name.length] as const
+      const ra = rank(a)
+      const rb = rank(b)
+      for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i]
+      return a.name.localeCompare(b.name, 'ko')
+    })
 }
 
 /** 최근 먹은 음식 — 기록에서 음식별 가장 최근 섭취량 */

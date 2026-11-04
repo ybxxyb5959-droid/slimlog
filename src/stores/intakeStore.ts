@@ -8,7 +8,7 @@ import { deleteIntakeItem, deleteIntakeLog, insertIntakeItem, insertIntakeLog, u
 /**
  * 케어(물·영양제·복용약) — 목업 상태.
  * 기존 DAILY_CHECKS.waterCups(컵 단위) 기록을 mL로 환산해 이어 쓴다 (1컵 = 250mL).
- * GLP-1 주사(마운자로·위고비·에페)는 여기서 다루지 않고 '투약' 기능에서 기록한다.
+ * GLP-1 주사(마OOO·위OO·에O)는 여기서 다루지 않고 '투약' 기능에서 기록한다.
  * 실서비스: intake_items · intake_logs 에 저장. 화면은 먼저 반영하고(빠른 반응), 저장에 실패하면 되돌리고 알린다.
  * 복용약(medicine)은 민감정보 → 동의가 없으면 DB(RLS)가 거절한다.
  */
@@ -57,7 +57,8 @@ interface IntakeState {
   logs: IntakeLog[]
   addWater: (ml: number) => void
   removeWater: (id: string) => void
-  addItem: (kind: IntakeKind, name: string) => void
+  /** 새 항목 id(저장 전이면 임시 id)를 돌려준다 */
+  addItem: (kind: IntakeKind, name: string) => string
   removeItem: (id: string) => void
   logItem: (itemId: string, at: string, status?: 'taken' | 'skipped') => void
   setReminder: (itemId: string, patch: { enabled?: boolean; hour?: number | null; asked?: boolean }) => void
@@ -137,6 +138,7 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
       () => set((s) => ({ items: s.items.filter((x) => x.id !== item.id) })),
       (dbId) => set((s) => ({ items: s.items.map((x) => (x.id === item.id ? { ...x, id: dbId } : x)), logs: s.logs.map((l) => (l.itemId === item.id ? { ...l, itemId: dbId } : l)) })),
     )
+    return item.id
   },
   removeItem: (id) => {
     const prev = { items: get().items, logs: get().logs }
@@ -163,8 +165,8 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
       ),
     }))
     persist(
-      () =>
-        updateIntakeReminder(itemId, {
+      async () =>
+        updateIntakeReminder(await realId(itemId), {
           ...(patch.enabled !== undefined ? { remind_enabled: patch.enabled } : {}),
           ...(patch.hour !== undefined ? { remind_hour: patch.hour } : {}),
           ...(patch.asked !== undefined ? { remind_asked: patch.asked } : {}),

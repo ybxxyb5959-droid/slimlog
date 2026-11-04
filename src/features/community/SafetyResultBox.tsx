@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils'
 export function SafetyResultBox({ result }: { result: SafetyResult }) {
   const rules = [...new Set(result.matches.map((m) => m.rule))]
   const style = {
-    LOW: { icon: ShieldCheck, tone: 'success', box: 'border-primary/30 bg-primary-soft', title: '바로 게시할 수 있어요 (LOW)', text: 'text-primary' },
-    REVIEW: { icon: ShieldAlert, tone: 'review', box: 'border-review-border bg-review-soft', title: '관리자 검토 후 공개돼요 (REVIEW)', text: 'text-review' },
-    BLOCKED: { icon: ShieldBan, tone: 'danger', box: 'border-danger-border bg-danger-soft', title: '게시할 수 없는 내용이 있어요 (BLOCKED)', text: 'text-danger' },
+    LOW: { icon: ShieldCheck, tone: 'success', box: 'border-primary/30 bg-primary-soft', title: '바로 게시할 수 있어요', text: 'text-primary' },
+    REVIEW: { icon: ShieldAlert, tone: 'review', box: 'border-review-border bg-review-soft', title: '관리자 검토 후 공개돼요', text: 'text-review' },
+    BLOCKED: { icon: ShieldBan, tone: 'danger', box: 'border-danger-border bg-danger-soft', title: '게시할 수 없는 내용이 있어요', text: 'text-danger' },
   }[result.level]
 
   return (
@@ -27,12 +27,14 @@ export function SafetyResultBox({ result }: { result: SafetyResult }) {
           </p>
         )}
         {result.level === 'BLOCKED' && (
-          <p>
-            전문의약품은 개인 간 판매·양도·나눔이 금지되어 있어요. 남은 약은 약국·보건소 폐의약품 수거함을 이용해 주세요. 표시된 문구를 고치면 다시
-            검사할 수 있어요.
-          </p>
+          <>
+            {rules.some((r) => r !== '병원·약 은어') && (
+              <p>전문의약품은 개인 간 판매·양도·나눔이 금지되어 있어요. 남은 약은 약국·보건소 폐의약품 수거함을 이용해 주세요.</p>
+            )}
+            {rules.includes('병원·약 은어') && <p>쉽게 처방해 주는 병원을 찾는 은어(성지 등)나 약 이름 은어는 쓸 수 없어요.</p>}
+            <p>표시된 문구를 고치면 다시 검사할 수 있어요.</p>
+          </>
         )}
-        <p className="text-[12px] text-text-subtle">목업 검사 · 실제 검사는 서버에서 하고 기록(FILTER_LOGS)에 남아요. 키워드 검사는 보조 수단이에요.</p>
       </div>
     </div>
   )

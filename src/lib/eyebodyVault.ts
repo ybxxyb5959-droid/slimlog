@@ -438,7 +438,7 @@ export async function confirmRecoverySaved() {
   if (v2) await putV2({ ...v2, rcConfirmed: true })
 }
 
-/** 지문 잠금 켜기 — 비밀번호로 한 번 더 확인하고 DEK 를 Keystore 보호 저장소에 넣는다 */
+/** 지문 잠금 켜기 — 비밀번호로 확인 → DEK 를 Keystore 보호 저장소에 넣고 → 지문을 한 번 받아 꺼내 보며 확인 */
 export async function enableBiometric(password: string): Promise<void> {
   const v2 = await getV2()
   if (!v2) throw new Error('먼저 잠금을 해제해 주세요.')
@@ -453,6 +453,18 @@ export async function enableBiometric(password: string): Promise<void> {
   try {
     await verifyDek(raw, v2)
     await biometric.store(bioKey(), b64(raw))
+    // 켜기 전에 지문을 한 번 실제로 받아 본다 — 인증되고 같은 열쇠가 나와야만 켠다 (취소·실패면 저장값 지우고 꺼 둠)
+    let back: string
+    try {
+      back = await biometric.load(bioKey())
+    } catch (e) {
+      await biometric.remove(bioKey()).catch(() => {})
+      throw new Error('지문 확인이 끝나지 않아 지문 잠금을 켜지 않았어요.', { cause: e })
+    }
+    if (back !== b64(raw)) {
+      await biometric.remove(bioKey()).catch(() => {})
+      throw new Error('지문 열쇠를 확인하지 못했어요. 다시 시도해 주세요.')
+    }
     await putV2({ ...v2, bio: true })
   } finally {
     wipe(raw)
@@ -562,6 +574,13 @@ export const removePhoto = (id: string) => tx('photos', 'readwrite', (s) => s.de
 
 export async function countPhotos(): Promise<number> {
   return tx<number>('photos', 'readonly', (s) => s.count())
+}
+
+/** 회원 탈퇴: 이 사용자의 기기 눈바디 사진·비밀번호·복구 코드·지문 키를 모두 지운다 */
+export async function wipeVaultForUser(userId: string) {
+  setVaultUser(userId)
+  await wipeVault()
+  setVaultUser(null)
 }
 
 /** 전부 지우기 (비밀번호·복구 코드·지문 모두 없을 때 새로 시작). 지문 보호 저장값도 지운다 */

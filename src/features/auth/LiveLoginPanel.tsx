@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AUTH_RETURN_EVENT } from '@/lib/nativeApp'
 import { dbErrorMessage, devLoginEnabled } from '@/lib/supabase'
 import { nextPathFor } from '@/services/live/account'
 import { devEmailLogin, enabledProviders, startOAuth } from '@/services/live/auth'
@@ -19,6 +20,8 @@ export function LiveLoginPanel() {
   const [busy, setBusy] = useState<ProviderId | 'dev' | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const stopWatch = useRef<(() => void) | null>(null)
+  useEffect(() => () => stopWatch.current?.(), [])
 
   useEffect(() => {
     enabledProviders()
@@ -36,10 +39,45 @@ export function LiveLoginPanel() {
     setBusy(id)
     try {
       await startOAuth(id)
+      watchReturn()
     } catch (e) {
       toast.error('로그인을 시작하지 못했어요', { description: dbErrorMessage(e) })
       setBusy(null)
     }
+  }
+
+  /**
+   * 카카오 화면에서 뒤로 가기로 돌아오면 '이동 중…'에 멈추지 않게:
+   * 앱(웹뷰)이 다시 보이고 2.5초 안에 로그인 결과가 없으면 실패로 보고 버튼을 되살린다.
+   * (갤럭시 앱은 Custom Tab 을 닫으면, 웹은 뒤로 가기 캐시로 돌아오면 이 화면이 다시 보인다)
+   */
+  const watchReturn = () => {
+    stopWatch.current?.()
+    let returned = false
+    let timer: number | undefined
+    const onReturn = () => (returned = true)
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        if (returned || useAuthStore.getState().session) return
+        stop()
+        setBusy(null)
+        toast.error('로그인하지 못했어요', { description: '다시 눌러 주세요.' })
+      }, 2500)
+    }
+    const onPageShow = (e: PageTransitionEvent) => e.persisted && onVisible()
+    const stop = () => {
+      window.clearTimeout(timer)
+      window.removeEventListener(AUTH_RETURN_EVENT, onReturn)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('pageshow', onPageShow)
+      stopWatch.current = null
+    }
+    window.addEventListener(AUTH_RETURN_EVENT, onReturn)
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('pageshow', onPageShow)
+    stopWatch.current = stop
   }
 
   const onDev = async (e: React.FormEvent) => {
@@ -57,11 +95,9 @@ export function LiveLoginPanel() {
   return (
     <div className="space-y-2.5">
       {PROVIDERS.filter((p) => p.enabled).map((p) => {
-        const on = !!enabled?.[p.id]
         return (
           <div key={p.id}>
             <ProviderButton provider={p.id} label={busy === p.id ? '이동 중…' : p.label} disabled={busy !== null || enabled === null} onClick={() => onProvider(p.id)} />
-            {enabled && !on && <p className="mt-1 px-1 text-[12px] text-text-subtle">준비 중 · 아직 연결되지 않았어요</p>}
           </div>
         )
       })}

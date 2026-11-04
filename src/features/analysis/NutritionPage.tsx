@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { AXIS_TICK, ChartTooltipBox } from '@/components/charts/ChartTooltip'
+import { DateTimeField } from '@/components/common/DateTimePicker'
 import { MockBadge } from '@/components/common/MockBadge'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PeriodFilter, type Period } from '@/components/common/PeriodFilter'
@@ -61,23 +62,16 @@ export function NutritionPage() {
   const [tab, setTab] = useState<Key>('kcal')
   const [pickedDate, setPickedDate] = useState<string | null>(null)
   const detailRef = useRef<HTMLElement>(null)
-  const dateInputRef = useRef<HTMLInputElement>(null)
   const example = !isLive && !isNewUser()
 
   const avgKcal = avgOf(recorded, 'kcal')
   const latest = recorded.at(-1)?.date ?? null
-  const date = pickedDate && rows.some((r) => r.date === pickedDate) ? pickedDate : latest
+  const date = pickedDate ?? latest
 
   const openCalendar = () => {
     detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    const el = dateInputRef.current
-    if (!el) return
-    el.focus({ preventScroll: true })
-    try {
-      el.showPicker?.()
-    } catch {
-      /* 일부 브라우저는 사용자 동작 안에서만 열림 — 포커스로 대신 */
-    }
+    // 날짜 칸(앱 날짜 선택기)을 바로 연다
+    document.getElementById('dayDetailDate')?.click()
   }
 
   return (
@@ -181,7 +175,6 @@ export function NutritionPage() {
               rows={rows}
               date={date!}
               setDate={setPickedDate}
-              inputRef={dateInputRef}
             />
           </section>
           <p className="text-[12px] text-text-subtle">기록하지 않은 날은 0이 아니라 '미기록'이에요. 평균은 기록한 날만으로 계산해요.</p>
@@ -192,7 +185,7 @@ export function NutritionPage() {
         onClose={() => setGoalOpen(false)}
         onManual={() => {
           setGoalOpen(false)
-          navigate('/my/settings/app')
+          navigate('/my/goals')
         }}
       />
     </>
@@ -285,7 +278,7 @@ function EmptyDotBar(props: unknown) {
   return <path d={`M${x},${y + height} V${y + r} Q${x},${y} ${x + r},${y} H${x + width - r} Q${x + width},${y} ${x + width},${y + r} V${y + height} Z`} fill={fill} />
 }
 
-function DayDetail({ meals, rows, date, setDate, inputRef }: { meals: MealRecord[]; rows: DayRow[]; date: string; setDate: (d: string) => void; inputRef: React.RefObject<HTMLInputElement | null> }) {
+function DayDetail({ meals, rows, date, setDate }: { meals: MealRecord[]; rows: DayRow[]; date: string; setDate: (d: string) => void }) {
   const navigate = useNavigate()
   const loadRecord = useMealDraftStore((s) => s.loadRecord)
   const day = meals.filter((m) => toDateKey(new Date(m.eatenAt)) === date).sort((a, b) => a.eatenAt.localeCompare(b.eatenAt))
@@ -297,16 +290,7 @@ function DayDetail({ meals, rows, date, setDate, inputRef }: { meals: MealRecord
           <CalendarDays size={16} strokeWidth={1.75} aria-hidden className="text-icon" />
           날짜별 상세 분석
         </h2>
-        <input
-          ref={inputRef}
-          type="date"
-          aria-label="상세 볼 날짜"
-          value={date}
-          min={rows[0]?.date}
-          max={rows.at(-1)?.date}
-          onChange={(e) => e.target.value && setDate(e.target.value)}
-          className="h-10 rounded-xl border border-border bg-surface px-3 text-[14px] text-text"
-        />
+        <DateTimeField id="dayDetailDate" label="상세 볼 날짜" mode="date" value={date} max={rows.at(-1)?.date} onChange={(v) => v && setDate(v)} className="h-10 w-auto min-w-40" />
       </div>
       <p className="-mt-2 text-[13px] text-text-muted">{dayLabel(date)}</p>
 

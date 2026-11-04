@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 
 import type { ActivityLevel, Sex } from '@/lib/bodyProfile'
+import type { MedicationId } from '@/types/domain'
 
 /**
  * 온보딩 진행 상태 — 앱을 껐다 켜도 이어서 할 수 있게 저장한다.
@@ -26,6 +27,8 @@ export interface OnboardingState {
   /** STEP 2 저장 시각 — 최초 체중 기록이 중복 저장되지 않게 한 번만 만든다 */
   baselineSavedAt: string | null
   doseChoice: 'now' | 'later' | null
+  /** 목업: 사용 중인 약 (투약 중 약을 바꾸면 갱신). 실서비스는 user_health.current_med_id */
+  currentMedId: MedicationId | null
   completedAt: string | null
   set: (patch: Partial<Omit<OnboardingState, 'set' | 'reset'>>) => void
   reset: () => void
@@ -69,6 +72,7 @@ const INITIAL = {
   bodySkipped: false,
   baselineSavedAt: null,
   doseChoice: null,
+  currentMedId: null,
   completedAt: null,
 }
 

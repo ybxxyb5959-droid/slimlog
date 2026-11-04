@@ -1,10 +1,12 @@
 import { CalendarDays, Check, ExternalLink, Info } from 'lucide-react'
+import { useEffect } from 'react'
 
 import { AppIcon } from '@/components/common/AppIcon'
+import { TimeWheel } from '@/components/common/DateTimePicker'
 import { Calendar } from '@/components/common/Calendar'
 import { SwipeDosePicker } from '@/components/common/SwipeDosePicker'
 import { BodyMap } from '@/components/illustrations/BodyMap'
-import { doseBandColor, PenIllustration } from '@/components/illustrations/PenIllustration'
+import { MED_COLOR, MedPenIllustration } from '@/components/illustrations/MedPenIllustration'
 import { Input } from '@/components/ui/input'
 import { AREA_LABEL, MEDICATION_LIST, MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
 import { addDays, formatFullDate, startOfDay, toDateTimeLocalValue } from '@/lib/date'
@@ -43,7 +45,7 @@ export function SourceNote({ label, source }: { label: string; source: ApprovalS
 export function StepMedication({ value, onSelect }: { value: MedicationId | null; onSelect: (id: MedicationId) => void }) {
   return (
     <div role="radiogroup" aria-label="약 선택" className="grid gap-3">
-      {MEDICATION_LIST.map((m, i) => {
+      {MEDICATION_LIST.map((m) => {
         const selected = value === m.id
         return (
           <button
@@ -52,24 +54,31 @@ export function StepMedication({ value, onSelect }: { value: MedicationId | null
             role="radio"
             aria-checked={selected}
             onClick={() => onSelect(m.id)}
+            style={selected ? { borderColor: MED_COLOR[m.id], background: `color-mix(in srgb, ${MED_COLOR[m.id]} 9%, var(--color-surface, #fff))` } : undefined}
             className={cn(
-              'flex min-h-[92px] items-center gap-4 rounded-2xl border-2 px-4 py-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              selected ? 'border-primary bg-primary-soft' : 'border-border bg-surface hover:bg-surface-muted/60',
+              'flex min-h-[108px] items-center gap-3 rounded-2xl border-2 py-3 pr-2 pl-4 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              !selected && 'border-border bg-surface hover:bg-surface-muted/60',
             )}
           >
-            <span className="flex h-16 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted">
-              <PenIllustration band={doseBandColor(i + 2, 6)} className="h-14" />
+            <span
+              aria-hidden
+              className={cn('inline-flex size-7 shrink-0 items-center justify-center rounded-full text-white', !selected && 'bg-border')}
+              style={selected ? { background: MED_COLOR[m.id] } : undefined}
+            >
+              <Check size={16} strokeWidth={3} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[18px] font-bold text-text">{m.name}</span>
-              <span className="block text-[13px] text-text-muted">{m.ingredient}</span>
+              <span className="block text-[18px] leading-tight font-bold" style={selected ? { color: MED_COLOR[m.id] } : undefined}>
+                {m.ingredient}
+              </span>
+              <span className="mt-0.5 block text-[15px] font-semibold text-text-muted">{m.name}</span>
               {m.doseOptionsMg && (
-                <span className="tabular mt-0.5 block text-[12px] text-text-subtle">
+                <span className="tabular mt-1 block text-[12px] text-text-subtle">
                   허가 용량 {m.doseOptionsMg[0]}~{m.doseOptionsMg.at(-1)}mg · {m.doseOptionsMg.length}단계
                 </span>
               )}
             </span>
-            {selected && <AppIcon icon={Check} size="md" tone="success" />}
+            <MedPenIllustration med={m.id} selected={selected} className="h-[76px] w-[92px] shrink-0" />
           </button>
         )
       })}
@@ -158,6 +167,11 @@ export function StepDateTime({ draft, onPatch, error }: { draft: FirstDoseDraft;
     { label: '어제', date: yesterday },
   ]
   const nowTime = toDateTimeLocalValue(new Date()).slice(11)
+  // 시간이 비어 있으면 지금 시각을 먼저 골라 둔다 (휠에 보이는 값과 저장 값이 같게)
+  useEffect(() => {
+    if (!draft.time && !draft.timeUnknown) onPatch({ time: nowTime })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -198,27 +212,20 @@ export function StepDateTime({ draft, onPatch, error }: { draft: FirstDoseDraft;
       </label>
 
       <div>
-        <label htmlFor="doseTime" className="mb-2 block text-[13px] font-medium text-text-muted">
-          시간
-        </label>
-        <div className="flex gap-2">
-          <Input
-            id="doseTime"
-            type="time"
-            value={draft.timeUnknown ? '' : draft.time}
-            disabled={draft.timeUnknown}
-            onChange={(e) => onPatch({ time: e.target.value })}
-            className="flex-1"
-          />
+        <div className="mb-1 flex items-center justify-between">
+          <p id="doseTimeLabel" className="text-[13px] font-medium text-text-muted">
+            시간
+          </p>
           <button
             type="button"
             disabled={draft.timeUnknown}
             onClick={() => onPatch({ time: nowTime, date: draft.date ?? today })}
-            className="h-12 shrink-0 rounded-xl border border-border bg-surface px-4 text-[14px] font-medium hover:bg-surface-muted disabled:opacity-40"
+            className="h-9 shrink-0 rounded-lg px-3 text-[13px] font-medium text-primary hover:bg-primary-soft disabled:opacity-40"
           >
             지금
           </button>
         </div>
+        {!draft.timeUnknown && <TimeWheel value={draft.time || nowTime} onChange={(time) => onPatch({ time })} />}
         <label className="mt-2 flex min-h-11 cursor-pointer items-center gap-3 text-[14px]">
           <input
             id="timeUnknown"

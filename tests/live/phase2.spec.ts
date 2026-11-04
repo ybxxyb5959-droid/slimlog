@@ -146,25 +146,29 @@ test('케어: 물·영양제·복용약이 DB 에 저장되고 새로고침 후�
   const hints = sheet.getByRole('listbox', { name: '영양제 추천' }).getByRole('option')
   expect(await hints.count()).toBeLessThanOrEqual(5)
   await sheet.getByRole('button', { name: '유산균(프로바이오틱스)' }).click()
-  // 카드 눌러 섭취 완료 → 처음이면 매일 알림 물어봄 → 확인 → 시계로 시 고르기
-  await sheet.getByRole('button', { name: '유산균(프로바이오틱스) 섭취 완료' }).click()
-  await expect(page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' })).toBeVisible()
+  // 등록하면 바로 오늘 섭취로 체크 (영양제마다 알림 안 물음)
+  await expect(sheet.locator('li', { hasText: '유산균' })).toContainText('오늘 섭취 완료')
+  await expect(page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' })).toHaveCount(0)
+  // 복용약: 직접 입력 등록 → 바로 복용 체크
+  await sheet.getByRole('tab', { name: '복용약' }).click()
+  await sheet.getByRole('button', { name: '등록' }).click()
+  await sheet.getByLabel('복용약 이름').fill('위장약')
+  await sheet.getByRole('button', { name: '등록하기' }).click()
+  await expect(sheet.locator('li', { hasText: '위장약' })).toContainText('오늘 복용 완료')
+  // 시트를 닫을 때 한 번만 알림 제안 → 확인 → 시계로 시 고르기 → 두 항목 모두 같은 시각
+  await page.keyboard.press('Escape')
   await page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' }).getByRole('button', { name: '확인' }).click()
   const clock = page.getByRole('slider', { name: '알림 시각' })
   await clock.focus()
   await clock.press('ArrowRight')
   const hourNow = Number(await clock.getAttribute('aria-valuenow'))
   await page.getByRole('dialog', { name: '알림 시간' }).getByRole('button', { name: '저장' }).click()
-  await expect.poll(async () => (await adminSelect('intake_items', `user_id=eq.${uid}&kind=eq.supplement&select=remind_enabled,remind_hour,remind_asked`))[0]).toEqual({ remind_enabled: true, remind_hour: hourNow, remind_asked: true })
-
-  // 복용약: 직접 입력 등록 → 섭취 완료 → '알림받지 않기' → 다시 안 물음
-  await sheet.getByRole('tab', { name: '복용약' }).click()
-  await sheet.getByRole('button', { name: '등록' }).click()
-  await sheet.getByLabel('복용약 이름').fill('위장약')
-  await sheet.getByRole('button', { name: '등록하기' }).click()
-  await sheet.getByRole('button', { name: '위장약 복용 완료' }).click()
-  await page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' }).getByRole('button', { name: '알림받지 않기' }).click()
-  await expect.poll(async () => (await adminSelect('intake_items', `user_id=eq.${uid}&kind=eq.medicine&select=remind_enabled,remind_asked`))[0]).toEqual({ remind_enabled: false, remind_asked: true })
+  await expect
+    .poll(async () => (await adminSelect('intake_items', `user_id=eq.${uid}&select=kind,remind_enabled,remind_hour,remind_asked&order=kind`)))
+    .toEqual([
+      { kind: 'medicine', remind_enabled: true, remind_hour: hourNow, remind_asked: true },
+      { kind: 'supplement', remind_enabled: true, remind_hour: hourNow, remind_asked: true },
+    ])
   await expect.poll(async () => (await adminSelect('intake_logs', `user_id=eq.${uid}&select=log_id`)).length).toBe(4)
   const logs = await adminSelect('intake_logs', `user_id=eq.${uid}&select=kind,amount_ml,status`)
   expect(logs.filter((l) => l.kind === 'water').reduce((a, l) => a + Number(l.amount_ml), 0)).toBe(500)
@@ -173,7 +177,6 @@ test('케어: 물·영양제·복용약이 DB 에 저장되고 새로고침 후�
   const items = await adminSelect('intake_items', `user_id=eq.${uid}&select=kind,name`)
   expect(items.map((i) => i.name).sort()).toEqual(['위장약', '유산균(프로바이오틱스)'].sort())
 
-  await page.keyboard.press('Escape')
   await page.reload()
   await expect(page.getByRole('button', { name: /케어/ })).toContainText('물 500mL · 복용 2건')
 
@@ -185,7 +188,7 @@ test('케어: 물·영양제·복용약이 DB 에 저장되고 새로고침 후�
 
 test('기록 목표: 단백질·물 목표가 user_health 에 저장되고 새로고침 후 케어·식단 분석에 쓰임', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-goal')
-  await page.goto('/my/settings/app')
+  await page.goto('/my/goals')
   await expect(page.getByLabel('하루 단백질 목표')).toHaveValue('')
   await expect(page.getByLabel('하루 물 목표')).toHaveValue('8')
   await page.getByLabel('하루 물 목표').fill('30')
@@ -206,7 +209,7 @@ test('기록 목표: 단백질·물 목표가 user_health 에 저장되고 새�
 
 test('하루 영양 목표: 온보딩 정보로 참고 계산 → 내 목표로 쓰기 → user_health 4개 목표 + 바꾼 활동량 저장', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-target')
-  await page.goto('/my/settings/app')
+  await page.goto('/my/goals')
   await page.getByRole('button', { name: '계산하기' }).click()
   const sheet = page.getByRole('dialog', { name: '하루 영양 목표' })
   // quickOnboarding 은 성별·체중만 넣음 → 출생연도·키는 시트에서 채움
@@ -214,19 +217,19 @@ test('하루 영양 목표: 온보딩 정보로 참고 계산 → 내 목표로 
   await sheet.getByLabel('출생연도').fill(String(new Date().getFullYear() - 34))
   await sheet.getByLabel('키').fill('165')
   await sheet.getByLabel('평소 활동량').selectOption('light')
-  await expect(sheet.getByLabel('하루 참고 열량')).toContainText('1,650')
+  await expect(sheet.getByLabel('하루 참고 열량')).toContainText('1,440')
   await sheet.getByRole('button', { name: '내 목표로 쓰기' }).click()
   await expect(page.getByText('하루 영양 목표를 저장했어요')).toBeVisible()
   const [h] = await adminSelect('user_health', `user_id=eq.${uid}&select=kcal_goal,carb_goal_g,protein_goal_g,fat_goal_g,activity_level,birth_year,height_cm`)
   expect({ ...h, height_cm: Number(h.height_cm) }).toEqual({
-    kcal_goal: 1650,
-    carb_goal_g: 209,
-    protein_goal_g: 100,
-    fat_goal_g: 46,
+    kcal_goal: 1440,
+    carb_goal_g: 181,
+    protein_goal_g: 89,
+    fat_goal_g: 40,
     activity_level: 'light',
     birth_year: new Date().getFullYear() - 34,
     height_cm: 165,
   })
   await page.reload()
-  await expect(page.getByLabel('하루 열량 목표')).toHaveValue('1650')
+  await expect(page.getByLabel('하루 열량 목표')).toHaveValue('1440')
 })

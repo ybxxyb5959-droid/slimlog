@@ -1,3 +1,4 @@
+import { DateTimeField } from '@/components/common/DateTimePicker'
 import { Activity, Angry, Check, ChevronRight, Frown, Laugh, Meh, Smile } from 'lucide-react'
 import { Slider } from 'radix-ui'
 import { useState } from 'react'
@@ -12,7 +13,6 @@ import { EmptyState } from '@/components/common/StateViews'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SYMPTOM_LABEL } from '@/fixtures/records.mock'
@@ -281,7 +281,7 @@ function QuickSymptomCard() {
               <p className="text-[13px] text-text-muted">언제 시작됐나요?</p>
               <Radio name={`${t.label} 시작`} options={WHEN.map((w) => ({ key: w.v, label: w.label, on: e.when === w.v, pick: () => set(t.value, { when: w.v }) }))} />
               {e.when === 'custom' && (
-                <Input type="datetime-local" aria-label={`${t.label} 시작 시각`} value={e.at} max={toDateTimeLocalValue(new Date())} onChange={(ev) => set(t.value, { at: ev.target.value })} className="mt-1" />
+                <DateTimeField label={`${t.label} 시작 시각`} mode="datetime" value={e.at} max={toDateTimeLocalValue(new Date())} onChange={(v) => set(t.value, { at: v })} className="mt-1" />
               )}
             </div>
             <div>
@@ -449,10 +449,18 @@ function SymptomEditor({ symptom: s }: { symptom: Symptom }) {
             <Label htmlFor="symptomAt" className="text-[13px] font-normal text-text-muted">
               언제 시작됐나요?
             </Label>
-            <Input id="symptomAt" type="datetime-local" value={at} max={toDateTimeLocalValue(new Date())} onChange={(e) => {
-              setError(null)
-              setAt(e.target.value)
-            }} className="mt-1" />
+            <DateTimeField
+              id="symptomAt"
+              label="언제 시작됐나요"
+              mode="datetime"
+              value={at}
+              max={toDateTimeLocalValue(new Date())}
+              onChange={(v) => {
+                setError(null)
+                setAt(v)
+              }}
+              className="mt-1"
+            />
           </div>
           <div>
             <p className="text-[13px] text-text-muted">얼마나 지속됐나요?</p>

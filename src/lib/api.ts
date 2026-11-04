@@ -7,6 +7,17 @@ import { isLive, supabase } from '@/lib/supabase'
 export const API_URL = (import.meta.env ?? {}).VITE_API_URL?.replace(/\/$/, '')
 export const apiReady = isLive && !!API_URL
 
+/**
+ * 서버 미리 깨우기 — 무료 서버(Render)는 15분 쉬면 잠들어 첫 요청이 30~60초 걸린다.
+ * 커뮤니티·글쓰기·사진 화면에 들어올 때 불러 두면 사용자가 입력하는 동안 깨어난다. (10분에 한 번만)
+ */
+let lastWake = 0
+export function wakeServer() {
+  if (!apiReady || Date.now() - lastWake < 10 * 60 * 1000) return
+  lastWake = Date.now()
+  fetch(`${API_URL}/health`, { method: 'GET', cache: 'no-store' }).catch(() => (lastWake = 0))
+}
+
 export class ApiError extends Error {
   status: number
   code: string

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { acceptRequiredConsents, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
+import { acceptRequiredConsents, addDoseViaSheet, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
 
 /**
  * Phase 1 — 실제 인증·DB 연결 (로컬 Supabase)
@@ -14,40 +14,40 @@ test('로그인 안 하면 앱 화면에 못 들어가고 로그인으로 보낸
   }
 })
 
-test('소셜 로그인: 켜진 건 진짜 카카오·구글로 보내고, 안 켜진 건 성공한 척하지 않는다', async ({ page }) => {
-  // 프로젝트에 켜진 로그인 (앱도 같은 주소로 판단)
+test('소셜 로그인: 카카오만 보이고, 진짜 카카오로 보내며, 뒤로 가기로 돌아오면 다시 누를 수 있다', async ({ page }) => {
   const res = await fetch(`${process.env.LIVE_SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.LIVE_SUPABASE_ANON_KEY! } })
   const external = ((await res.json()) as { external: Record<string, boolean> }).external
   await page.goto('/login')
-  for (const [id, label, host] of [['kakao', '카카오 로그인', /kakao\.com/], ['google', 'Google로 계속하기', /google\.com/], ['apple', 'Apple로 계속하기', /apple\.com/]] as const) {
-    if (external[id]) {
-      // 켜짐 → 앱이 Supabase 로그인 시작 주소로 보내는지 가로채서 확인
-      // (테스트 환경 네트워크는 카카오를 막을 수 있어 실제 이동은 안 함. 계정 로그인은 사람이 해야 함)
-      await page.goto('/login')
-      let authorize = ''
-      await page.route('**/auth/v1/authorize**', (r) => {
-        authorize = r.request().url()
-        return r.fulfill({ status: 200, contentType: 'text/html', body: 'ok' })
-      })
-      await page.getByRole('button', { name: label }).click()
-      await expect.poll(() => authorize).toContain(`provider=${id}`)
-      await page.unroute('**/auth/v1/authorize**')
-      // Supabase 가 실제 카카오·구글 로그인 주소로 보내는지 (키·Redirect URI 설정 확인)
-      const r = await fetch(authorize, { redirect: 'manual' })
-      expect(r.status).toBe(302)
-      const next = new URL(r.headers.get('location')!)
-      expect(next.host).toMatch(host)
-      expect(next.searchParams.get('client_id')).toBeTruthy()
-      expect(next.searchParams.get('redirect_uri')).toBe(`${process.env.LIVE_SUPABASE_URL}/auth/v1/callback`)
-    } else {
-      await page.goto('/login')
-      await expect(page.getByText('준비 중 · 아직 연결되지 않았어요').first()).toBeVisible()
-      await page.getByRole('button', { name: label }).click()
-      await expect(page.getByText('아직 연결되지 않은 로그인이에요')).toBeVisible()
-      await expect(page).toHaveURL('/login')
-    }
+  await expect(page.getByRole('button', { name: 'Google로 계속하기' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Apple로 계속하기' })).toHaveCount(0)
+  await expect(page.getByText('준비 중 · 아직 연결되지 않았어요')).toHaveCount(0)
+  await expect(page.getByText('하나의 날짜로 모아 봐요')).toHaveCount(0)
+  const kakao = page.getByRole('button', { name: '카카오 로그인' })
+  if (external.kakao) {
+    // 켜짐 → 앱이 Supabase 로그인 시작 주소로 보내는지 가로채서 확인 (실제 카카오 계정 로그인은 사람이 해야 함)
+    let authorize = ''
+    await page.route('**/auth/v1/authorize**', (r) => {
+      authorize = r.request().url()
+      return r.fulfill({ status: 200, contentType: 'text/html', body: 'ok' })
+    })
+    await kakao.click()
+    await expect.poll(() => authorize).toContain('provider=kakao')
+    await page.unroute('**/auth/v1/authorize**')
+    const r = await fetch(authorize, { redirect: 'manual' })
+    expect(r.status).toBe(302)
+    const next = new URL(r.headers.get('location')!)
+    expect(next.host).toMatch(/kakao\.com/)
+    expect(next.searchParams.get('client_id')).toBeTruthy()
+    expect(next.searchParams.get('redirect_uri')).toBe(`${process.env.LIVE_SUPABASE_URL}/auth/v1/callback`)
+    // 카카오 화면에서 뒤로 가기 → '이동 중…'에 멈추지 않고 다시 누를 수 있어야 함
+    await page.goBack()
+    await expect(page).toHaveURL('/login')
+    await expect(kakao).toBeEnabled({ timeout: 6000 })
+  } else {
+    await kakao.click()
+    await expect(page.getByText('아직 연결되지 않은 로그인이에요')).toBeVisible()
+    await expect(page).toHaveURL('/login')
   }
-  await page.goto('/login')
   await expect(page.getByText('UI 목업')).toHaveCount(0)
 })
 
@@ -95,10 +95,10 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await page.getByRole('button', { name: '나중에 입력' }).click()
   await expect(page).toHaveURL('/onboarding/goal')
   await page.getByRole('button', { name: '다음' }).click()
-  await page.getByRole('radio', { name: /지금 투약 내역 기록하기/ }).click()
+  await page.getByRole('radio', { name: /첫 투약이에요/ }).click()
   await page.getByRole('button', { name: '투약 기록 시작하기' }).click()
   const sheet = page.getByRole('dialog')
-  await sheet.getByRole('radio', { name: /마운자로/ }).click()
+  await sheet.getByRole('radio', { name: /마OOO/ }).click()
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
   await sheet.getByRole('radio', { name: '배 왼쪽' }).click()
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
@@ -108,6 +108,9 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await sheet.getByRole('button', { name: '확인', exact: true }).click()
   await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
   await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
+  // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
   await expect(page).toHaveURL('/home')
 
   const uid = await userIdOf(email)
@@ -118,20 +121,16 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   // 새로고침 후 목록에 그대로
   await page.goto('/record/medication')
   await page.reload()
-  await expect(page.getByText('마운자로 2.5mg').first()).toBeVisible()
+  await expect(page.getByText('마OOO 2.5mg').first()).toBeVisible()
 
   // 추가
-  await page.goto('/record/medication/new')
-  await page.getByRole('radio', { name: '위고비' }).click()
-  await page.getByRole('radio', { name: '0.5 mg', exact: true }).click()
-  await page.getByRole('radio', { name: '배 오른쪽' }).click()
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page).toHaveURL('/record/medication')
-  await expect(page.getByText('투약 기록을 저장했어요')).toBeVisible()
+  await addDoseViaSheet(page, { med: '위OO', mg: '0.5mg', site: '배 오른쪽' })
   doses = await adminSelect('doses', `user_id=eq.${uid}&select=dose_id,med_id,dose_mg`)
   expect(doses).toHaveLength(2)
   const wegovy = doses.find((d) => d.med_id === 'wegovy')!
   expect(Number(wegovy.dose_mg)).toBe(0.5)
+  // 약을 바꿔 기록 → 사용 중인 약도 위OO 로
+  await expect.poll(async () => (await adminSelect('user_health', `user_id=eq.${uid}&select=current_med_id`))[0].current_med_id).toBe('wegovy')
 
   // 수정
   await page.goto(`/record/medication/${wegovy.dose_id}`)
@@ -148,7 +147,7 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await expect(page.getByText('투약 기록을 삭제했어요')).toBeVisible()
   expect(await adminSelect('doses', `dose_id=eq.${wegovy.dose_id}&select=dose_id`)).toHaveLength(0)
   await page.reload()
-  await expect(page.getByText(/위고비/)).toHaveCount(0)
+  await expect(page.getByText(/위OO/)).toHaveCount(0)
 })
 
 test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', async ({ page, browser }) => {
@@ -158,12 +157,7 @@ test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', 
   await acceptRequiredConsents(page)
   const nickA = `중복${Date.now() % 100000}`
   await quickOnboarding(page, { nickname: nickA })
-  await page.goto('/record/medication/new')
-  await page.getByRole('radio', { name: '마운자로' }).click()
-  await page.getByRole('radio', { name: '5 mg', exact: true }).click()
-  await page.getByRole('radio', { name: '배 왼쪽' }).click()
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page.getByText('투약 기록을 저장했어요')).toBeVisible()
+  await addDoseViaSheet(page, { med: '마OOO', mg: '5mg', site: '배 왼쪽' })
 
   // B: 다른 브라우저 — A 의 닉네임은 못 쓰고, A 의 투약은 안 보임
   const ctxB = await browser.newContext({ viewport: { width: 390, height: 844 } })
@@ -174,7 +168,7 @@ test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', 
   await expect(pageB.getByText('이미 사용 중인 닉네임이에요.', { exact: false })).toBeVisible()
   await quickOnboarding(pageB, { nickname: `다른${Date.now() % 100000}` })
   await pageB.goto('/record/medication')
-  await expect(pageB.getByText(/마운자로 5mg/)).toHaveCount(0)
+  await expect(pageB.getByText(/마OOO 5mg/)).toHaveCount(0)
   await ctxB.close()
 
   // A 로그아웃 → 보호 화면 차단
@@ -188,5 +182,38 @@ test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', 
   await devLogin(page, emailA)
   await expect(page).toHaveURL('/home')
   await page.goto('/record/medication')
-  await expect(page.getByText('마운자로 5mg').first()).toBeVisible()
+  await expect(page.getByText('마OOO 5mg').first()).toBeVisible()
+})
+
+test('가입: 전부터 투약 중 → 처음 맞은 날부터 7일 간격 회차가 DB 에 한꺼번에 저장', async ({ page }) => {
+  const email = uniqueEmail('p1-series')
+  await devLogin(page, email)
+  await acceptRequiredConsents(page)
+  await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+  await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
+  await page.getByRole('radio', { name: '여성' }).click()
+  await page.getByLabel('현재 체중').fill('80')
+  await page.getByRole('button', { name: '다음' }).click()
+  await page.getByLabel('목표 체중').fill('72')
+  await page.getByRole('button', { name: '다음' }).click()
+  await page.getByRole('radio', { name: /전부터 투약 중이에요/ }).click()
+  await page.getByRole('button', { name: '투약 기록 시작하기' }).click()
+  const sheet = page.getByRole('dialog')
+  await sheet.getByRole('radio', { name: /위OO/ }).click()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await sheet.getByRole('radio', { name: '배 오른쪽' }).click()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  const now = new Date()
+  const first = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14)
+  if (first.getMonth() !== now.getMonth()) await sheet.getByRole('button', { name: '이전 달' }).click()
+  await sheet.getByRole('button', { name: `${first.getMonth() + 1}월 ${first.getDate()}일`, exact: true }).click()
+  await sheet.getByRole('checkbox', { name: /시간이 기억나지 않아요/ }).check()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await sheet.getByRole('button', { name: '3회 기록하기' }).click()
+  await expect(sheet.getByText('투약 기록 3회를 남겼어요')).toBeVisible()
+  const uid = (await userIdOf(email))!
+  const rows = await adminSelect('doses', `user_id=eq.${uid}&select=med_id,dose_mg,site,injected_at&order=injected_at`)
+  expect(rows.map((r) => [r.med_id, Number(r.dose_mg), r.site])).toEqual(Array(3).fill(['wegovy', 0.25, 'abdomen_right']))
+  const days = rows.map((r) => Math.floor(0.5 + (new Date(r.injected_at as string).getTime() - new Date(rows[0].injected_at as string).getTime()) / 86400000))
+  expect(days).toEqual([0, 7, 14]) // 오늘 회차는 '시간 모름'이어도 빠지지 않음 (정오가 아직이면 지금 시각)
 })

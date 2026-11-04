@@ -1,3 +1,4 @@
+import { DateTimeField } from '@/components/common/DateTimePicker'
 import { useState } from 'react'
 
 import { ChipGroup } from '@/components/common/ChipGroup'
@@ -98,13 +99,14 @@ export function DoseForm({
 
       <div>
         <Label htmlFor="administeredAt">투여 일시</Label>
-        <Input
+        <DateTimeField
           id="administeredAt"
-          type="datetime-local"
+          label="투여 일시"
+          mode="datetime"
           value={draft.administeredAt}
           max={toDateTimeLocalValue(new Date())}
-          aria-invalid={error?.field === 'administeredAt'}
-          onChange={(e) => set({ administeredAt: e.target.value })}
+          invalid={error?.field === 'administeredAt'}
+          onChange={(v) => set({ administeredAt: v })}
         />
         {error?.field === 'administeredAt' && <FieldError>{error.message}</FieldError>}
       </div>

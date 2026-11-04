@@ -1,4 +1,4 @@
-import { CircleCheck, Clock3, Syringe, type LucideIcon } from 'lucide-react'
+import { CalendarRange, CircleCheck, Clock3, Syringe, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { EMPTY_DRAFT, type FirstDoseDraft } from '@/features/record/first-dose/firstDoseDraft'
 import { FirstDoseFlow } from '@/features/record/first-dose/FirstDoseFlow'
 import { cn } from '@/lib/utils'
-import { completeOnboarding, saveOnboardingDose } from '@/services/session'
+import { completeOnboarding, saveOnboardingDose, saveOnboardingSeries } from '@/services/session'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 
 import { OnboardingShell } from './OnboardingShell'
@@ -51,15 +51,17 @@ function ChoiceCard({
 export function MedicationChoiceStep() {
   const navigate = useNavigate()
   const { doseChoice, set } = useOnboardingStore()
-  const [choice, setChoice] = useState<'now' | 'later' | null>(doseChoice)
+  // ongoing: 전부터 투약 중(첫 날부터 7일 간격 자동) · first: 첫 투약(날짜 하나) · later: 나중에
+  const [choice, setChoice] = useState<'ongoing' | 'first' | 'later' | null>(doseChoice === 'later' ? 'later' : null)
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<FirstDoseDraft>(EMPTY_DRAFT)
   const [step, setStep] = useState(1)
 
   const start = async () => {
     if (choice === 'later') {
-      if (await completeOnboarding('later')) navigate('/home', { replace: true })
-    } else if (choice === 'now') {
+      // 가입 완료 → 영양 목표 제안(선택, 한 번만) → 홈
+      if (await completeOnboarding('later')) navigate('/onboarding/nutrition-goal', { replace: true })
+    } else if (choice) {
       // 프로필·신체정보는 이미 저장된 상태 → 투약 기록을 취소해도 유지된다
       set({ doseChoice: 'now' })
       setOpen(true)
@@ -80,7 +82,7 @@ export function MedicationChoiceStep() {
       footer={
         <div className="space-y-1">
           <Button size="lg" className="h-[52px] w-full" disabled={!choice} onClick={start}>
-            {choice === 'now' ? '투약 기록 시작하기' : '슬림로그 시작하기'}
+            {choice && choice !== 'later' ? '투약 기록 시작하기' : '슬림로그 시작하기'}
           </Button>
           <Button variant="ghost" size="sm" className="h-10" onClick={() => navigate('/onboarding/goal')}>
             이전
@@ -90,11 +92,18 @@ export function MedicationChoiceStep() {
     >
       <div role="radiogroup" aria-label="투약 기록 여부" className="space-y-3">
         <ChoiceCard
-          selected={choice === 'now'}
-          onSelect={() => setChoice('now')}
+          selected={choice === 'ongoing'}
+          onSelect={() => setChoice('ongoing')}
+          icon={CalendarRange}
+          title="전부터 투약 중이에요"
+          description="처음 맞은 날만 고르면 오늘까지 7일 간격으로 채워 드려요. 다른 날짜는 고칠 수 있어요."
+        />
+        <ChoiceCard
+          selected={choice === 'first'}
+          onSelect={() => setChoice('first')}
           icon={Syringe}
-          title="지금 투약 내역 기록하기"
-          description="약물, 용량, 주사 부위, 실제 투약 시각을 기록해요."
+          title="첫 투약이에요"
+          description="처음 맞은 날짜와 시간 하나만 기록해요."
         />
         <ChoiceCard
           selected={choice === 'later'}
@@ -115,10 +124,11 @@ export function MedicationChoiceStep() {
         setDraft={setDraft}
         step={step}
         setStep={setStep}
-        onConfirmed={(d) => saveOnboardingDose(d)}
+        mode={choice === 'ongoing' ? 'series' : 'single'}
+        onConfirmed={(d) => (choice === 'ongoing' ? saveOnboardingSeries(d) : saveOnboardingDose(d))}
         onFinished={async () => {
           // 완료 화면을 닫을 때 온보딩 완료 처리 (먼저 처리하면 완료 화면이 보이기 전에 홈으로 넘어감)
-          if (await completeOnboarding('now')) navigate('/home', { replace: true })
+          if (await completeOnboarding('now')) navigate('/onboarding/nutrition-goal', { replace: true })
         }}
       />
     </OnboardingShell>

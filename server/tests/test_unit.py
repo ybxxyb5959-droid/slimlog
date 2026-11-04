@@ -12,8 +12,9 @@ def test_safety_same_rules_as_frontend():
     assert check("오늘 단백질 챙겼어요")[0] == "LOW"
     level, m = check("남은 펜 필요하신 분 양 도해요. 쪽지 주세요.")
     assert level == "BLOCKED" and {x.rule for x in m} == {"양도·나눔"}
-    assert check("몇 mg부터 올리세요?")[0] == "REVIEW"
-    assert check("○○약국 다녀왔어요")[0] == "REVIEW"
+    # 관리자 검토 단계 없음: 용량 질문·병원 이야기는 바로 게시
+    assert check("몇 mg부터 올리세요?")[0] == "LOW"
+    assert check("○○약국 다녀왔어요")[0] == "LOW"
     assert check("처방전 없이 살 수 있나요")[0] == "BLOCKED"
 
 
@@ -51,3 +52,10 @@ def test_clean_photo_rejects_non_image():
     except NotAnImage:
         return
     raise AssertionError("이미지가 아닌데 통과함")
+
+
+def test_slang_blocked():
+    from app.safety import check
+
+    assert check("강남 성지 어디예요?")[0] == "BLOCKED"
+    assert check("스시 자로 맞는 중")[0] == "BLOCKED"

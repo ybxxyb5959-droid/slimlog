@@ -577,6 +577,9 @@ isOneToOne: false
                 }
           }
           Functions: {
+            "search_foods":
+{ Args: { "q": string,"lim"?: number }; Returns: Database["public"]["Tables"]["foods"]["Row"][]
+                           },
             "has_consent":
 { Args: { "consent_type": string }; Returns: boolean
                            },

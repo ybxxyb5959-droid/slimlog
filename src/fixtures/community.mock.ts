@@ -113,7 +113,7 @@ export const MOCK_POSTS: Post[] = [
     createdAt: at(-3, 18, 0),
     likes: 0,
     comments: [],
-    status: 'REVIEW',
+    status: 'LOW',
     mine: true,
   },
 ]

@@ -1,5 +1,5 @@
 import { BellRing, CircleCheck, GlassWater, Pill, Plus, Tablets, Trash2, X } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { AppIcon } from '@/components/common/AppIcon'
@@ -103,11 +103,10 @@ function WaterTab() {
  * - 카드를 누르면 오늘 '먹었어요' (다시 누르면 취소), '건너뛰기'도 남길 수 있다
  * - 처음 먹었어요를 누르면 매일 알림을 받을지 한 번 묻는다 → 확인 시 시계로 '시' 고르기 → 폰 푸시 등록
  */
-function ItemTab({ kind }: { kind: IntakeKind }) {
+function ItemTab({ kind, onRegistered }: { kind: IntakeKind; onRegistered: (key: string) => void }) {
   const { items, logs, addItem, removeItem, logItem, unlog, setReminder } = useIntakeStore()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
-  const [ask, setAsk] = useState<IntakeItem | null>(null)
   const [clockFor, setClockFor] = useState<IntakeItem | null>(null)
   const [hour, setHour] = useState(9)
   const mine = items.filter((i) => i.kind === kind)
@@ -119,7 +118,10 @@ function ItemTab({ kind }: { kind: IntakeKind }) {
 
   const register = (n: string) => {
     if (!n.trim()) return
-    addItem(kind, n.trim())
+    // 등록하면 오늘 섭취로 바로 체크 (알림은 시트를 닫을 때 한 번만 물어봄)
+    const id = addItem(kind, n.trim())
+    logItem(id, new Date().toISOString(), 'taken')
+    onRegistered(`${kind}:${n.trim()}`)
     setName('')
     setAdding(false)
   }
@@ -128,7 +130,6 @@ function ItemTab({ kind }: { kind: IntakeKind }) {
     const t = todayOf(item.id)
     if (t) return unlog(t.id)
     logItem(item.id, new Date().toISOString(), 'taken')
-    if (!item.remindAsked) setAsk(item) // 처음 먹었어요 → 매일 알림 받을지 한 번만 묻기
   }
 
   const openClock = (item: IntakeItem) => {
@@ -149,7 +150,7 @@ function ItemTab({ kind }: { kind: IntakeKind }) {
     <div className="space-y-4">
       {kind === 'medicine' && (
         <p className="rounded-2xl bg-surface-muted px-4 py-3 text-[13px] leading-relaxed text-text-muted">
-          마운자로·위고비·에페 같은 주사는 홈의 ‘투약’에서 기록해요. 앱은 약의 복용량이나 복용 주기를 추천하지 않아요.
+          마OOO·위OO·에O 같은 주사는 홈의 ‘투약’에서 기록해요. 앱은 약의 복용량이나 복용 주기를 추천하지 않아요.
         </p>
       )}
       <div className="flex items-start justify-between gap-3">
@@ -264,22 +265,6 @@ function ItemTab({ kind }: { kind: IntakeKind }) {
       )}
       <p className="text-[12px] text-text-subtle">카드를 누르면 오늘 {verb} 완료로 바뀌고, 시간이 자동으로 저장돼요.</p>
 
-      <ConfirmDialog
-        open={!!ask}
-        onOpenChange={(o) => {
-          if (!o && ask) setReminder(ask.id, { asked: true }) // 닫거나 '알림받지 않기' → 다시 묻지 않음
-          if (!o) setAsk(null)
-        }}
-        title="매일 알림을 보내드릴게요"
-        description={ask ? `${ask.name} 먹을 시간에 알려드려요. 시간은 다음 화면에서 정해요.` : undefined}
-        confirmLabel="확인"
-        cancelLabel="알림받지 않기"
-        onConfirm={() => {
-          const it = ask
-          setAsk(null)
-          if (it) openClock(it)
-        }}
-      />
       <BottomSheet open={!!clockFor} onRequestClose={() => setClockFor(null)} title="알림 시간" description={clockFor ? `${clockFor.name} · 매일` : undefined}>
         <div className="space-y-5">
           <HourClock hour={hour} onChange={setHour} />
@@ -314,10 +299,79 @@ function ItemTab({ kind }: { kind: IntakeKind }) {
 /** 케어 — 물 · 영양제 · 복용약 3탭 */
 export function IntakeSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('water')
+  const { items, setReminder } = useIntakeStore()
+  // 이번에 새로 등록한 영양제·복용약 → 시트를 닫을 때 알림을 한 번만 제안
+  const [fresh, setFresh] = useState<string[]>([])
+  const [ask, setAsk] = useState(false)
+  const [clock, setClock] = useState(false)
+  const [hour, setHour] = useState(9)
+  // 확인 버튼도 창을 닫으므로(onOpenChange false) '확인으로 닫힘'을 구분
+  const confirming = useRef(false)
+  // 저장되면 임시 id 가 실제 id 로 바뀌므로 '종류:이름'으로 찾는다
+  const pending = items.filter((i) => fresh.includes(`${i.kind}:${i.name}`) && !i.remindAsked && !i.remindEnabled)
+  const names = pending.map((i) => i.name)
+  const finish = () => {
+    setFresh([])
+    setAsk(false)
+    setClock(false)
+    onClose()
+  }
+  const requestClose = () => (pending.length ? setAsk(true) : finish())
+  const saveAll = async () => {
+    for (const it of pending) setReminder(it.id, { enabled: true, hour, asked: true })
+    finish()
+    const r = await enablePush()
+    if (r === 'subscribed') toast.success(`매일 ${hourLabel(hour)}에 알려드릴게요`)
+    else toast(`매일 ${hourLabel(hour)}로 저장했어요`, { description: pushHint(r) })
+  }
   return (
+    <>
+    <ConfirmDialog
+      open={ask}
+      onOpenChange={(o) => {
+        if (o) return
+        if (confirming.current) {
+          confirming.current = false
+          return
+        }
+        // 닫거나 '알림받지 않기' → 이번에 등록한 것들은 다시 묻지 않음
+        for (const it of pending) setReminder(it.id, { asked: true })
+        finish()
+      }}
+      title="매일 알림을 보내드릴게요"
+      description={`${names.length > 1 ? `${names[0]} 외 ${names.length - 1}개` : (names[0] ?? '')} 먹을 시간에 알려드려요. 시간은 다음 화면에서 정해요.`}
+      confirmLabel="확인"
+      cancelLabel="알림받지 않기"
+      onConfirm={() => {
+        confirming.current = true
+        setAsk(false)
+        setHour(new Date().getHours())
+        setClock(true)
+      }}
+    />
+    <BottomSheet open={clock} onRequestClose={finish} title="알림 시간" description={`${names.join(' · ')} · 매일`}>
+      <div className="space-y-5">
+        <HourClock hour={hour} onChange={setHour} />
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => {
+              for (const it of pending) setReminder(it.id, { asked: true })
+              finish()
+            }}
+          >
+            취소
+          </Button>
+          <Button size="lg" onClick={saveAll}>
+            저장
+          </Button>
+        </div>
+      </div>
+    </BottomSheet>
     <BottomSheet
-      open={open}
-      onRequestClose={onClose}
+      open={open && !ask && !clock}
+      onRequestClose={requestClose}
       title="케어"
       description="실제로 마시고 먹은 것만 기록해요"
     >
@@ -344,8 +398,9 @@ export function IntakeSheet({ open, onClose }: { open: boolean; onClose: () => v
         </div>
       </div>
       <div id="intake-panel" role="tabpanel" aria-labelledby={`intake-tab-${tab}`}>
-        {tab === 'water' ? <WaterTab /> : <ItemTab key={tab} kind={tab} />}
+        {tab === 'water' ? <WaterTab /> : <ItemTab key={tab} kind={tab} onRegistered={(k) => setFresh((f) => [...f, k])} />}
       </div>
     </BottomSheet>
+    </>
   )
 }
