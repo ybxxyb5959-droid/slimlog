@@ -155,6 +155,8 @@ const PREVIEW_START: Record<string, string> = {
   analysis: '/analysis',
   brand: '/preview/brand',
   meal: '/record/meal/new',
+  inbody: '/record/inbody',
+  eyebody: '/record/eyebody',
   login: '/login',
   onboarding: '/onboarding',
   community: '/community',
