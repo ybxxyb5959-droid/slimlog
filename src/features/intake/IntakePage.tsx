@@ -7,7 +7,7 @@ import { formatMl, summarizeIntake, useIntakeStore } from '@/stores/intakeStore'
 
 import { IntakeSheet } from './IntakeSheet'
 
-/** /record/daily — 섭취 관리(물·영양제·복용약). 홈 카드와 같은 시트를 쓴다 */
+/** /record/daily — 케어(물·영양제·복용약). 홈 카드와 같은 시트를 쓴다 */
 export function IntakePage() {
   const [open, setOpen] = useState(true)
   const water = useIntakeStore((s) => s.water)
@@ -16,7 +16,7 @@ export function IntakePage() {
   const t = summarizeIntake({ water, logs })
   return (
     <>
-      <PageHeader title="섭취 관리" description="물 · 영양제 · 복용약" back="/record" />
+      <PageHeader title="케어" description="물 · 영양제 · 복용약" back="/record" />
       <Card className="space-y-3 md:max-w-lg">
         <p className="tabular text-[15px]">
           오늘 물 <b>{formatMl(t.ml)}</b> / 목표 {formatMl(goal)} · 복용 <b>{t.taken}건</b>

@@ -585,13 +585,13 @@ test.describe('온보딩', () => {
   })
 })
 
-test.describe('섭취 관리', () => {
+test.describe('케어', () => {
   test('홈 카드: 기존 수분 기록을 mL로 이어서 표시, 시트에서 물 추가', async ({ page }) => {
     await page.goto('/home')
-    const card = page.getByRole('button', { name: /섭취 관리/ })
+    const card = page.getByRole('button', { name: /케어/ })
     await expect(card).toContainText('물 1.5L · 복용 1건')
     await card.click()
-    const sheet = page.getByRole('dialog', { name: '섭취 관리' })
+    const sheet = page.getByRole('dialog', { name: '케어' })
     await expect(sheet.getByText('기존 컵 기록 환산')).toBeVisible()
     await sheet.getByRole('button', { name: '+250mL' }).click()
     await expect(sheet.getByText('1,750')).toBeVisible()
@@ -601,8 +601,8 @@ test.describe('섭취 관리', () => {
 
   test('영양제 등록(자동완성)·섭취 완료·알림 묻기·시계, 복용약 탭 안내', async ({ page }) => {
     await page.goto('/home')
-    await page.getByRole('button', { name: /섭취 관리/ }).click()
-    const sheet = page.getByRole('dialog', { name: '섭취 관리' })
+    await page.getByRole('button', { name: /케어/ }).click()
+    const sheet = page.getByRole('dialog', { name: '케어' })
     await sheet.getByRole('tab', { name: '영양제' }).click()
     await sheet.getByRole('button', { name: '등록' }).click()
     await sheet.getByLabel('영양제 이름').fill('유')

@@ -111,7 +111,7 @@ export async function upsertDailyCheck(userId: string, c: DailyCondition) {
   if (r.error) throw r.error
 }
 
-// ── 섭취 관리 (intake_items, intake_logs) ─────────────────────
+// ── 케어: 물·영양제·복용약 (intake_items, intake_logs) ─────────────────────
 export async function fetchIntake() {
   const db = sb()
   const since = new Date()

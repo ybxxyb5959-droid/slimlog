@@ -6,7 +6,7 @@ import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { deleteIntakeItem, deleteIntakeLog, insertIntakeItem, insertIntakeLog, updateIntakeReminder } from '@/services/live/records'
 
 /**
- * 섭취 관리(물·영양제·복용약) — 목업 상태.
+ * 케어(물·영양제·복용약) — 목업 상태.
  * 기존 DAILY_CHECKS.waterCups(컵 단위) 기록을 mL로 환산해 이어 쓴다 (1컵 = 250mL).
  * GLP-1 주사(마운자로·위고비·에페)는 여기서 다루지 않고 '투약' 기능에서 기록한다.
  * 실서비스: intake_items · intake_logs 에 저장. 화면은 먼저 반영하고(빠른 반응), 저장에 실패하면 되돌리고 알린다.

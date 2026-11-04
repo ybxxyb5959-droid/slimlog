@@ -52,7 +52,7 @@ async function hydrate(account: LiveAccount) {
   useFoodCache.setState({ foods: [] })
   const usedIds = [...new Set(meals.flatMap((m) => m.items.map((i) => i.foodId)).filter((id) => id && !myFoods.some((f) => f.id === id)))]
   cacheFoods(await fetchFoodsByIds(usedIds))
-  // 섭취 관리 (물·영양제는 일반, 복용약은 RLS 로 동의자만)
+  // 케어 (물·영양제는 일반, 복용약은 RLS 로 동의자만)
   const intake = await fetchIntake()
   useIntakeStore.setState({
     waterGoalMl: account.waterGoalMl ?? DEFAULT_WATER_GOAL_ML,

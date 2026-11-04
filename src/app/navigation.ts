@@ -44,7 +44,7 @@ export const RECORD_MENUS: MenuItem[] = [
   { to: '/record/inbody', label: '인바디 OCR', icon: ScanText, description: '결과지 촬영 → 확인' },
   { to: '/record/eyebody', label: '눈바디', icon: Camera, description: '이 기기에만 저장' },
   { to: '/record/symptom', label: '증상 · 컨디션', icon: Activity, description: '강도 · 컨디션' },
-  { to: '/record/daily', label: '물 · 단백질 · 영양제', icon: GlassWater, description: '오늘 체크' },
+  { to: '/record/daily', label: '케어', icon: GlassWater, description: '물 · 영양제 · 복용약' },
 ]
 
 export const ANALYSIS_MENUS: MenuItem[] = [

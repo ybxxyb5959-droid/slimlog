@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { acceptRequiredConsents, adminInsert, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
 
-/** Phase 2 — 체중·체성분 / 증상·컨디션 / 섭취 관리 / 홈 반영 (로컬 Supabase) */
+/** Phase 2 — 체중·체성분 / 증상·컨디션 / 케어 / 홈 반영 (로컬 Supabase) */
 
 async function newUser(page: Page, tag: string, weight = '80') {
   const email = uniqueEmail(tag)
@@ -132,11 +132,11 @@ test('증상·컨디션: 오늘 컨디션 저장·수정(날짜당 1행), 증상
   expect(await adminSelect('symptoms', `user_id=eq.${uid}&select=symptom_id`)).toHaveLength(1) // 두통만 남음
 })
 
-test('섭취 관리: 물·영양제·복용약이 DB 에 저장되고 새로고침 후에도 홈에 남음', async ({ page }) => {
+test('케어: 물·영양제·복용약이 DB 에 저장되고 새로고침 후에도 홈에 남음', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-intake')
   await page.goto('/home')
-  await page.getByRole('button', { name: /섭취 관리/ }).click()
-  const sheet = page.getByRole('dialog', { name: '섭취 관리' })
+  await page.getByRole('button', { name: /케어/ }).click()
+  const sheet = page.getByRole('dialog', { name: '케어' })
   await sheet.getByRole('button', { name: '+250mL' }).click()
   await sheet.getByRole('button', { name: '+250mL' }).click()
   // 영양제: [+ 등록] → '유' 입력 → 자동완성(최대 5개)에서 고르기
@@ -175,15 +175,15 @@ test('섭취 관리: 물·영양제·복용약이 DB 에 저장되고 새로고�
 
   await page.keyboard.press('Escape')
   await page.reload()
-  await expect(page.getByRole('button', { name: /섭취 관리/ })).toContainText('물 500mL · 복용 2건')
+  await expect(page.getByRole('button', { name: /케어/ })).toContainText('물 500mL · 복용 2건')
 
   // 물 기록 하나 지우기
-  await page.getByRole('button', { name: /섭취 관리/ }).click()
+  await page.getByRole('button', { name: /케어/ }).click()
   await sheet.getByRole('button', { name: '250mL 기록 삭제' }).first().click()
   await expect.poll(async () => (await adminSelect('intake_logs', `user_id=eq.${uid}&kind=eq.water&select=log_id`)).length).toBe(1)
 })
 
-test('기록 목표: 단백질·물 목표가 user_health 에 저장되고 새로고침 후 섭취 관리·식단 분석에 쓰임', async ({ page }) => {
+test('기록 목표: 단백질·물 목표가 user_health 에 저장되고 새로고침 후 케어·식단 분석에 쓰임', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-goal')
   await page.goto('/my/settings/app')
   await expect(page.getByLabel('하루 단백질 목표')).toHaveValue('')

@@ -311,18 +311,18 @@ function ItemTab({ kind }: { kind: IntakeKind }) {
   )
 }
 
-/** 섭취 관리 — 물 · 영양제 · 복용약 3탭 */
+/** 케어 — 물 · 영양제 · 복용약 3탭 */
 export function IntakeSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('water')
   return (
     <BottomSheet
       open={open}
       onRequestClose={onClose}
-      title="섭취 관리"
+      title="케어"
       description="실제로 마시고 먹은 것만 기록해요"
     >
       <div className="sticky -top-4 z-10 -mx-5 -mt-4 bg-surface px-5 pt-1 pb-4 md:-mx-6 md:px-6">
-        <div role="tablist" aria-label="섭취 종류" className="grid grid-cols-3 gap-1 rounded-2xl bg-surface-muted p-1">
+        <div role="tablist" aria-label="케어 종류" className="grid grid-cols-3 gap-1 rounded-2xl bg-surface-muted p-1">
           {TABS.map((t) => (
             <button
               key={t.id}

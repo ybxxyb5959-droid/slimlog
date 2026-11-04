@@ -39,7 +39,7 @@ const monthDay = (iso: string) => {
 
 interface TodayTile {
   to: string
-  /** 있으면 페이지 이동 대신 실행 (섭취 관리 시트) */
+  /** 있으면 페이지 이동 대신 실행 (케어 시트) */
   onClick?: () => void
   icon: LucideIcon
   title: string
@@ -121,7 +121,7 @@ export function HomePage() {
       to: '/record/daily',
       onClick: () => setIntakeOpen(true),
       icon: GlassWater,
-      title: '섭취 관리',
+      title: '케어',
       done: intake.ml >= waterGoalMl,
       // 실제 기록만 표시 — 없으면 안내 문구
       sub:
