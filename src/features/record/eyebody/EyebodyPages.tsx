@@ -1,3 +1,4 @@
+import { DateTimeField } from '@/components/common/DateTimePicker'
 import { Camera, Image as ImageIcon, Images, LockKeyhole, MoreHorizontal, Pencil, RefreshCw, Trash2, ZoomIn } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router'
@@ -10,7 +11,6 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { LoadingState } from '@/components/common/StateViews'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatShortDateWithDay, toDateKey } from '@/lib/date'
 import {
@@ -427,7 +427,7 @@ function EditSheetBody({ photo, groups, onClose, onSaved }: EditProps & { photo:
         <div className="space-y-4 pb-2">
           <div>
             <Label htmlFor="eyebodyEditDate">찍은 날짜</Label>
-            <Input id="eyebodyEditDate" type="date" value={d} max={toDateKey(new Date())} onChange={(e) => e.target.value && setD(e.target.value)} />
+            <DateTimeField id="eyebodyEditDate" label="찍은 날짜" mode="date" value={d} max={toDateKey(new Date())} onChange={(v) => v && setD(v)} />
           </div>
           <div>
             <p className="mb-2 text-[14px] font-medium">각도</p>

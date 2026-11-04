@@ -2,14 +2,13 @@
  * 참고용 약물 잔존 계산 (계획서 6.3).
  * 이 파일은 상대 import만 쓴다 — 단위 테스트(Playwright)에서 그대로 불러오기 위함.
  *
- * 모델 A (사용 중): 단순 지수 감소 + 반복 투여 중첩
+ * 모델 A: 단순 지수 감소 + 반복 투여 중첩 (흡수 단계 없음 → 투약 순간 곧바로 최고점)
  *   r(t) = Σ D_i · (1/2)^((t − t_i) / t½)   (t ≥ t_i)
- *   화면에는 표시 기간 최댓값 = 100인 상대값만 쓴다. r(t)의 단위를 mg로 표시하지 않는다.
- *   (흡수 과정과 생체이용률을 반영하지 않으므로 '체내에 남은 mg'이 아니다.)
  *
- * 모델 B (비교·검증용, 화면 미사용): 1차 흡수 1구획 모델 (Bateman)
- *   A(t) = F · D · ka / (ka − ke) · (e^(−ke·t) − e^(−ka·t))
- *   ka가 허가자료에 없어 실제 화면에는 쓰지 않는다.
+ * 모델 B (화면 사용): 1차 흡수 1구획 모델 (Bateman) — 맞은 뒤 며칠에 걸쳐 올라갔다가 반감기대로 내려감
+ *   A(t) = D · ka / (ka − ke) · (e^(−ke·t) − e^(−ka·t))
+ *   ka 는 허가자료에 없어서, 허가자료의 최고농도 도달 시간(tmax) 범위의 대표값으로 역산한다 (kaFromTmax).
+ *   tmax 범위가 넓어 최고점 높이가 크게 달라지므로 mg 로는 표시하지 않고, 표시 기간 최댓값 = 100 인 상대값만 쓴다.
  */
 
 export interface DoseEvent {
@@ -55,17 +54,23 @@ export interface RelativePoint {
   relative: number
 }
 
-/** 모델 A 상대값 곡선. 반감기가 없으면 빈 배열(곡선 미생성) */
+/**
+ * 상대값 곡선. 반감기가 없으면 빈 배열(곡선 미생성)
+ * tmaxHours 를 주면 흡수 모델(B), 없으면 지수 감소 모델(A)
+ */
 export function relativeCurve(
   doses: DoseEvent[],
   halfLifeHours: number | null,
   from: number,
   to: number,
   stepHours = 3,
+  tmaxHours?: number | null,
 ): RelativePoint[] {
   if (!halfLifeHours || halfLifeHours <= 0) return []
   const times = sampleTimes(from, to, doses, stepHours)
-  const raw = times.map((t) => ({ t, v: exponentialSum(doses, halfLifeHours, t) }))
+  const ke = LN2 / halfLifeHours
+  const ka = tmaxHours && tmaxHours > 0 ? kaFromTmax(tmaxHours, ke) : null
+  const raw = times.map((t) => ({ t, v: ka ? batemanSum(doses, 1, ka, ke, t) : exponentialSum(doses, halfLifeHours, t) }))
   const max = Math.max(0, ...raw.map((p) => p.v))
   if (max === 0) return []
   return raw.map((p) => ({ t: p.t, relative: (p.v / max) * 100 }))

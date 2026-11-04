@@ -1,6 +1,8 @@
 import { CalendarDays, Check, ExternalLink, Info } from 'lucide-react'
+import { useEffect } from 'react'
 
 import { AppIcon } from '@/components/common/AppIcon'
+import { TimeWheel } from '@/components/common/DateTimePicker'
 import { Calendar } from '@/components/common/Calendar'
 import { SwipeDosePicker } from '@/components/common/SwipeDosePicker'
 import { BodyMap } from '@/components/illustrations/BodyMap'
@@ -158,6 +160,11 @@ export function StepDateTime({ draft, onPatch, error }: { draft: FirstDoseDraft;
     { label: '어제', date: yesterday },
   ]
   const nowTime = toDateTimeLocalValue(new Date()).slice(11)
+  // 시간이 비어 있으면 지금 시각을 먼저 골라 둔다 (휠에 보이는 값과 저장 값이 같게)
+  useEffect(() => {
+    if (!draft.time && !draft.timeUnknown) onPatch({ time: nowTime })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -198,27 +205,20 @@ export function StepDateTime({ draft, onPatch, error }: { draft: FirstDoseDraft;
       </label>
 
       <div>
-        <label htmlFor="doseTime" className="mb-2 block text-[13px] font-medium text-text-muted">
-          시간
-        </label>
-        <div className="flex gap-2">
-          <Input
-            id="doseTime"
-            type="time"
-            value={draft.timeUnknown ? '' : draft.time}
-            disabled={draft.timeUnknown}
-            onChange={(e) => onPatch({ time: e.target.value })}
-            className="flex-1"
-          />
+        <div className="mb-1 flex items-center justify-between">
+          <p id="doseTimeLabel" className="text-[13px] font-medium text-text-muted">
+            시간
+          </p>
           <button
             type="button"
             disabled={draft.timeUnknown}
             onClick={() => onPatch({ time: nowTime, date: draft.date ?? today })}
-            className="h-12 shrink-0 rounded-xl border border-border bg-surface px-4 text-[14px] font-medium hover:bg-surface-muted disabled:opacity-40"
+            className="h-9 shrink-0 rounded-lg px-3 text-[13px] font-medium text-primary hover:bg-primary-soft disabled:opacity-40"
           >
             지금
           </button>
         </div>
+        {!draft.timeUnknown && <TimeWheel value={draft.time || nowTime} onChange={(time) => onPatch({ time })} />}
         <label className="mt-2 flex min-h-11 cursor-pointer items-center gap-3 text-[14px]">
           <input
             id="timeUnknown"

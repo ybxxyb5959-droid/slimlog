@@ -4,7 +4,7 @@ const PAGES = [
   { path: '/home', heading: /님,/ },
   { path: '/record', heading: '기록' },
   { path: '/record/medication', heading: '투약 기록' },
-  { path: '/record/medication/new', heading: '투약 기록하기' },
+  { path: '/record/medication/new', heading: '투여한 용량을 선택해 주세요' }, // 들어오면 5단계 시트가 바로 열림
   { path: '/analysis', heading: '분석' },
   { path: '/analysis/medication', heading: '참고용 잔존량' },
   { path: '/onboarding/first-dose', heading: '어떤 약을 맞으셨나요?' },
@@ -108,30 +108,50 @@ test('에페도 반감기 출처가 있어 곡선 미생성 안내가 뜨지 않
   await expect(page.getByText('곡선을 만들지 않아요', { exact: true })).toHaveCount(0)
 })
 
-test('투약 기록: 입력 검증 → 목업 저장 → 목록 반영 → 삭제', async ({ page }) => {
+test('투약 추가: 5단계 바텀시트(지난 약·용량 미리 선택 → 부위 필수 → 오늘·지금) → 목록 반영 → 수정 화면에서 삭제', async ({ page }) => {
   await page.goto('/record/medication/new')
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page.getByRole('alert')).toContainText('용량')
-  await page.getByRole('radio', { name: '7.5 mg' }).click()
-  await page.getByRole('radio', { name: '허벅지' }).click()
-  await page.getByRole('button', { name: '저장' }).click()
+  const sheet = page.getByRole('dialog')
+  // 예시 사용자: 지난 투약(마운자로) 기준으로 2단계(용량)부터
+  await expect(sheet.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2')
+  const slider = sheet.getByRole('slider')
+  await slider.press('Home')
+  await slider.press('ArrowRight')
+  await slider.press('ArrowRight')
+  await expect(slider).toHaveAttribute('aria-valuetext', '7.5mg')
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await expect(sheet.getByRole('button', { name: '다음', exact: true })).toBeDisabled() // 부위는 직접 골라야 함
+  await sheet.getByRole('radio', { name: '오른쪽 허벅지' }).click()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  // 4단계: 앱 시간 휠 (폰 기본 시간 선택창 없음)
+  await expect(sheet.getByRole('listbox', { name: '오전/오후' })).toBeVisible()
+  await expect(sheet.locator('input[type="time"]')).toHaveCount(0)
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await sheet.getByRole('button', { name: '확인', exact: true }).click()
+  await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
+  await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
   await expect(page).toHaveURL('/record/medication')
-  await expect(page.getByText('투약 기록을 저장했어요')).toBeVisible()
-  await expect(page.getByText('목업 · 새로고침하면 사라지며 서버에 저장되지 않아요.')).toBeVisible()
-  await page.getByRole('link', { name: /마운자로 7.5mg/ }).click()
+  await page.getByRole('link', { name: /마운자로 7.5mg/ }).first().click()
   await page.getByRole('button', { name: '기록 삭제' }).click()
   await page.getByRole('dialog').getByRole('button', { name: '삭제' }).click()
   await expect(page).toHaveURL('/record/medication')
   await expect(page.getByRole('link', { name: /마운자로 7.5mg/ })).toHaveCount(0)
 })
 
-test('미래 날짜 투약은 저장을 막는다', async ({ page }) => {
-  await page.goto('/record/medication/new')
-  await page.getByRole('radio', { name: '5 mg', exact: true }).click()
-  await page.getByRole('radio', { name: '팔' }).click()
-  await page.getByLabel('투여 일시').fill('2099-01-01T10:00')
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page.getByRole('alert')).toContainText('미래 날짜')
+test('투약 수정: 투여 일시는 앱 날짜·시간 선택기, 미래 날짜는 고를 수 없음', async ({ page }) => {
+  await page.goto('/record/medication')
+  await page.getByRole('link', { name: /마운자로/ }).first().click()
+  await page.getByRole('button', { name: /^투여 일시:/ }).click()
+  const picker = page.getByRole('dialog', { name: '투여 일시' })
+  await expect(picker.getByRole('grid', { name: '날짜 선택' })).toBeVisible()
+  // 오늘을 누르면 달력이 이번 달로 이동하고, 다음 달(미래)로는 못 넘어감
+  await picker.getByRole('button', { name: '오늘', exact: true }).click()
+  await expect(picker.getByRole('button', { name: '다음 달' })).toBeDisabled()
+  await picker.getByRole('button', { name: '어제', exact: true }).click()
+  await picker.getByRole('listbox', { name: '오전/오후' }).getByRole('option', { name: '오전' }).click()
+  await picker.getByRole('listbox', { name: '시' }).getByRole('option', { name: '9', exact: true }).click()
+  await picker.getByRole('listbox', { name: '분' }).getByRole('option', { name: '30', exact: true }).click()
+  await picker.getByRole('button', { name: '선택', exact: true }).click()
+  await expect(page.getByRole('button', { name: /^투여 일시: .*오전 9:30/ })).toBeVisible()
 })
 
 test('없는 주소는 404 화면', async ({ page }) => {
@@ -202,7 +222,9 @@ test('첫 투약 등록: 오늘 미래 시간은 다음으로 넘어갈 수 없�
   await sheet.getByRole('radio', { name: '배 왼쪽' }).click()
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
   await sheet.getByRole('button', { name: '오늘', exact: true }).click()
-  await sheet.getByLabel('시간', { exact: true }).fill('23:59')
+  await sheet.getByRole('listbox', { name: '오전/오후' }).getByRole('option', { name: '오후' }).click()
+  await sheet.getByRole('listbox', { name: '시' }).getByRole('option', { name: '11', exact: true }).click()
+  await sheet.getByRole('listbox', { name: '분' }).getByRole('option', { name: '59', exact: true }).click()
   const now = new Date()
   if (now.getHours() === 23 && now.getMinutes() >= 58) test.skip()
   await expect(sheet.getByRole('alert')).toContainText('아직 지나지 않은 시간')
@@ -759,13 +781,14 @@ test('식단 분석: 칼로리 요약 → 탄·단·지 일평균 → 영양소 
   await expect(detail.locator('> li').first()).toBeVisible()
   await expect(detail).toContainText('kcal')
   // 기록 없는 날을 고르면 빈 안내
-  const input = page.getByLabel('상세 볼 날짜')
-  const min = await input.getAttribute('min')
-  await input.fill(min!)
-  await expect(page.getByText('이날은 식단 기록이 없어요')).toBeVisible()
-  // 상단 달력 버튼 → 날짜 칸으로
+  // 상단 달력 버튼 → 앱 날짜 선택기가 바로 열림 → 이전 달 1일(기록 없음) 고르기
   await page.getByRole('button', { name: '날짜별 상세 보기' }).click()
-  await expect(input).toBeFocused()
+  const picker = page.getByRole('dialog', { name: '상세 볼 날짜' })
+  await picker.getByRole('button', { name: '이전 달' }).click()
+  await picker.getByRole('button', { name: /^\d+월 1일/ }).click()
+  await picker.getByRole('button', { name: '선택', exact: true }).click()
+  await expect(page.getByText('이날은 식단 기록이 없어요')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^상세 볼 날짜: .*1일/ })).toBeVisible()
 })
 
 test('설정: 화면 밝기 어둡게 → 바로 적용되고 새로고침 후에도 유지', async ({ page }) => {

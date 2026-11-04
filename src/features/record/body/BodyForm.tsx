@@ -1,3 +1,4 @@
+import { DateTimeField } from '@/components/common/DateTimePicker'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -58,7 +59,7 @@ export function BodyForm({
     >
       <div>
         <Label htmlFor="measuredAt">측정 날짜 · 시간</Label>
-        <Input id="measuredAt" type="datetime-local" value={draft.measuredAt} max={toDateTimeLocalValue(new Date())} onChange={(e) => set({ measuredAt: e.target.value })} />
+        <DateTimeField id="measuredAt" label="측정 날짜 · 시간" mode="datetime" value={draft.measuredAt} max={toDateTimeLocalValue(new Date())} invalid={error?.field === 'measuredAt'} onChange={(v) => set({ measuredAt: v })} />
         {error?.field === 'measuredAt' && <p role="alert" className="mt-1.5 text-[13px] text-danger">{error.message}</p>}
       </div>
       {FIELDS.filter((f) => !weightOnly || f.key === 'weightKg').map((f) => (

@@ -7,6 +7,7 @@ import { MockBadge } from '@/components/common/MockBadge'
 import { RESIDUAL_DISCLAIMER } from '@/components/common/Notice'
 import { EmptyState } from '@/components/common/StateViews'
 import { Card } from '@/components/ui/card'
+import { curveTmaxHours } from '@/fixtures/medications.mock'
 import { DAY_MS } from '@/lib/date'
 import { relativeAt, relativeCurve, type DoseEvent } from '@/lib/pk/residual'
 import { cn } from '@/lib/utils'
@@ -55,7 +56,9 @@ export function ResidualPreviewCard({
         .sort((a, b) => a.t - b.t),
     [doses, medication.id, now],
   )
-  const points = useMemo(() => relativeCurve(events, halfLife, from, now), [events, halfLife, from, now])
+  // 흡수 모델: 맞은 뒤 tmax 쯤 최고점까지 서서히 올라갔다가 반감기대로 내려감
+  const tmax = curveTmaxHours(medication)
+  const points = useMemo(() => relativeCurve(events, halfLife, from, now, 3, tmax), [events, halfLife, from, now, tmax])
   const nowValue = relativeAt(points, now)
   const inRange = events.filter((e) => e.t >= from)
   const markers: CurveMarker[] = inRange.map((e, i) => ({

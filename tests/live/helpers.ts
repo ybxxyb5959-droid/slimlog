@@ -87,3 +87,25 @@ export async function adminPatch(table: string, query: string, patch: Record<str
   const res = await fetch(`${url}/rest/v1/${table}?${query}`, { method: 'PATCH', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })
   if (!res.ok) throw new Error(`${table} patch ${res.status}`)
 }
+
+/** 투약 추가 — 5단계 바텀시트 (약 → 용량 → 부위 → 날짜·시간(오늘·지금) → 확인) */
+export async function addDoseViaSheet(page: Page, opts: { med?: '마운자로' | '위고비' | '에페'; mg: string; site: string }) {
+  await page.goto('/record/medication/new')
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByRole('progressbar')).toBeVisible()
+  // 지난 기록이 있으면 2단계(용량)부터 열림 → 약을 바꾸려면 1단계로
+  if (opts.med && (await sheet.getByRole('slider').isVisible().catch(() => false))) await sheet.getByRole('button', { name: '이전 단계' }).click()
+  if (await sheet.getByRole('radio', { name: /마운자로/ }).isVisible().catch(() => false)) await sheet.getByRole('radio', { name: new RegExp(opts.med ?? '마운자로') }).click()
+  const slider = sheet.getByRole('slider')
+  await slider.press('Home')
+  for (let i = 0; i < 10 && (await slider.getAttribute('aria-valuetext')) !== opts.mg; i++) await slider.press('ArrowRight')
+  await expect(slider).toHaveAttribute('aria-valuetext', opts.mg)
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await sheet.getByRole('radio', { name: opts.site }).click()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click()
+  await sheet.getByRole('button', { name: '다음', exact: true }).click() // 오늘 · 지금
+  await sheet.getByRole('button', { name: '확인', exact: true }).click()
+  await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
+  await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
+  await expect(page).toHaveURL('/record/medication')
+}

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { acceptRequiredConsents, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
+import { acceptRequiredConsents, addDoseViaSheet, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
 
 /** Phase 1 — 마이페이지 (프로필·신체 목표·동의 관리) 실제 저장 */
 
@@ -65,11 +65,7 @@ test('동의 관리: 선택 동의 켜고 끄기 + 민감정보 철회 시 투�
   const uid = await userIdOf(email)
 
   // 투약 하나 기록
-  await page.goto('/record/medication/new')
-  await page.getByRole('radio', { name: '5 mg', exact: true }).click()
-  await page.getByRole('radio', { name: '배 왼쪽' }).click()
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page.getByText('투약 기록을 저장했어요')).toBeVisible()
+  await addDoseViaSheet(page, { med: '마운자로', mg: '5mg', site: '배 왼쪽' })
 
   // 선택 동의: 이벤트·소식 알림 켰다 끄기
   await page.goto('/my/consent')

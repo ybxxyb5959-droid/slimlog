@@ -153,3 +153,17 @@ export const SITE_AREA: Record<InjectionSite, BodyArea> = {
 }
 
 export const AREA_LABEL: Record<BodyArea, string> = { abdomen: '복부', thigh: '허벅지', upper_arm: '위팔' }
+
+/**
+ * 참고 곡선(흡수 모델)에 쓰는 최고점 도달 시간 대표값(시간).
+ * 허가자료에는 흡수 속도(ka)가 없고 tmax '범위'만 있어서 그 중간값으로 근사한다 → src/lib/pk/residual.ts kaFromTmax
+ * - 마운자로: 라벨 8~72시간 → 40시간
+ * - 위고비: 라벨 1~3일 → 48시간
+ * - 에페: 2상 논문 항정상태 중앙값 48시간 (단회 투여 값이 아니라 근사임을 안내 시트에 표시)
+ */
+export function curveTmaxHours(med: Medication): number | null {
+  if (med.id === 'efpe') return 48
+  const r = med.pk.tmaxHours?.value
+  return r ? (r[0] + r[1]) / 2 : null
+}
+

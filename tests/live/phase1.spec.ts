@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { acceptRequiredConsents, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
+import { acceptRequiredConsents, addDoseViaSheet, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
 
 /**
  * Phase 1 — 실제 인증·DB 연결 (로컬 Supabase)
@@ -121,13 +121,7 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await expect(page.getByText('마운자로 2.5mg').first()).toBeVisible()
 
   // 추가
-  await page.goto('/record/medication/new')
-  await page.getByRole('radio', { name: '위고비' }).click()
-  await page.getByRole('radio', { name: '0.5 mg', exact: true }).click()
-  await page.getByRole('radio', { name: '배 오른쪽' }).click()
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page).toHaveURL('/record/medication')
-  await expect(page.getByText('투약 기록을 저장했어요')).toBeVisible()
+  await addDoseViaSheet(page, { med: '위고비', mg: '0.5mg', site: '배 오른쪽' })
   doses = await adminSelect('doses', `user_id=eq.${uid}&select=dose_id,med_id,dose_mg`)
   expect(doses).toHaveLength(2)
   const wegovy = doses.find((d) => d.med_id === 'wegovy')!
@@ -158,12 +152,7 @@ test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', 
   await acceptRequiredConsents(page)
   const nickA = `중복${Date.now() % 100000}`
   await quickOnboarding(page, { nickname: nickA })
-  await page.goto('/record/medication/new')
-  await page.getByRole('radio', { name: '마운자로' }).click()
-  await page.getByRole('radio', { name: '5 mg', exact: true }).click()
-  await page.getByRole('radio', { name: '배 왼쪽' }).click()
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page.getByText('투약 기록을 저장했어요')).toBeVisible()
+  await addDoseViaSheet(page, { med: '마운자로', mg: '5mg', site: '배 왼쪽' })
 
   // B: 다른 브라우저 — A 의 닉네임은 못 쓰고, A 의 투약은 안 보임
   const ctxB = await browser.newContext({ viewport: { width: 390, height: 844 } })

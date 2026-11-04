@@ -6,6 +6,7 @@ import { BottomSheet } from '@/components/common/BottomSheet'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
+import { isLive } from '@/lib/supabase'
 import { formatFullDate } from '@/lib/date'
 
 import { dateTimeError, EMPTY_DRAFT, isDirty, type FirstDoseDraft } from './firstDoseDraft'
@@ -22,7 +23,7 @@ const TITLES: Record<number, { title: string; description?: string }> = {
 }
 
 /**
- * 첫 투약 등록 5단계 플로우.
+ * 투약 등록 5단계 플로우 (첫 투약 · 투약 추가 공용).
  * draft·step은 부모가 들고 있어서 시트를 닫았다 열어도 이어서 할 수 있다.
  */
 export function FirstDoseFlow({
@@ -212,7 +213,9 @@ function Done({ saved }: { saved: boolean }) {
       <p className="mt-4 text-[17px] font-bold">{saved ? '투약 기록을 남겼어요' : '입력 내용을 확인했어요'}</p>
       <p className="mt-1 max-w-xs text-[14px] text-text-muted">
         {saved
-          ? '목업이라 이 기기 화면에만 저장돼요. 홈에서 방금 남긴 기록을 확인할 수 있어요.'
+          ? isLive
+            ? '홈과 투약 목록, 참고 곡선에서 방금 남긴 기록을 확인할 수 있어요.'
+            : '목업이라 이 기기 화면에만 저장돼요. 홈에서 방금 남긴 기록을 확인할 수 있어요.'
           : '목업 화면이라 실제로 저장되지 않았어요. 저장 기능은 서버 연결 단계에서 붙일 예정이에요.'}
       </p>
     </div>
