@@ -1,4 +1,4 @@
-import { Camera, Coffee, Images, Moon, Pencil, Plus, Sun, Sunrise, Trash2, Utensils, type LucideIcon } from 'lucide-react'
+import { Coffee, Images, Moon, Pencil, Plus, Sun, Sunrise, Trash2, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -196,10 +196,6 @@ export function MealListPage() {
           })}
         </section>
 
-        <Button size="lg" className="w-full" onClick={() => startNew()}>
-          <Camera size={18} strokeWidth={1.75} aria-hidden /> 사진으로 식단 기록하기
-        </Button>
-
         {/* 지난 기록 */}
         {pastDays.length > 0 && (
           <section aria-labelledby="meals-past" className="space-y-3">
@@ -213,11 +209,6 @@ export function MealListPage() {
               </div>
             ))}
           </section>
-        )}
-        {sorted.length === 0 && (
-          <p className="flex items-center justify-center gap-1.5 px-1 text-center text-[13px] text-text-subtle">
-            <Utensils size={14} aria-hidden /> 사진 한 장으로 여러 반찬도 함께 기록할 수 있어요.
-          </p>
         )}
       </div>
       <NutritionGoalSheet

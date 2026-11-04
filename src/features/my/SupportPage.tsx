@@ -20,7 +20,7 @@ export function SupportPage() {
           <p className="flex justify-between">
             <span className="text-text-muted">버전</span>
             <span className="tabular">
-              {APP_VERSION} · {isLive ? '서버 연결됨' : '예시 데이터 모드'}
+              {APP_VERSION}{isLive ? '' : ' · 예시 데이터 모드'}
             </span>
           </p>
           <p className="leading-relaxed text-text-muted">

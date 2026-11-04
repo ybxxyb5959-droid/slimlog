@@ -110,7 +110,7 @@ export function InbodyOcrPage() {
         })
         useRecordsStore.setState({ bodyLogs: await fetchBodyLogs() })
       } else if (isLive) {
-        return void toast('결과지 저장은 서버 연결 후 열려요', { description: '같은 값을 체중 기록에서 직접 입력할 수 있어요.' })
+        return void toast('지금은 결과지를 저장할 수 없어요', { description: '같은 값을 체중 기록에서 직접 입력할 수 있어요.' })
       } else await addBody(input)
       toast.success('인바디 결과를 저장했어요', { description: isLive ? undefined : '목업 · 화면에만 저장돼요.' })
       navigate('/analysis?tab=inbody')

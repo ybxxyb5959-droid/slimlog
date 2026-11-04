@@ -176,7 +176,7 @@ export function PostDetailPage() {
         confirmLabel="삭제"
         tone="danger"
         onConfirm={() => {
-          if (isLive && !apiReady) return void toast('글 삭제는 서버 연결 후 열려요')
+          if (isLive && !apiReady) return void toast('지금은 글을 삭제할 수 없어요. 잠시 후 다시 시도해 주세요.')
           removePost(post.id)
           toast(isLive ? '글을 삭제했어요' : '목업: 화면에서만 삭제됐어요')
           navigate('/community')

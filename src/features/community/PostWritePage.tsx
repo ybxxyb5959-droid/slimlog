@@ -45,7 +45,7 @@ export function PostWritePage() {
     if (r.level === 'BLOCKED') return
     if (isLive) {
       // 실서비스: 서버가 같은 규칙으로 다시 검사하고 저장 (화면 검사는 미리보기일 뿐)
-      if (!apiReady) return void toast('글쓰기는 서버 연결 후 열려요')
+      if (!apiReady) return void toast('지금은 글을 올릴 수 없어요. 잠시 후 다시 시도해 주세요.')
       setSubmitting(true)
       const slowTimer = window.setTimeout(() => setSlow(true), 2500)
       try {

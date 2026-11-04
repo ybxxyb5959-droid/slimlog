@@ -17,7 +17,7 @@ export function DataManagePage() {
           <SettingRow id="export" label="기록 내보내기" description="투약·체중·식단 기록을 파일로 받기">
             <span className="inline-flex items-center gap-1.5">
               <Download size={16} strokeWidth={1.75} className="text-text-subtle" aria-hidden />
-              <Badge>발표 이후</Badge>
+              <Badge>준비하고 있어요</Badge>
             </span>
           </SettingRow>
         </MyGroup>

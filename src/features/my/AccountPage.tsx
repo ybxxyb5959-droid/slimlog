@@ -53,7 +53,7 @@ export function AccountPage() {
           >
             회원 탈퇴
           </Button>
-          {isLive && !apiReady && <p className="text-[12px] text-text-subtle">준비 중 · 탈퇴는 서버(FastAPI) 연결 후 열려요. 사진 파일까지 함께 지워야 해서 앱에서 바로 처리하지 않아요.</p>}
+          {isLive && !apiReady && <p className="text-[12px] text-text-subtle">지금은 탈퇴를 처리할 수 없어요. 잠시 후 다시 시도해 주세요.</p>}
         </Card>
       </div>
       <ConfirmDialog

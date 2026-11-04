@@ -939,10 +939,15 @@ test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {
 test.describe('식단 기록', () => {
   const kcalTotal = (page: import('@playwright/test').Page) => page.getByText('총 섭취 열량').locator('..')
   const saveBtn = (page: import('@playwright/test').Page) => page.getByRole('button', { name: /식단 (저장|수정)하기/ })
+  // 갤러리에서 사진 고르기 (목업은 사진 내용과 상관없이 같은 인식 결과)
+  const pickPhoto = async (page: import('@playwright/test').Page) => {
+    const jpg = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64')
+    await page.getByLabel('갤러리에서 선택').setInputFiles({ name: 'meal.jpg', mimeType: 'image/jpeg', buffer: jpg })
+  }
 
   test('1. 사진 1장 → 음식 인식(목업) → 확인 필요 고르기·수정·제외 → 저장', async ({ page }) => {
     await page.goto('/record/meal/new')
-    await page.getByRole('button', { name: '예시 사진' }).click()
+    await pickPhoto(page)
     // 영역 그리기 UI는 없다
     await expect(page.getByRole('application')).toHaveCount(0)
     await expect(page.getByText('영역')).toHaveCount(0)
@@ -985,7 +990,7 @@ test.describe('식단 기록', () => {
 
   test('2. 사진 1장 → 인식 → 확인 필요 빼고 음식 직접 추가 → 저장', async ({ page }) => {
     await page.goto('/record/meal/new')
-    await page.getByRole('button', { name: '예시 사진' }).click()
+    await pickPhoto(page)
     await page.getByRole('button', { name: '음식 인식하기' }).click()
     await page.getByRole('button', { name: '확인 필요 1 제외' }).click()
     await page.getByRole('button', { name: '확인 필요 1 제외' }).click()
@@ -1078,7 +1083,7 @@ test.describe('식단 기록', () => {
     await page.goto('/record/meal')
     for (const food of ['바나나', '사과']) {
       // 목업 상태는 새로고침하면 초기화되므로 앱 안에서 이동
-      await page.getByRole('button', { name: '기록하기' }).click()
+      await page.getByRole('button', { name: '간식 추가' }).click()
       await page.getByRole('link', { name: /음식명 또는 제품명/ }).click()
       await page.getByLabel('음식 검색').fill(food)
       await page.getByRole('button', { name: `${food} 1인분 바로 추가` }).click()
