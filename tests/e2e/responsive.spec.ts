@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const PAGES = [
-  { path: '/home', heading: /님,/ },
+  { path: '/home', heading: '오늘도 기록해볼까요' },
   { path: '/record', heading: '기록' },
   { path: '/record/medication', heading: '투약 기록' },
   { path: '/record/medication/new', heading: '투여한 용량을 선택해 주세요' }, // 들어오면 5단계 시트가 바로 열림
@@ -102,9 +102,11 @@ test('참고 곡선 화면은 고정 면책 문구를 항상 표시한다', asyn
   }
 })
 
-test('에페도 반감기 출처가 있어 곡선 미생성 안내가 뜨지 않는다', async ({ page }) => {
+test('참고 곡선 화면: 약 바꿔 보기 버튼·증상 겹쳐 보기 없이 내 약 곡선만', async ({ page }) => {
   await page.goto('/analysis/medication')
-  await page.getByRole('radio', { name: '에페' }).click()
+  await expect(page.getByText('마운자로 투약 기록으로 계산한 상대값 곡선이에요.')).toBeVisible()
+  await expect(page.getByRole('radio', { name: '위고비' })).toHaveCount(0)
+  await expect(page.getByText('증상 기록 겹쳐 보기')).toHaveCount(0)
   await expect(page.getByText('곡선을 만들지 않아요', { exact: true })).toHaveCount(0)
 })
 
@@ -256,7 +258,7 @@ test('용량 선택기: 좌우 스와이프로 값이 바뀐다', async ({ page 
   await expect(sheet.getByText('2 / 6')).toBeVisible()
 })
 
-test('참고 곡선: 기간 전환·툴팁·약별 기록만 표시', async ({ page }) => {
+test('참고 곡선: 기간 전환·툴팁·mg 표시 없음', async ({ page }) => {
   await page.goto('/analysis/medication')
   await expect(page.getByText('현재 참고 수준')).toBeVisible()
   for (const label of ['2주', '3개월', '1개월']) {
@@ -270,9 +272,6 @@ test('참고 곡선: 기간 전환·툴팁·약별 기록만 표시', async ({ p
   const box = (await chart.boundingBox())!
   await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2)
   await expect(bubble).not.toHaveText(before!)
-  // 위고비는 기록이 없으므로 빈 상태 (마운자로 기록을 섞지 않음)
-  await page.getByRole('radio', { name: '위고비' }).click()
-  await expect(page.getByText('이 기간에 투약 기록이 없어요')).toBeVisible()
   // mg 단위는 곡선 값에 쓰지 않는다
   await expect(page.getByText(/잔존량 \d+(\.\d+)?\s?mg/)).toHaveCount(0)
 })
@@ -365,8 +364,10 @@ test.describe('커뮤니티', () => {
     await page.getByRole('radio', { name: '자유' }).click()
     await page.getByLabel('제목').fill('남은 펜')
     await page.getByLabel('내용').fill('필요하신 분 양 도해요. 쪽지 주세요')
-    await page.getByRole('button', { name: '검사해 보기' }).click()
-    await expect(page.getByText('게시할 수 없는 내용이 있어요 (BLOCKED)')).toBeVisible()
+    await expect(page.getByRole('button', { name: '검사해 보기' })).toHaveCount(0)
+    await expect(page.getByText('검사 결과 예시 넣어 보기')).toHaveCount(0)
+    await page.getByRole('button', { name: '게시하기' }).click()
+    await expect(page.getByText('게시할 수 없는 내용이 있어요', { exact: true })).toBeVisible()
     await expect(page.locator('mark').first()).toContainText('양 도')
     await expect(page.getByRole('button', { name: '게시하기' })).toBeDisabled()
   })
@@ -403,7 +404,7 @@ test.describe('커뮤니티', () => {
     await page.getByRole('link', { name: '수정' }).click()
     await expect(page.getByRole('heading', { name: '글 수정' })).toBeVisible()
     await page.getByLabel('내용').fill('진료 때 물어볼 내용을 정리했어요.')
-    await page.getByRole('button', { name: '다시 검사 후 저장' }).click()
+    await page.getByRole('button', { name: '저장', exact: true }).click()
     await expect(page.getByText('진료 때 물어볼 내용을 정리했어요.')).toBeVisible()
     await page.getByRole('button', { name: '글 메뉴' }).click()
     await page.getByRole('button', { name: '삭제' }).click()
@@ -713,10 +714,10 @@ test.describe('분석 3탭', () => {
   })
 })
 
-test.describe('홈 인사말 이름', () => {
+test.describe('홈 인사말 (이름 없이 고정 문구)', () => {
   test('예시 사용자: 가입 이름에서 성을 뺀 이름 (닉네임 아님)', async ({ page }) => {
     await page.goto('/home')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^지원님, /)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('오늘도 기록해볼까요')
     await expect(page.getByRole('heading', { level: 1 })).not.toContainText('산뜻한레몬')
   })
 
@@ -737,7 +738,7 @@ test.describe('홈 인사말 이름', () => {
     await page.getByRole('button', { name: '다음' }).click()
     await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
     await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^민호님, /)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('오늘도 기록해볼까요')
   })
 })
 

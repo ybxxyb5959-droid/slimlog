@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
 import { SYMPTOM_LABEL } from '@/fixtures/records.mock'
-import { addDays, daysBetween, formatShortDateWithDay, formatTime, greetingFor, toDateKey } from '@/lib/date'
+import { addDays, daysBetween, formatShortDateWithDay, formatTime, toDateKey } from '@/lib/date'
 import { useAsync } from '@/lib/useAsync'
 import { useDoses } from '@/services/doses'
 import { getHomeSummary } from '@/services/records'
@@ -157,7 +157,7 @@ export function HomePage() {
               {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
             </span>
             <h1 className="text-[15px] font-semibold text-text">
-              {profile.givenName ? `${profile.givenName}님, ${greetingFor(now)}` : greetingFor(now)}
+              오늘도 기록해볼까요
             </h1>
             {!data.isNewUser && <MockBadge className="mt-1.5" />}
           </>

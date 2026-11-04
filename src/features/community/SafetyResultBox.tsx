@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils'
 export function SafetyResultBox({ result }: { result: SafetyResult }) {
   const rules = [...new Set(result.matches.map((m) => m.rule))]
   const style = {
-    LOW: { icon: ShieldCheck, tone: 'success', box: 'border-primary/30 bg-primary-soft', title: '바로 게시할 수 있어요 (LOW)', text: 'text-primary' },
-    REVIEW: { icon: ShieldAlert, tone: 'review', box: 'border-review-border bg-review-soft', title: '관리자 검토 후 공개돼요 (REVIEW)', text: 'text-review' },
-    BLOCKED: { icon: ShieldBan, tone: 'danger', box: 'border-danger-border bg-danger-soft', title: '게시할 수 없는 내용이 있어요 (BLOCKED)', text: 'text-danger' },
+    LOW: { icon: ShieldCheck, tone: 'success', box: 'border-primary/30 bg-primary-soft', title: '바로 게시할 수 있어요', text: 'text-primary' },
+    REVIEW: { icon: ShieldAlert, tone: 'review', box: 'border-review-border bg-review-soft', title: '관리자 검토 후 공개돼요', text: 'text-review' },
+    BLOCKED: { icon: ShieldBan, tone: 'danger', box: 'border-danger-border bg-danger-soft', title: '게시할 수 없는 내용이 있어요', text: 'text-danger' },
   }[result.level]
 
   return (
@@ -32,7 +32,6 @@ export function SafetyResultBox({ result }: { result: SafetyResult }) {
             검사할 수 있어요.
           </p>
         )}
-        <p className="text-[12px] text-text-subtle">목업 검사 · 실제 검사는 서버에서 하고 기록(FILTER_LOGS)에 남아요. 키워드 검사는 보조 수단이에요.</p>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { AppIcon } from '@/components/common/AppIcon'
 import { PageHeader } from '@/components/common/PageHeader'
 import { fmtG, nutrientsFor, sumNutrients } from '@/lib/nutrition'
-import { apiReady } from '@/lib/api'
+import { apiReady, wakeServer } from '@/lib/api'
 import { isLive } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { publicFoodCount } from '@/services/live/meals'
@@ -17,6 +17,8 @@ import { useMealStore } from '@/stores/mealStore'
 
 /** 식단 기록 시작 — 사진 / 직접 검색 / 최근·즐겨찾기 */
 export function MealStartPage() {
+  // 무료 서버(Render)가 잠들어 있으면 미리 깨워 둔다
+  useEffect(() => wakeServer(), [])
   const navigate = useNavigate()
   const draft = useMealDraftStore()
   const favorites = useMealStore((s) => s.favorites)
