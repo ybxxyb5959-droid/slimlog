@@ -1198,3 +1198,39 @@ test('키보드가 올라오면(화면 높이 줄어듦) 입력 중인 칸이 �
   await expect(page.locator('html')).not.toHaveAttribute('data-keyboard-open', '')
   await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeVisible()
 })
+
+test.describe('체중 기록 화면 (체중계)', () => {
+  test('지난 체중이 미리 뜨고, ±0.1·눈금·직접 입력·벽 달력/시계로 기록', async ({ page }) => {
+    await page.goto('/record/body/new')
+    const input = page.getByLabel('체중', { exact: true })
+    // 예시 사용자 최근 체중이 미리 떠 있음
+    const start = Number(await input.inputValue())
+    expect(start).toBeGreaterThan(20)
+    await page.getByRole('button', { name: '0.1kg 더하기' }).click()
+    await page.getByRole('button', { name: '0.1kg 더하기' }).click()
+    await page.getByRole('button', { name: '0.1kg 빼기' }).click()
+    await expect(input).toHaveValue((start + 0.1).toFixed(1))
+    // 눈금: 키보드 방향키로 0.1씩
+    const ruler = page.getByRole('slider', { name: '체중 드래그로 조절' })
+    await ruler.focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(input).toHaveValue(start.toFixed(1))
+    // 체중계 화면을 눌러 직접 입력
+    await input.fill('72.4')
+    await expect(ruler).toHaveAttribute('aria-valuetext', '72.4kg')
+    // 벽 달력 → 날짜 시트, 벽시계 → 시간 시트
+    await page.getByRole('button', { name: /^측정 날짜:/ }).click()
+    await expect(page.getByRole('dialog', { name: '측정 날짜' })).toBeVisible()
+    await page.getByRole('dialog').getByRole('button', { name: '어제', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '선택', exact: true }).click()
+    const y = new Date(Date.now() - 86_400_000)
+    await expect(page.getByRole('button', { name: /^측정 날짜:/ })).toHaveAccessibleName(new RegExp(`${y.getMonth() + 1}월 ${y.getDate()}일`))
+    await page.getByRole('button', { name: /^측정 시간:/ }).click()
+    await expect(page.getByRole('dialog', { name: '측정 시간' })).toBeVisible()
+    await page.getByRole('dialog').getByRole('button', { name: '취소' }).click()
+    await page.getByRole('button', { name: '저장' }).click()
+    await expect(page.getByText('체중을 기록했어요')).toBeVisible()
+    await expect(page).toHaveURL('/record/body')
+    await expect(page.getByText('72.4kg').first()).toBeVisible()
+  })
+})
