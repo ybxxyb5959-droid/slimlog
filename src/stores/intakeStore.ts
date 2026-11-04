@@ -89,6 +89,19 @@ const demo = () => ({
 let seq = 0
 const uid = (p: string) => `${p}-${Date.now()}-${seq++}`
 
+/**
+ * 화면용 임시 id → DB 가 준 진짜 id.
+ * 화면은 저장을 기다리지 않고 먼저 바뀌므로, 저장이 끝나기 전에 '기록'·'삭제'를 누르면 임시 id 가 DB 로 갈 수 있다.
+ * (클라우드처럼 응답이 느릴 때 실제로 발생) → 진짜 id 가 나올 때까지 기다렸다가 보낸다.
+ */
+const pendingIds = new Map<string, Promise<string>>()
+const track = (tempId: string, p: Promise<string>) => {
+  pendingIds.set(tempId, p)
+  p.catch(() => {}).finally(() => setTimeout(() => pendingIds.delete(tempId), 60_000))
+  return p
+}
+const realId = (id: string) => pendingIds.get(id) ?? Promise.resolve(id)
+
 /** 실서비스 저장: 실패하면 화면 변경을 되돌린다 */
 function persist<T>(run: () => Promise<T>, undo: () => void, onOk?: (v: T) => void) {
   if (!isLive) return
@@ -106,7 +119,7 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
     const w = { id: uid('w'), ml, at: new Date().toISOString() }
     set((s) => ({ water: [...s.water, w] }))
     persist(
-      () => insertIntakeLog({ kind: 'water', amount_ml: ml, taken_at: w.at }),
+      () => track(w.id, insertIntakeLog({ kind: 'water', amount_ml: ml, taken_at: w.at })),
       () => set((s) => ({ water: s.water.filter((x) => x.id !== w.id) })),
       (dbId) => set((s) => ({ water: s.water.map((x) => (x.id === w.id ? { ...x, id: dbId } : x)) })),
     )
@@ -114,13 +127,13 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
   removeWater: (id) => {
     const prev = get().water
     set((s) => ({ water: s.water.filter((w) => w.id !== id) }))
-    persist(() => deleteIntakeLog(id), () => set({ water: prev }))
+    persist(async () => deleteIntakeLog(await realId(id)), () => set({ water: prev }))
   },
   addItem: (kind, name) => {
     const item = { id: uid(kind), kind, name }
     set((s) => ({ items: [...s.items, item] }))
     persist(
-      () => insertIntakeItem(kind, name),
+      () => track(item.id, insertIntakeItem(kind, name)),
       () => set((s) => ({ items: s.items.filter((x) => x.id !== item.id) })),
       (dbId) => set((s) => ({ items: s.items.map((x) => (x.id === item.id ? { ...x, id: dbId } : x)), logs: s.logs.map((l) => (l.itemId === item.id ? { ...l, itemId: dbId } : l)) })),
     )
@@ -128,14 +141,14 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
   removeItem: (id) => {
     const prev = { items: get().items, logs: get().logs }
     set((s) => ({ items: s.items.filter((i) => i.id !== id), logs: s.logs.filter((l) => l.itemId !== id) }))
-    persist(() => deleteIntakeItem(id), () => set(prev))
+    persist(async () => deleteIntakeItem(await realId(id)), () => set(prev))
   },
   logItem: (itemId, at, status = 'taken') => {
     const log = { id: uid('l'), itemId, at, status }
     const kind = get().items.find((i) => i.id === itemId)?.kind ?? 'supplement'
     set((s) => ({ logs: [...s.logs, log] }))
     persist(
-      () => insertIntakeLog({ kind, item_id: itemId, taken_at: at, status }),
+      () => track(log.id, realId(itemId).then((id) => insertIntakeLog({ kind, item_id: id, taken_at: at, status }))),
       () => set((s) => ({ logs: s.logs.filter((x) => x.id !== log.id) })),
       (dbId) => set((s) => ({ logs: s.logs.map((x) => (x.id === log.id ? { ...x, id: dbId } : x)) })),
     )
@@ -150,8 +163,8 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
       ),
     }))
     persist(
-      () =>
-        updateIntakeReminder(itemId, {
+      async () =>
+        updateIntakeReminder(await realId(itemId), {
           ...(patch.enabled !== undefined ? { remind_enabled: patch.enabled } : {}),
           ...(patch.hour !== undefined ? { remind_hour: patch.hour } : {}),
           ...(patch.asked !== undefined ? { remind_asked: patch.asked } : {}),
@@ -162,7 +175,7 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
   unlog: (logId) => {
     const prev = get().logs
     set((s) => ({ logs: s.logs.filter((l) => l.id !== logId) }))
-    persist(() => deleteIntakeLog(logId), () => set({ logs: prev }))
+    persist(async () => deleteIntakeLog(await realId(logId)), () => set({ logs: prev }))
   },
   resetEmpty: () => set({ water: [], items: [], logs: [], waterGoalMl: DEFAULT_WATER_GOAL_ML, proteinGoalG: null, kcalGoal: null, carbGoalG: null, fatGoalG: null }),
   resetDemo: () => set(demo()),

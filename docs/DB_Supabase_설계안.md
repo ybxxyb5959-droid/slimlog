@@ -238,3 +238,24 @@ bash supabase/tests/run_local.sh
 - 예상 용량 (로컬 Postgres 16 에 같은 표·인덱스로 실측): **166MB** = 표 79MB + 인덱스 87MB (이름 trigram 27MB, 제조사 trigram 17MB, PK 22MB, 이름 22MB)
 - 업로드 중 HTTP 500 한 번 → `--start 273500` 으로 이어 넣음 (upsert 라 겹쳐도 안전)
 - 실제 DB 크기 확인 (SQL Editor): `select pg_size_pretty(pg_database_size(current_database())), pg_size_pretty(pg_total_relation_size('public.foods'));`
+
+### 2026-11-04 클라우드 실서비스 테스트 (이 컨테이너에서 직접 접속)
+| 테스트 | 결과 |
+|---|---|
+| Auth·Storage·REST 통합 (`integration.mjs`) | **30 PASS / 0 FAIL** (테스트 계정·파일 자동 삭제) |
+| 화면 E2E (`playwright.live.config.ts`, 클라우드 DB + 로컬 FastAPI) | **16개 모두 통과** (나눠서 실행. 아래 '로그인 횟수 제한' 참고) |
+| 카카오·구글 로그인 | 둘 다 켜짐 확인. 앱 → Supabase → `kauth.kakao.com` / `accounts.google.com` 로 정상 이동, Redirect URI 일치. **실제 계정 로그인은 사람이 PC·폰에서 확인 필요** (이 컨테이너는 kakao.com 접속이 막혀 있음) |
+
+클라우드에서 돌리는 법:
+```
+LIVE_SUPABASE_URL=$VITE_SUPABASE_URL LIVE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
+LIVE_SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_ROLE_KEY PW_CHROMIUM_PATH=/opt/pw-browsers/chromium \
+npx playwright test -c playwright.live.config.ts
+```
+- 클라우드는 이메일 확인이 켜져 있어, 테스트는 서버 권한으로 '확인된 테스트 계정(@slimlog.test)'을 미리 만들고 끝나면 전부 지움 (`tests/live/teardown.ts`)
+- **로그인 횟수 제한:** 한 번에 16개를 다 돌리면 로그인이 20번 넘게 일어나 Supabase 기본 제한(IP당 5분 30회 정도)에 걸려 뒤쪽이 실패함 → `tests/live/phase1*` 와 `phase2 phase3` 를 나눠서, 5분 간격으로 실행
+
+클라우드에서 처음 드러난 문제 (로컬은 응답이 빨라 안 보였음) — 고침:
+1. 섭취 관리: 영양제·복용약 **등록 직후 바로 '기록'을 누르면 저장이 조용히 사라짐** (저장 전 임시 id 가 DB 로 감) → 진짜 id 를 기다렸다가 보냄 (`src/stores/intakeStore.ts`)
+2. 로그아웃: 앱이 기록을 불러오는 중에 로그아웃하면 **늦게 끝난 불러오기가 다시 로그인 상태로 만듦** → 사용자가 바뀌었으면 결과를 버림 (`src/stores/authStore.ts`)
+3. 로그인 화면: 켜진 로그인 목록을 받기 전에 카카오를 누르면 **"아직 연결되지 않은 로그인"이라고 잘못 안내** → 목록 받을 때까지 버튼 잠금 (`src/features/auth/LiveLoginPanel.tsx`)

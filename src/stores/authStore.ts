@@ -100,8 +100,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const account = await loadAccount(user)
       await hydrate(account)
+      // 불러오는 동안 로그아웃(또는 다른 계정 로그인)했으면 늦게 온 결과로 다시 로그인 상태가 되지 않게 버린다
+      if (get().session?.user.id !== user.id) return
       set({ account, status: 'signedIn', error: null })
     } catch (e) {
+      if (get().session?.user.id !== user.id) return
       set({ status: 'error', error: (e as Error).message })
     }
   },
