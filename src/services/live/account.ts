@@ -17,6 +17,10 @@ export interface LiveAccount {
   startWeightKg: number | null
   goalWeightKg: number | null
   currentMedId: MedicationId | null
+  /** 하루 단백질 목표(g) — 직접 정한 값, 없으면 null */
+  proteinGoalG: number | null
+  /** 하루 물 목표(ml) — 직접 정한 값, 없으면 null */
+  waterGoalMl: number | null
   consents: ConsentId[]
 }
 
@@ -41,7 +45,7 @@ export async function loadAccount(user: User): Promise<LiveAccount> {
   const db = sb()
   const [u, h, c] = await Promise.all([
     db.from('users').select('nickname, role, onboarding_step, onboarding_completed_at').eq('user_id', user.id).single(),
-    db.from('user_health').select('legal_name, height_cm, start_weight_kg, goal_weight_kg, current_med_id').eq('user_id', user.id).single(),
+    db.from('user_health').select('legal_name, height_cm, start_weight_kg, goal_weight_kg, current_med_id, protein_goal_g, water_goal_ml').eq('user_id', user.id).single(),
     db.from('consents').select('type').eq('user_id', user.id).is('withdrawn_at', null),
   ])
   if (u.error) throw u.error
@@ -70,6 +74,8 @@ export async function loadAccount(user: User): Promise<LiveAccount> {
     startWeightKg: h.data.start_weight_kg,
     goalWeightKg: h.data.goal_weight_kg,
     currentMedId: (h.data.current_med_id as MedicationId | null) ?? null,
+    proteinGoalG: h.data.protein_goal_g,
+    waterGoalMl: h.data.water_goal_ml,
     consents: [...new Set(c.data.map((r) => r.type as ConsentId))],
   }
 }
@@ -162,7 +168,14 @@ export async function updateNickname(userId: string, nickname: string) {
 
 export async function updateHealth(
   userId: string,
-  patch: Partial<{ height_cm: number | null; start_weight_kg: number | null; goal_weight_kg: number | null; current_med_id: string | null }>,
+  patch: Partial<{
+    height_cm: number | null
+    start_weight_kg: number | null
+    goal_weight_kg: number | null
+    current_med_id: string | null
+    protein_goal_g: number | null
+    water_goal_ml: number | null
+  }>,
 ) {
   const r = await sb().from('user_health').update(patch).eq('user_id', userId)
   if (r.error) throw r.error

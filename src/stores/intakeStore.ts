@@ -13,6 +13,8 @@ import { deleteIntakeItem, deleteIntakeLog, insertIntakeItem, insertIntakeLog, u
  * 복용약(medicine)은 민감정보 → 동의가 없으면 DB(RLS)가 거절한다.
  */
 export const ML_PER_CUP = 250
+/** 목표를 정하지 않았을 때 화면에 쓰는 기본값 (8컵). 저장되지 않으며 추천값이 아님 */
+export const DEFAULT_WATER_GOAL_ML = 8 * ML_PER_CUP
 
 export type IntakeKind = 'supplement' | 'medicine'
 
@@ -45,6 +47,8 @@ export interface IntakeLog {
 interface IntakeState {
   water: WaterLog[]
   waterGoalMl: number
+  /** 하루 단백질 목표(g). 직접 정한 값만, 없으면 null (앱이 추천하지 않음) */
+  proteinGoalG: number | null
   items: IntakeItem[]
   logs: IntakeLog[]
   addWater: (ml: number) => void
@@ -70,6 +74,7 @@ const demo = () => ({
     ? [{ id: 'legacy-water', ml: MOCK_TODAY_CHECK.waterCups * ML_PER_CUP, at: todayAt(8, 0), legacy: true }]
     : [],
   waterGoalMl: MOCK_TODAY_CHECK.waterGoalCups * ML_PER_CUP,
+  proteinGoalG: MOCK_TODAY_CHECK.proteinGoalG as number | null,
   items: [{ id: 'sup-1', kind: 'supplement' as const, name: '종합비타민 (예시)' }],
   logs: MOCK_TODAY_CHECK.supplementTaken ? [{ id: 'log-1', itemId: 'sup-1', at: todayAt(8, 30) }] : [],
 })
@@ -152,7 +157,7 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
     set((s) => ({ logs: s.logs.filter((l) => l.id !== logId) }))
     persist(() => deleteIntakeLog(logId), () => set({ logs: prev }))
   },
-  resetEmpty: () => set({ water: [], items: [], logs: [], waterGoalMl: MOCK_TODAY_CHECK.waterGoalCups * ML_PER_CUP }),
+  resetEmpty: () => set({ water: [], items: [], logs: [], waterGoalMl: DEFAULT_WATER_GOAL_ML, proteinGoalG: null }),
   resetDemo: () => set(demo()),
 }))
 

@@ -6,7 +6,7 @@ import { fetchDoses, loadAccount, type LiveAccount } from '@/services/live/accou
 import { fetchFoodsByIds, fetchMeals, fetchMyFoods } from '@/services/live/meals'
 import { fetchBodyLogs, fetchDailyChecks, fetchIntake, fetchSymptoms } from '@/services/live/records'
 import { cacheFoods, useFoodCache } from '@/services/foodCatalog'
-import { useIntakeStore } from '@/stores/intakeStore'
+import { DEFAULT_WATER_GOAL_ML, useIntakeStore } from '@/stores/intakeStore'
 import { loadFavorites, setFavoritesUser, useMealStore } from '@/stores/mealStore'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
 import { useOnboardingStore, type OnboardingStep } from '@/stores/onboardingStore'
@@ -55,6 +55,8 @@ async function hydrate(account: LiveAccount) {
   // 섭취 관리 (물·영양제는 일반, 복용약은 RLS 로 동의자만)
   const intake = await fetchIntake()
   useIntakeStore.setState({
+    waterGoalMl: account.waterGoalMl ?? DEFAULT_WATER_GOAL_ML,
+    proteinGoalG: account.proteinGoalG,
     water: intake.logs.filter((l) => l.kind === 'water').map((l) => ({ id: l.log_id, ml: l.amount_ml ?? 0, at: l.taken_at })),
     items: intake.items.map((i) => ({ id: i.item_id, kind: i.kind as 'supplement' | 'medicine', name: i.name, remindEnabled: i.remind_enabled, remindHour: i.remind_hour, remindAsked: i.remind_asked })),
     logs: intake.logs.filter((l) => l.kind !== 'water' && l.item_id).map((l) => ({ id: l.log_id, itemId: l.item_id!, at: l.taken_at, status: l.status as 'taken' | 'skipped' })),
