@@ -102,10 +102,10 @@ test('참고 곡선 화면은 고정 면책 문구를 항상 표시한다', asyn
   }
 })
 
-test('출처 없는 약(에페)은 곡선을 만들지 않는다', async ({ page }) => {
+test('에페도 반감기 출처가 있어 곡선 미생성 안내가 뜨지 않는다', async ({ page }) => {
   await page.goto('/analysis/medication')
   await page.getByRole('radio', { name: '에페' }).click()
-  await expect(page.getByText('곡선을 만들지 않아요', { exact: true })).toBeVisible()
+  await expect(page.getByText('곡선을 만들지 않아요', { exact: true })).toHaveCount(0)
 })
 
 test('투약 기록: 입력 검증 → 목업 저장 → 목록 반영 → 삭제', async ({ page }) => {

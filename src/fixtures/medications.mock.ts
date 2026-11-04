@@ -36,6 +36,12 @@ const SRC = {
     checkedAt: '2026-11-03',
     status: 'secondary',
   },
+  efpeHalfLife: {
+    title: 'Yoon et al. 2020, Diabetes Obes Metab 「Efpeglenatide 2상 약동학」 — 반감기 135~180시간',
+    url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC7383501',
+    checkedAt: '2026-11-04',
+    status: 'secondary',
+  },
   mounjaroLabelPk: {
     title: 'Mounjaro 미국 허가사항(Prescribing Information) 12.3 약동학 — medlibrary 전재본',
     url: 'https://medlibrary.org/lib/rx/meds/mounjaro/page/4/',
@@ -67,7 +73,7 @@ const ALL_AREAS: BodyArea[] = ['abdomen', 'thigh', 'upper_arm']
 /**
  * 약물 메타데이터.
  * pk: 허가자료(라벨)에서 확인한 값만 넣는다. 확인 못 한 항목은 null — 임의 값 금지.
- * 에페: 반감기 수치를 허가자료에서 확인하지 못해 halfLifeHours = null → 곡선 미생성.
+ * 에페: 허가자료에서 반감기를 못 찾아 2상 약동학 논문 값(135~180시간)의 중간값 157.5시간을 쓴다.
  */
 export const MEDICATIONS: Record<MedicationId, Medication> = {
   mounjaro: {
@@ -101,7 +107,7 @@ export const MEDICATIONS: Record<MedicationId, Medication> = {
     name: '에페',
     ingredient: '에페글레나타이드',
     pk: {
-      halfLifeHours: null,
+      halfLifeHours: { value: 157.5, text: '약 6~7일 (135~180시간)', source: SRC.efpeHalfLife },
       bioavailability: null,
       // 항정상태 기준 0~95시간(중앙값 48시간) — 단회 투여 값이 아니므로 모델에는 쓰지 않음
       tmaxHours: { value: [0, 95], text: '항정상태 0~95시간(중앙값 48시간)', source: SRC.efpeDoses },
