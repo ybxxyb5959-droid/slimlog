@@ -10,11 +10,21 @@
     <meta name="theme-color" content="#f6f7f5" />
     <meta name="description" content="투약·식단·체성분·증상을 하나의 날짜축에서 보는 기록 서비스" />
     <title>SlimLog 슬림로그</title>
+    <script>
+      // 첫 화면 전에 다크 모드 적용 (src/lib/theme.ts 와 같은 규칙)
+      try {
+        var t = localStorage.getItem('slimlog-theme')
+        if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.setAttribute('data-slimlog-theme', 'dark')
+      } catch (e) {}
+    </script>
     <style>
       /* 스플래시: React가 그려지기 전까지만 보인다 */
       .splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #f6f7f5; font-family: system-ui, sans-serif; }
       .splash p { margin: 0; color: #0b7a5a; font-weight: 700; font-size: 26px; letter-spacing: -0.01em; }
       .splash span { color: #5b7a70; font-size: 13px; }
+      [data-slimlog-theme="dark"] .splash { background: #121514; }
+      [data-slimlog-theme="dark"] .splash p { color: #34c68c; }
+      [data-slimlog-theme="dark"] .splash span { color: #94a3b8; }
     </style>
   </head>
   <body>

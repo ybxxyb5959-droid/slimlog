@@ -40,7 +40,7 @@
   --radius: 16px;
 }
 
-/* 다크 토큰은 정의만 — 화면 적용은 1차 승인 후 결정 */
+/* 다크 토큰 — src/lib/theme.ts 가 data-slimlog-theme="dark" 를 붙이면 적용 */
 :root[data-slimlog-theme="dark"] {
   --background: #121514;
   --surface: #1a1e1c;

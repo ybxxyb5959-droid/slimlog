@@ -689,6 +689,53 @@ test.describe('홈 인사말 이름', () => {
   })
 })
 
+test('설정: 단백질 목표 저장 → 식단 분석 단백질 그래프에 목표선, 잘못된 값은 저장 막힘', async ({ page }) => {
+  await page.goto('/my/settings/app')
+  const save = page.getByRole('button', { name: '저장' })
+  await expect(save).toBeDisabled() // 바뀐 게 없으면 저장 비활성
+  await page.getByLabel('하루 단백질 목표').fill('500')
+  await expect(page.getByRole('alert')).toHaveText(/0~400g/)
+  await expect(save).toBeDisabled()
+  await page.getByLabel('하루 단백질 목표').fill('60')
+  await save.click()
+  await expect(page.getByText('목업: 화면에만 저장됐어요')).toBeVisible()
+  // 목업은 화면 메모리에만 저장 → 새로고침 없이 앱 안에서 이동
+  await page.evaluate(() => {
+    history.pushState({}, '', '/analysis/nutrition')
+    dispatchEvent(new PopStateEvent('popstate'))
+  })
+  const notice = page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })
+  await notice.getByRole('button', { name: '확인했어요' }).click({ timeout: 2000 }).catch(() => {})
+  await expect(page.getByRole('img', { name: /단백질 막대 그래프, 목표 60g 점선/ })).toBeVisible()
+  await expect(page.getByText(/목표 60g 넘긴 날/)).toBeVisible()
+})
+
+test('설정: 화면 밝기 어둡게 → 바로 적용되고 새로고침 후에도 유지', async ({ page }) => {
+  await page.goto('/my/settings/app')
+  const html = page.locator('html')
+  await expect(html).not.toHaveAttribute('data-slimlog-theme', 'dark')
+  await page.getByRole('radio', { name: '어둡게' }).click()
+  await expect(html).toHaveAttribute('data-slimlog-theme', 'dark')
+  await page.reload()
+  await expect(html).toHaveAttribute('data-slimlog-theme', 'dark')
+  await expect(page.getByRole('radio', { name: '어둡게' })).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('radio', { name: '밝게' }).click()
+  await expect(html).not.toHaveAttribute('data-slimlog-theme', 'dark')
+})
+
+test('증상 수정: 빠른 기록과 같은 모양(강도 약함/보통/심함·지속)으로 고치고 목록에 반영', async ({ page }) => {
+  await page.goto('/record/symptom')
+  await page.getByRole('link', { name: /기록 수정$/ }).first().click()
+  await expect(page.getByRole('heading', { name: '증상 기록 수정' })).toBeVisible()
+  await page.getByRole('radiogroup', { name: '증상 종류' }).getByRole('radio', { name: '두통' }).click()
+  await page.getByRole('radiogroup', { name: '두통 강도' }).getByRole('radio', { name: '심함' }).click()
+  await page.getByRole('radiogroup', { name: '두통 지속' }).getByRole('radio', { name: '지속 중' }).click()
+  await page.getByLabel('추가 메모').fill('오후 내내')
+  await page.getByRole('button', { name: '수정 저장' }).click()
+  await expect(page).toHaveURL('/record/symptom')
+  await expect(page.getByRole('link', { name: '두통 기록 수정' }).first()).toContainText('지속 중 · 오후 내내')
+})
+
 test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {
   await page.goto('/my/settings/app')
   await page.getByRole('button', { name: '다시 보기' }).click()

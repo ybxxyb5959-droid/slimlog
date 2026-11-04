@@ -1,5 +1,8 @@
 import { PageHeader } from '@/components/common/PageHeader'
 import { Card } from '@/components/ui/card'
+import { isLive } from '@/lib/supabase'
+
+const APP_VERSION = '0.1.0'
 
 export function SupportPage() {
   return (
@@ -16,7 +19,9 @@ export function SupportPage() {
           <h2 className="text-[15px] font-semibold">서비스 정보</h2>
           <p className="flex justify-between">
             <span className="text-text-muted">버전</span>
-            <span className="tabular">0.1.0 (UI 목업)</span>
+            <span className="tabular">
+              {APP_VERSION} · {isLive ? '서버 연결됨' : '예시 데이터 모드'}
+            </span>
           </p>
           <p className="leading-relaxed text-text-muted">
             슬림로그는 기록·정보 정리 서비스예요. 진단·처방·용량 결정을 하지 않고, 참고 곡선은 실제 혈중농도가 아니에요.
