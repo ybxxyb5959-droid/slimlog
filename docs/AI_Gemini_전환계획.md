@@ -273,9 +273,9 @@ alter table public.consents add constraint consents_type_check
 | 테스트 | 서버 44 (새 30: 범위 지키기·Gemini 오류·횟수 제한 등) · DB RLS 51 · HTTP 30 · 화면 E2E 307 · 실서비스 E2E 18 | ✅ 전부 통과 |
 
 **👤 남은 일**
-1. 클라우드 Supabase SQL Editor 에서 `sql_editor_적용용_010.sql` 실행 → `supabase/tests/rls_test_sql_editor.sql` 실행해 **51줄 PASS** 확인
+1. ~~클라우드에 010 실행~~ → ✅ 완료 (2026-11-04, RLS 51줄 PASS)
 2. Google AI Studio 에서 API 키 발급 → 서버 환경변수 `GEMINI_API_KEY` (채팅에 붙이지 말 것)
-3. 식약처 「전국통합식품영양성분정보(음식)표준데이터」 CSV → `scripts/foods/import_foods.py` 로 `foods` 채우기 (없으면 모든 음식이 '확인 필요')
+3. ~~식약처 영양 DB 넣기~~ → ✅ 이미 완료 (2026-11-04, 331,002개: 음식 16,791 · 원재료 3,693 · 가공식품 310,518, `docs/DB_Supabase_설계안.md`). 매칭은 음식(mfds-D) → 원재료(R) → 제조사 없는 것 → 가공식품 순
 4. 서버 배포 후 실제 음식 사진 몇 장으로 확인 → 모델 ID·응답 품질 점검
 
 ## 10. 결정 현황

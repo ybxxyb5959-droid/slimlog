@@ -53,6 +53,8 @@ class FakeDb:
             return cur is not None and str(cur) >= val
         if op == "ilike":
             return cur is not None and val.strip("*").lower() in str(cur).lower()
+        if op == "like":
+            return cur is not None and str(cur).startswith(val.rstrip("*"))
         raise AssertionError(f"unsupported filter {k}={v}")
 
     def select(self, table, **params):
@@ -280,6 +282,22 @@ def test_gemini_success_logs_tokens_and_uses_db_names(api, db, monkeypatch):
     assert not any(NUTRITION_WORDS.search(k) for l in j["labels"] for k in l)  # 응답에 영양 수치 없음 (DB 에서 계산)
     log = db.t["ai_requests"][0]
     assert log["ok"] and log["input_tokens"] == 1300 and log["output_tokens"] == 120 and log["user_id"] == USER.id
+
+
+def test_matching_prefers_mfds_dish_over_branded_products(db):
+    from app.ai.base import FoodGuess
+    from app.ai.matching import match_food
+
+    db.t["foods"] = [
+        {"food_id": "mfds-P1", "name": "김치찌개라면", "brand": "어느회사", "owner_id": None},
+        {"food_id": "mfds-P2", "name": "김치찌개", "brand": "어느회사", "owner_id": None},
+        {"food_id": "mfds-D9", "name": "돼지고기김치찌개", "brand": None, "owner_id": None},
+        {"food_id": "mfds-D1", "name": "김치찌개", "brand": None, "owner_id": None},
+        {"food_id": "mfds-R1", "name": "김치찌개양념", "brand": None, "owner_id": None},
+    ]
+    m = match_food(db, FoodGuess("김치찌개"))
+    assert m.food_id == "mfds-D1" and m.candidates == ["mfds-D1", "mfds-P2", "mfds-D9", "mfds-R1"]
+    assert match_food(db, FoodGuess("공기밥")).food_id is None  # DB 에 없으면 연결 안 함 (영양값 안 만듦)
 
 
 def test_coffee_always_asks_user(api, db, monkeypatch):
