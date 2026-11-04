@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { acceptRequiredConsents, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
+import { acceptRequiredConsents, adminInsert, adminSelect, devLogin, quickOnboarding, uniqueEmail, userIdOf } from './helpers'
 
 /** Phase 2 — 체중·체성분 / 증상·컨디션 / 섭취 관리 / 홈 반영 (로컬 Supabase) */
 
@@ -12,33 +12,23 @@ async function newUser(page: Page, tag: string, weight = '80') {
   return { email, uid: (await userIdOf(email))! }
 }
 
-test('체중·체성분: 추가 → 홈·분석 반영 → 수정 → 삭제, 최초 체중은 삭제 불가, 중복 의심 확인', async ({ page }) => {
+test('체중: 체중만 추가 → 홈 반영 → 수정 → 삭제, 최초 체중 삭제 불가, 중복 의심, 인바디 기록 체성분 유지', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-body', '80')
   await page.goto('/record/body')
   await expect(page.getByText('최초 체중')).toBeVisible()
 
-  // 추가 (체성분 포함)
+  // 추가 — 매일 기록은 체중만 (체성분 칸 없음)
   await page.getByRole('link', { name: '새 기록' }).click()
   await expect(page).toHaveURL('/record/body/new')
+  await expect(page.getByLabel(/골격근량/)).toHaveCount(0)
   await page.getByLabel('체중', { exact: true }).fill('78.4')
-  await page.getByLabel(/골격근량/).fill('30.1')
-  await page.getByLabel(/체지방량/).fill('22')
-  await page.getByLabel(/체지방률/).fill('28.1')
   await page.getByRole('button', { name: '저장' }).click()
   await expect(page.getByText('체중을 기록했어요')).toBeVisible()
   await expect(page).toHaveURL('/record/body')
-  let rows = await adminSelect('body_logs', `user_id=eq.${uid}&select=log_id,weight_kg,skeletal_muscle_kg,body_fat_pct,is_baseline&order=measured_at`)
+  let rows = await adminSelect('body_logs', `user_id=eq.${uid}&select=log_id,weight_kg,skeletal_muscle_kg,is_baseline&order=measured_at`)
   expect(rows).toHaveLength(2)
   const added = rows.find((r) => !r.is_baseline)!
-  expect([Number(added.weight_kg), Number(added.skeletal_muscle_kg), Number(added.body_fat_pct)]).toEqual([78.4, 30.1, 28.1])
-
-  // 체성분 교차 검증: 체지방량÷체중 vs 체지방률 1% 넘게 다르면 막음
-  await page.goto('/record/body/new')
-  await page.getByLabel('체중', { exact: true }).fill('78')
-  await page.getByLabel(/체지방량/).fill('30')
-  await page.getByLabel(/체지방률/).fill('20')
-  await page.getByRole('button', { name: '저장' }).click()
-  await expect(page.getByRole('alert')).toContainText('1% 넘게')
+  expect([Number(added.weight_kg), added.skeletal_muscle_kg]).toEqual([78.4, null])
 
   // 10분 안 같은 체중 → 중복 의심 확인창
   await page.goto('/record/body/new')
@@ -66,41 +56,58 @@ test('체중·체성분: 추가 → 홈·분석 반영 → 수정 → 삭제, �
   await expect(page.getByRole('button', { name: '기록 삭제' })).toHaveCount(0)
   await expect(page.getByText('최초 체중은 삭제할 수 없어요', { exact: false })).toBeVisible()
 
+  // 인바디로 저장된 기록: 체중만 고쳐도 체성분은 유지
+  await adminInsert('body_logs', { user_id: uid, measured_at: new Date(Date.now() - 3 * 86_400_000).toISOString(), weight_kg: 79.2, skeletal_muscle_kg: 33.9, body_fat_pct: 24.6, source: 'INBODY_OCR', is_verified: true })
+  await page.goto('/record/body') // 새로 들어오면서 DB 에서 다시 불러옴
+  await page.getByRole('link', { name: /79.2kg 기록 수정/ }).click()
+  await expect(page.getByText('체성분(인바디)은 그대로 유지돼요', { exact: false })).toBeVisible()
+  await page.getByLabel('체중', { exact: true }).fill('79.0')
+  await page.getByRole('button', { name: '수정 저장' }).click()
+  await expect(page.getByText('체중 기록을 수정했어요')).toBeVisible()
+  const [ocr] = await adminSelect('body_logs', `user_id=eq.${uid}&source=eq.INBODY_OCR&select=weight_kg,skeletal_muscle_kg,body_fat_pct`)
+  expect([Number(ocr.weight_kg), Number(ocr.skeletal_muscle_kg), Number(ocr.body_fat_pct)]).toEqual([79, 33.9, 24.6])
+
   // 삭제
   await page.goto(`/record/body/${added.log_id}`)
   await page.getByRole('button', { name: '기록 삭제' }).click()
   await page.getByRole('dialog').getByRole('button', { name: '삭제', exact: true }).click()
   await expect(page.getByText('체중 기록을 삭제했어요')).toBeVisible()
   rows = await adminSelect('body_logs', `user_id=eq.${uid}&select=log_id`)
-  expect(rows).toHaveLength(1)
+  expect(rows).toHaveLength(2) // 최초 체중 + 인바디 기록
 })
 
 test('증상·컨디션: 오늘 컨디션 저장·수정(날짜당 1행), 증상 추가·수정·삭제, 홈 컨디션 완료 표시', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-sym')
   await page.goto('/record/symptom')
-  // 오늘 컨디션
-  await page.getByRole('radiogroup', { name: '전체 컨디션' }).getByRole('radio', { name: '4' }).click()
-  await page.getByRole('radiogroup', { name: '식욕' }).getByRole('radio', { name: '2' }).click()
-  await page.getByLabel(/어젯밤 수면/).fill('6.5')
+  // 오늘 컨디션 — 얼굴 5단계 · 식욕 · 수면 슬라이더
+  await page.getByRole('radiogroup', { name: '오늘 몸 상태' }).getByRole('radio', { name: '좋음', exact: true }).click()
+  await page.getByRole('radiogroup', { name: '식욕' }).getByRole('radio', { name: '적음' }).click()
+  await page.getByRole('slider', { name: '수면 시간' }).press('ArrowLeft') // 기본 7 → 6.5
+  await expect(page.getByText('6.5시간')).toBeVisible()
   await page.getByRole('button', { name: '컨디션 저장' }).click()
   await expect(page.getByText('오늘 컨디션을 저장했어요')).toBeVisible()
-  await page.getByRole('radiogroup', { name: '전체 컨디션' }).getByRole('radio', { name: '3' }).click()
+  await page.getByRole('radiogroup', { name: '오늘 몸 상태' }).getByRole('radio', { name: '보통' }).click()
   await page.getByRole('button', { name: '컨디션 수정' }).click()
   let daily = await adminSelect('daily_checks', `user_id=eq.${uid}&select=condition,appetite,sleep_h`)
   await expect.poll(async () => (daily = await adminSelect('daily_checks', `user_id=eq.${uid}&select=condition,appetite,sleep_h`))[0]?.condition).toBe(3)
   expect(daily).toHaveLength(1)
   expect([daily[0].appetite, Number(daily[0].sleep_h)]).toEqual([2, 6.5])
+  await expect(page.getByText('오늘 기록', { exact: true })).toBeVisible()
 
-  // 증상 추가
-  await page.getByRole('radiogroup', { name: '증상 선택' }).getByRole('radio', { name: '메스꺼움' }).click()
-  await page.getByRole('radiogroup', { name: '강도' }).getByRole('radio', { name: '3' }).click()
-  await page.getByLabel(/지속 시간/).fill('2')
-  await page.getByLabel(/메모/).fill('저녁 먹고 나서')
-  await page.getByRole('button', { name: '증상 저장' }).click()
-  await expect(page.getByText('증상을 기록했어요')).toBeVisible()
-  let sym = await adminSelect('symptoms', `user_id=eq.${uid}&select=symptom_id,type,severity,duration_h,memo`)
-  expect(sym).toHaveLength(1)
-  expect(sym[0]).toMatchObject({ type: 'nausea', severity: 3, memo: '저녁 먹고 나서' })
+  // 증상 — 여러 개 고르고 고른 것마다 강도·지속
+  await page.getByRole('group', { name: '증상 선택' }).getByRole('button', { name: '메스꺼움' }).click()
+  await page.getByRole('group', { name: '증상 선택' }).getByRole('button', { name: '두통' }).click()
+  await page.getByRole('radiogroup', { name: '두통 강도' }).getByRole('radio', { name: '약함' }).click()
+  await page.getByRole('radiogroup', { name: '메스꺼움 지속' }).getByRole('radio', { name: '1~3시간' }).click()
+  await page.getByLabel('추가 메모').fill('저녁 먹고 나서')
+  await page.getByRole('button', { name: '증상 2개 저장' }).click()
+  await expect(page.getByText('증상 2개를 기록했어요')).toBeVisible()
+  let sym = await adminSelect('symptoms', `user_id=eq.${uid}&select=symptom_id,type,severity,duration_h,memo&order=type`)
+  expect(sym).toHaveLength(2)
+  expect(sym.find((x) => x.type === 'nausea')).toMatchObject({ severity: 3, memo: '저녁 먹고 나서' })
+  expect(Number(sym.find((x) => x.type === 'nausea')!.duration_h)).toBe(2)
+  expect(sym.find((x) => x.type === 'headache')).toMatchObject({ severity: 1 })
+  sym = sym.filter((x) => x.type === 'nausea')
 
   // 홈: 컨디션 완료
   await page.goto('/home')
@@ -119,7 +126,7 @@ test('증상·컨디션: 오늘 컨디션 저장·수정(날짜당 1행), 증상
   await page.getByRole('button', { name: '기록 삭제' }).click()
   await page.getByRole('dialog').getByRole('button', { name: '삭제', exact: true }).click()
   await expect(page.getByText('증상 기록을 삭제했어요')).toBeVisible()
-  expect(await adminSelect('symptoms', `user_id=eq.${uid}&select=symptom_id`)).toHaveLength(0)
+  expect(await adminSelect('symptoms', `user_id=eq.${uid}&select=symptom_id`)).toHaveLength(1) // 두통만 남음
 })
 
 test('섭취 관리: 물·영양제·복용약이 DB 에 저장되고 새로고침 후에도 홈에 남음', async ({ page }) => {

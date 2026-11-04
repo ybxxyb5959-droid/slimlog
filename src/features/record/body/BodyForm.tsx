@@ -21,12 +21,15 @@ export function BodyForm({
   onSubmit,
   submitLabel,
   extraActions,
+  weightOnly = false,
 }: {
   draft: BodyDraft
   onChange: (d: BodyDraft) => void
   onSubmit: (input: BodyInput) => Promise<void>
   submitLabel: string
   extraActions?: React.ReactNode
+  /** 매일 체중 기록: 체중만 (체성분은 인바디 결과지 등록에서) */
+  weightOnly?: boolean
 }) {
   const [error, setError] = useState<{ field: string; message: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -58,11 +61,11 @@ export function BodyForm({
         <Input id="measuredAt" type="datetime-local" value={draft.measuredAt} max={toDateTimeLocalValue(new Date())} onChange={(e) => set({ measuredAt: e.target.value })} />
         {error?.field === 'measuredAt' && <p role="alert" className="mt-1.5 text-[13px] text-danger">{error.message}</p>}
       </div>
-      {FIELDS.map((f) => (
+      {FIELDS.filter((f) => !weightOnly || f.key === 'weightKg').map((f) => (
         <div key={f.key}>
           <Label htmlFor={`body-${f.key}`}>
             {f.label}
-            {f.optional && <span className="text-text-subtle"> (선택)</span>}
+            {f.optional && !weightOnly && <span className="text-text-subtle"> (선택)</span>}
           </Label>
           <div className="flex items-center gap-3">
             <Input
@@ -83,7 +86,7 @@ export function BodyForm({
           {submitting ? '저장 중…' : submitLabel}
         </Button>
         {extraActions}
-        <p className="text-[12px] leading-relaxed text-text-subtle">체성분은 인바디 결과지에 있는 값만 입력해 주세요. 앱이 계산해서 채우지 않아요.</p>
+        {!weightOnly && <p className="text-[12px] leading-relaxed text-text-subtle">체성분은 인바디 결과지에 있는 값만 입력해 주세요. 앱이 계산해서 채우지 않아요.</p>}
       </div>
     </form>
   )

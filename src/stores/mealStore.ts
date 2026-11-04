@@ -28,6 +28,8 @@ export function makeItem(f: FoodItem, grams: number, extra: Partial<MealItem> = 
 const at = (dayOffset: number, h: number, m: number) => {
   const d = addDays(startOfDay(new Date()), dayOffset)
   d.setHours(h, m, 0, 0)
+  // 아직 안 된 시각(예: 새벽에 '오늘 08:10')이면 하루 전으로 — 예시 기록이 미래가 되지 않게
+  if (d.getTime() > Date.now()) d.setDate(d.getDate() - 1)
   return d.toISOString()
 }
 

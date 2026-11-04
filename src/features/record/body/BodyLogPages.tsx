@@ -47,6 +47,12 @@ export function BodyLogListPage() {
       />
       <div className="space-y-4 md:max-w-2xl">
         {!isLive && <MockBadge />}
+        <Link to="/record/inbody" className="flex min-h-12 items-center justify-between rounded-card border border-border bg-surface px-4 text-[14px] hover:bg-surface-muted/60">
+          <span>
+            골격근량·체지방은 <b>인바디 결과지</b>로 등록해요
+          </span>
+          <AppIcon icon={ChevronRight} size="sm" tone="muted" />
+        </Link>
         {logs.length === 0 ? (
           <EmptyState
             icon={Scale}
@@ -129,7 +135,11 @@ export function BodyLogEditPage() {
 
   if (!isNew && !existing) return <EmptyState title="기록을 찾을 수 없어요" action={<Button onClick={() => navigate('/record/body')}>목록으로</Button>} />
 
-  const save = async (input: BodyInput, force = false) => {
+  const save = async (raw: BodyInput, force = false) => {
+    // 체중만 입력받으므로, 인바디로 저장했던 체성분 값은 그대로 둔다 (지우지 않음)
+    const input: BodyInput = existing
+      ? { ...raw, skeletalMuscleKg: existing.skeletalMuscleKg, bodyFatKg: existing.bodyFatKg, bodyFatPct: existing.bodyFatPct }
+      : raw
     // 10분 이내·0.1kg 이하 차이 기록이 있으면 한 번 확인 (같은 날 여러 번 재는 건 허용)
     if (!force && findLikelyDuplicate(input, useRecordsStore.getState().bodyLogs, id)) return setDupFor(input)
     try {
@@ -145,8 +155,17 @@ export function BodyLogEditPage() {
   return (
     <>
       <PageHeader title={isNew ? '체중 기록하기' : '체중 기록 수정'} back="/record/body" />
+      {existing && (existing.skeletalMuscleKg !== undefined || existing.bodyFatKg !== undefined || existing.bodyFatPct !== undefined) && (
+        <p className="mb-3 rounded-xl bg-surface-muted px-4 py-3 text-[13px] text-text-muted md:max-w-[420px]">
+          이 기록의 체성분(인바디)은 그대로 유지돼요:
+          {existing.skeletalMuscleKg !== undefined && ` 골격근 ${existing.skeletalMuscleKg}kg`}
+          {existing.bodyFatKg !== undefined && ` · 체지방 ${existing.bodyFatKg}kg`}
+          {existing.bodyFatPct !== undefined && ` · 체지방률 ${existing.bodyFatPct}%`}
+        </p>
+      )}
       <Card className="md:max-w-[420px]">
         <BodyForm
+          weightOnly
           draft={draft}
           onChange={setDraft}
           submitLabel={isNew ? '저장' : '수정 저장'}
