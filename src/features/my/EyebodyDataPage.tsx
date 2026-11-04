@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { countPhotos, setVaultUser, wipeVault } from '@/lib/eyebodyVault'
+import { countPhotos, LOCAL_ONLY_NOTICE, setVaultUser, wipeVault } from '@/lib/eyebodyVault'
 import { useAuthStore } from '@/stores/authStore'
 
 /** 눈바디 로컬 데이터 관리 — 사진은 서버로 보내지 않는다 (src/lib/eyebodyVault.ts: PBKDF2 + AES-GCM) */
@@ -53,7 +53,7 @@ export function EyebodyDataPage() {
           </div>
         </Card>
         <Notice tone="review" title="사진을 잃어버릴 수 있어요">
-          브라우저 데이터를 지우거나 기기를 바꾸면 사진이 사라져요. 눈바디 비밀번호를 잊으면 복구할 수 없어요. 백업 기능은 발표 이후 계획이에요.
+          {LOCAL_ONLY_NOTICE}. 눈바디 비밀번호를 잊으면 복구할 수 없어요. 암호화 백업은 나중에 선택 기능으로 계획 중이에요.
         </Notice>
         <div className="grid gap-2 sm:grid-cols-2">
           <Button asChild variant="outline" size="lg">
