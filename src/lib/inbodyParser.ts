@@ -128,7 +128,7 @@ function valueAfter(lines: string[], re: RegExp): number | undefined {
 export function detectKind(text: string): ParsedInbody['kind'] {
   const t = text.replace(/\s+/g, '')
   if (/인바디검사요약|대시보드|헬스리포트|검사기록/.test(t)) return 'app'
-  if (/체성분분석|골격근[·.\-]?지방분석|BodyCompositionAnalysis|비만분석|부위별/i.test(t)) return 'paper'
+  if (/체성분분석|골격근[·.-]?지방분석|BodyCompositionAnalysis|비만분석|부위별/i.test(t)) return 'paper'
   return 'unknown'
 }
 
