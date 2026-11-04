@@ -661,7 +661,12 @@ test.describe('온보딩', () => {
     await expect(sheet.getByText('투약 기록 3회를 남겼어요')).toBeVisible()
     await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
     await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
-    await page.goto('/record/medication')
+    await expect(page).toHaveURL('/home')
+    // 목업 기록은 메모리에만 있어서 새로고침 없이 화면 안에서 이동
+    await page.evaluate(() => {
+      history.pushState({}, '', '/record/medication')
+      dispatchEvent(new PopStateEvent('popstate'))
+    })
     await expect(page.getByRole('link', { name: /마OOO 2.5mg/ })).toHaveCount(3)
   })
 

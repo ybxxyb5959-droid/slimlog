@@ -47,7 +47,9 @@ export function ChipGroup<T extends string>({
             disabled={o.disabled}
             onClick={() => onChange(o.value)}
             className={cn(
-              'h-11 min-w-0 truncate rounded-xl border px-4 text-[14px] font-medium transition-colors disabled:opacity-40',
+              'h-11 min-w-0 truncate rounded-xl border text-[14px] font-medium transition-colors disabled:opacity-40',
+              // 5칸 한 줄은 칸이 좁아(폰 기준 약 57px) 좌우 여백을 줄여 글자가 잘리지 않게
+              columns === 5 ? 'px-1' : 'px-4',
               active
                 ? 'border-primary bg-primary-soft font-semibold text-primary'
                 : 'border-border bg-surface text-text hover:bg-surface-muted',
