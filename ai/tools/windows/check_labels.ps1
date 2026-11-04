@@ -31,10 +31,41 @@ function Bump($table, $key) {
     if ($table.ContainsKey($key)) { $table[$key]++ } else { $table[$key] = 1 }
 }
 
+function NewBoxStats {
+    return @{ total = 0; fail = 0; inrange = 0; outrange = 0; center = 0; topleft = 0; tiny = 0; huge = 0
+              anno = @{}; label = @{}; perFile = @{} }
+}
+
+# AI Hub 형식 박스 검사: W, H, Point(x,y) 가 같이 있는 객체
+# 중심점 해석(YOLO 와 같음)과 좌상단 해석 중 어느 쪽이 사진 안에 들어오는지 센다
+function CheckBox($o) {
+    $names = @($o.PSObject.Properties | ForEach-Object { $_.Name })
+    $pk = $names | Where-Object { $_ -match '(?i)^point' } | Select-Object -First 1
+    if (-not (($names -contains 'W') -and ($names -contains 'H') -and $pk)) { return }
+    $B = $script:Box
+    $B['total'] += 1; $script:FileBoxCount += 1
+    try {
+        $w = [double]$o.W; $h = [double]$o.H
+        $pv = $o.$pk
+        if ($pv -is [string]) { $xy = @($pv -split '[,\s()]+' | Where-Object { $_ -ne '' }) } else { $xy = @($pv) }
+        $x = [double]$xy[0]; $y = [double]$xy[1]
+    } catch { $B['fail'] += 1; return }
+    $e = 0.01
+    if ($w -gt 0 -and $h -gt 0 -and $w -le 1 -and $h -le 1 -and $x -ge 0 -and $x -le 1 -and $y -ge 0 -and $y -le 1) { $B['inrange'] += 1 } else { $B['outrange'] += 1 }
+    if ((($x - $w / 2) -ge (0 - $e)) -and (($x + $w / 2) -le (1 + $e)) -and (($y - $h / 2) -ge (0 - $e)) -and (($y + $h / 2) -le (1 + $e))) { $B['center'] += 1 }
+    if ((($x + $w) -le (1 + $e)) -and (($y + $h) -le (1 + $e))) { $B['topleft'] += 1 }
+    $a = $w * $h
+    if ($a -lt 0.001) { $B['tiny'] += 1 }
+    if ($a -gt 0.9) { $B['huge'] += 1 }
+    if ($names -contains 'Annotation Type') { Bump $B['anno'] ([string]$o.'Annotation Type') }
+    if ($names -contains 'Label') { Bump $B['label'] ([string]$o.Label) }
+}
+
 # JSON 트리 순회: 경로별 등장, 배열 길이, 이름 같아 보이는 값 수집
 function Walk($node, [string]$path, $seenPaths, $arrayLens, $nameVals, $samples) {
     if ($null -eq $node) { return }
     if ($node -is [System.Management.Automation.PSCustomObject]) {
+        CheckBox $node
         foreach ($p in $node.PSObject.Properties) {
             $child = if ($path) { "$path.$($p.Name)" } else { $p.Name }
             Walk $p.Value $child $seenPaths $arrayLens $nameVals $samples
@@ -116,13 +147,28 @@ foreach ($zipPath in $Zips) {
         # 여러 파일 집계
         $pathFiles = @{}; $arrayLens = @{}; $nameVals = @{}; $samples = @{}
         $nameFiles = @{}; $distinctDist = @{}
+        $script:Box = NewBoxStats
         $ok = 0; $bad = 0
+
+        # 폴더별 JSON 수 (전체 파일 기준, 샘플 아님) — 폴더 이름이 음식 이름인 경우가 많음
+        $byDir = @{}
+        foreach ($j in $jsons) {
+            $d = [System.IO.Path]::GetDirectoryName($j.FullName)
+            if (-not $d) { $d = '(최상위)' }
+            Bump $byDir $d
+        }
+        Say ''
+        Say "  폴더별 JSON 수 (전체 기준, 폴더 $($byDir.Count)개, 상위 40):"
+        $byDir.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 40 |
+            ForEach-Object { Say ("    {0} : {1}" -f $_.Key, $_.Value) }
         $take = [math]::Min($jsons.Count, $MaxJsonPerZip)
         for ($i = 0; $i -lt $take; $i++) {
             try {
                 $obj = ConvertFrom-Json (ReadEntryText $jsons[$i])
                 $seen = @{}
+                $script:FileBoxCount = 0
                 Walk $obj '' $seen $arrayLens $nameVals $samples
+                Bump $script:Box['perFile'] ([int]$script:FileBoxCount)
                 $perFile = @{}
                 foreach ($k in @($seen.Keys)) {
                     if ($k.StartsWith("VAL`t")) {
@@ -147,6 +193,21 @@ foreach ($zipPath in $Zips) {
         Say ''
         Say "  [집계] JSON $($jsons.Count)개 중 $take 개 읽음 (성공 $ok, 실패 $bad)"
         if ($take -lt $jsons.Count) { Say "  ※ 앞쪽 $take 개만 읽은 샘플 기준 숫자임 (전체 수량 아님)" }
+
+        $B = $script:Box
+        Say ''
+        Say '  [박스 좌표 검사] W, H, Point(x,y) 가 있는 객체'
+        if ($B['total'] -eq 0) { Say '    해당 객체 없음' }
+        else {
+            Say ("    박스 {0}개 (숫자 읽기 실패 {1})" -f $B['total'], $B['fail'])
+            Say ("    모든 값이 0~1 사이: {0} / 벗어남: {1}" -f $B['inrange'], $B['outrange'])
+            Say ("    Point=중심점으로 볼 때 사진 안에 들어옴: {0}" -f $B['center'])
+            Say ("    Point=왼쪽 위 모서리로 볼 때 사진 안에 들어옴: {0}" -f $B['topleft'])
+            Say ("    아주 작은 박스(면적 0.1% 미만): {0} / 사진 거의 전체(90% 초과): {1}" -f $B['tiny'], $B['huge'])
+            Say ('    Annotation Type 값: ' + (($B['anno'].GetEnumerator() | Sort-Object Value -Descending | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', '))
+            Say ('    Label 값: ' + (($B['label'].GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 20 | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', '))
+            Say ('    JSON 1개당 박스 수: ' + (($B['perFile'].GetEnumerator() | Sort-Object { [int]$_.Key } | ForEach-Object { "$($_.Key)개=$($_.Value)" }) -join ', '))
+        }
 
         $boxKeys = @($pathFiles.Keys | Where-Object { (($_ -split '\.')[-1] -replace '\[\]', '') -match $BoxKeyPattern })
         if ($boxKeys.Count -gt 0) { Say ('  박스(위치) 같아 보이는 키: ' + (($boxKeys | Sort-Object) -join ', ')) }
