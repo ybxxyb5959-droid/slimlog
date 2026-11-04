@@ -1,4 +1,4 @@
-import { Activity, Droplets, Printer, Scale, Syringe, Utensils } from 'lucide-react'
+import { Activity, ArrowRightLeft, Droplets, Printer, Scale, Syringe, Utensils } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
 import { SYMPTOM_LABEL } from '@/fixtures/records.mock'
-import { formatShortDateWithDay } from '@/lib/date'
+import { formatShortDateWithDay, toDateKey } from '@/lib/date'
 import { isLive } from '@/lib/supabase'
 import { useBodyLogs } from '@/services/body'
 import { useDoses } from '@/services/doses'
@@ -61,6 +61,14 @@ export function TimelinePage() {
   const [period, setPeriod] = useState<Period>(30)
   const src = useSources()
   const rows = buildDays(src, period).filter(hasAny).reverse()
+  // 약을 바꾼 날: 시간순으로 앞 투약과 약이 다른 첫 투약
+  const switches = new Map<string, { from: string; to: string }>()
+  const asc = [...src.doses].sort((a, b) => a.administeredAt.localeCompare(b.administeredAt))
+  asc.forEach((d, i) => {
+    const p = asc[i - 1]
+    if (p && p.medicationId !== d.medicationId)
+      switches.set(toDateKey(new Date(d.administeredAt)), { from: MEDICATIONS[p.medicationId]?.name ?? p.medicationId, to: MEDICATIONS[d.medicationId]?.name ?? d.medicationId })
+  })
   return (
     <>
       <Header title="통합 타임라인" description="투약·체중·식단·증상을 같은 날짜로 모아 봐요." period={period} setPeriod={setPeriod} />
@@ -73,6 +81,11 @@ export function TimelinePage() {
               <Card className="p-4">
                 <p className="text-[14px] font-bold">{dayLabel(r.date)}</p>
                 <ul className="mt-2 flex flex-wrap gap-1.5 text-[13px]">
+                  {switches.has(r.date) && (
+                    <li className="inline-flex items-center gap-1 rounded-full border border-icon/40 px-2.5 py-1 font-semibold text-icon">
+                      <ArrowRightLeft size={13} strokeWidth={2} aria-hidden /> 약 변경 · {switches.get(r.date)!.from} → {switches.get(r.date)!.to}
+                    </li>
+                  )}
                   {r.doses.map((d) => (
                     <li key={d.id} className="inline-flex items-center gap-1 rounded-full bg-icon-soft px-2.5 py-1 text-icon">
                       <Syringe size={13} strokeWidth={1.75} aria-hidden /> {MEDICATIONS[d.medicationId]?.name ?? d.medicationId} {d.doseMg}mg

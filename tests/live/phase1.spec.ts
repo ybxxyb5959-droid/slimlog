@@ -129,6 +129,8 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   expect(doses).toHaveLength(2)
   const wegovy = doses.find((d) => d.med_id === 'wegovy')!
   expect(Number(wegovy.dose_mg)).toBe(0.5)
+  // 약을 바꿔 기록 → 사용 중인 약도 위OO 로
+  await expect.poll(async () => (await adminSelect('user_health', `user_id=eq.${uid}&select=current_med_id`))[0].current_med_id).toBe('wegovy')
 
   // 수정
   await page.goto(`/record/medication/${wegovy.dose_id}`)

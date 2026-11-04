@@ -160,3 +160,18 @@ test.describe('화면 곡선 — 흡수 모델(tmax 대표값)', () => {
     expect(peak.t).toBe(T0h)
   })
 })
+
+test('흡수 모델: 방금 맞으면 0%에서 시작하고, 최고점 전이면 100% 미만 (맞자마자 최고점 아님)', () => {
+  const H = 3600 * 1000
+  const to = Date.UTC(2026, 10, 4, 9)
+  const half = 7 * 24
+  const now = relativeCurve([{ t: to, doseMg: 0.25 }], half, to - 30 * 24 * H, to, 3, 48)
+  expect(now.at(-1)!.relative).toBeLessThan(1)
+  const dayAgo = relativeCurve([{ t: to - 24 * H, doseMg: 0.25 }], half, to - 30 * 24 * H, to, 3, 48)
+  const v = dayAgo.at(-1)!.relative
+  expect(v).toBeGreaterThan(30)
+  expect(v).toBeLessThan(100)
+  // 최고점이 기간 안에 지나갔으면 그 최고점이 100
+  const weekAgo = relativeCurve([{ t: to - 7 * 24 * H, doseMg: 0.25 }], half, to - 30 * 24 * H, to, 3, 48)
+  expect(Math.max(...weekAgo.map((p) => p.relative))).toBeCloseTo(100, 0)
+})

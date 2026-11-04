@@ -29,6 +29,7 @@ export function ProfilePage() {
 
   const save = async () => {
     if (!isLive) {
+      if (med) useOnboardingStore.getState().set({ currentMedId: med })
       toast.success('목업: 화면에만 저장됐어요')
       return navigate('/my')
     }

@@ -71,7 +71,13 @@ export function relativeCurve(
   const ke = LN2 / halfLifeHours
   const ka = tmaxHours && tmaxHours > 0 ? kaFromTmax(tmaxHours, ke) : null
   const raw = times.map((t) => ({ t, v: ka ? batemanSum(doses, 1, ka, ke, t) : exponentialSum(doses, halfLifeHours, t) }))
-  const max = Math.max(0, ...raw.map((p) => p.v))
+  let max = Math.max(0, ...raw.map((p) => p.v))
+  // 흡수 모델: 방금 맞은 투약의 최고점은 기간 끝(오늘) 뒤에 온다. 그 최고점도 기준에 넣어야
+  // '맞자마자 100%'가 되지 않고 0%에서 서서히 올라가는 모습이 된다
+  if (ka) {
+    const peak = tmaxFromRates(ka, ke) * HOUR
+    for (const d of doses) if (d.t <= to && d.t + peak > to) max = Math.max(max, batemanSum(doses, 1, ka, ke, d.t + peak))
+  }
   if (max === 0) return []
   return raw.map((p) => ({ t: p.t, relative: (p.v / max) * 100 }))
 }

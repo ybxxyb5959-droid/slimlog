@@ -1124,3 +1124,55 @@ test('마이 메인 → 칼로리 계산(계산기 아이콘) → 목표 화면,
   await expect(page.getByLabel('하루 열량 목표')).toHaveCount(0)
   await expect(page.getByRole('radio', { name: '어둡게' })).toBeVisible()
 })
+
+test.describe('약 변경', () => {
+  const go = (page: Page, path: string) =>
+    page.evaluate((p) => {
+      history.pushState({}, '', p)
+      dispatchEvent(new PopStateEvent('popstate'))
+    }, path)
+
+  test('지난 약과 다른 약을 고르면 확인 → 새 약 용량부터 → 사용 중인 약·곡선(이전 약 점선)·타임라인에 반영', async ({ page }) => {
+    await page.goto('/record/medication/new')
+    const sheet = page.getByRole('dialog')
+    // 예시 사용자: 지난 투약(마OOO) 기준 2단계부터 → 약 바꾸기
+    await sheet.getByRole('button', { name: '약을 바꾸셨나요? 다른 약 고르기' }).click()
+    await expect(sheet.getByText('지난번엔 터제파타이드(마OOO)를 기록했어요.')).toBeVisible()
+    await sheet.getByRole('radio', { name: /위OO/ }).click()
+    const confirm = page.getByRole('dialog', { name: '약을 바꾸셨나요?' })
+    await expect(confirm).toContainText('터제파타이드(마OOO) → 세마글루타이드(위OO)')
+    await confirm.getByRole('button', { name: '다시 고를게요' }).click()
+    await expect(sheet.getByRole('heading', { name: '어떤 약을 맞으셨나요?' })).toBeVisible()
+    await sheet.getByRole('radio', { name: /위OO/ }).click()
+    await page.getByRole('dialog', { name: '약을 바꾸셨나요?' }).getByRole('button', { name: '네, 바꿨어요' }).click()
+    // 새 약의 허가 용량 첫 단계부터
+    await expect(sheet.getByRole('slider')).toHaveAttribute('aria-valuetext', '0.25mg')
+    await sheet.getByRole('button', { name: '다음', exact: true }).click()
+    await sheet.getByRole('radio', { name: '배 왼쪽' }).click()
+    await sheet.getByRole('button', { name: '다음', exact: true }).click()
+    await sheet.getByRole('button', { name: '다음', exact: true }).click()
+    await sheet.getByRole('button', { name: '확인', exact: true }).click()
+    await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
+    await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
+    await expect(page).toHaveURL('/record/medication')
+    // 분석: 사용 중인 약이 위OO 로, 이전 약은 따로 점선
+    await go(page, '/analysis/medication')
+    await expect(page.getByText('위OO 투약 기록으로 계산한 상대값 곡선이에요.')).toBeVisible()
+    const legend = page.getByRole('list', { name: '곡선 범례' })
+    await expect(legend).toContainText('지금 약 · 세마글루타이드(위OO)')
+    await expect(legend).toContainText('이전 약 · 터제파타이드(마OOO)')
+    await expect(legend).toContainText('더하지 않았어요')
+    // 타임라인: 바꾼 날 표시
+    await go(page, '/analysis/timeline')
+    await expect(page.getByText('약 변경 · 마OOO → 위OO')).toBeVisible()
+  })
+
+  test('같은 약이면 확인 없이 진행', async ({ page }) => {
+    await page.goto('/record/medication/new')
+    const sheet = page.getByRole('dialog')
+    await sheet.getByRole('button', { name: '이전 단계' }).click()
+    await sheet.getByRole('radio', { name: /마OOO/ }).click()
+    await expect(page.getByRole('dialog', { name: '약을 바꾸셨나요?' })).toHaveCount(0)
+    await expect(sheet.getByRole('slider')).toBeVisible()
+  })
+})

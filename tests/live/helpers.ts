@@ -98,7 +98,12 @@ export async function addDoseViaSheet(page: Page, opts: { med?: '마OOO' | '위O
   await expect(sheet.getByRole('progressbar')).toBeVisible()
   // 지난 기록이 있으면 2단계(용량)부터 열림 → 약을 바꾸려면 1단계로
   if (opts.med && (await sheet.getByRole('slider').isVisible().catch(() => false))) await sheet.getByRole('button', { name: '이전 단계' }).click()
-  if (await sheet.getByRole('radio', { name: /마OOO/ }).isVisible().catch(() => false)) await sheet.getByRole('radio', { name: new RegExp(opts.med ?? '마OOO') }).click()
+  if (await sheet.getByRole('radio', { name: /마OOO/ }).isVisible().catch(() => false)) {
+    await sheet.getByRole('radio', { name: new RegExp(opts.med ?? '마OOO') }).click()
+    // 지난 투약과 다른 약이면 '약을 바꾸셨나요?' 확인
+    const sw = page.getByRole('dialog', { name: '약을 바꾸셨나요?' })
+    if (await sw.waitFor({ state: 'visible', timeout: 1500 }).then(() => true, () => false)) await sw.getByRole('button', { name: '네, 바꿨어요' }).click()
+  }
   const slider = sheet.getByRole('slider')
   await slider.press('Home')
   for (let i = 0; i < 10 && (await slider.getAttribute('aria-valuetext')) !== opts.mg; i++) await slider.press('ArrowRight')

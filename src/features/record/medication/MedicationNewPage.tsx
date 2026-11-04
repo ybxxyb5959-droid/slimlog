@@ -11,6 +11,7 @@ import { FirstDoseFlow } from '@/features/record/first-dose/FirstDoseFlow'
 import { MEDICATIONS } from '@/fixtures/medications.mock'
 import { startOfDay } from '@/lib/date'
 import { useDoses } from '@/services/doses'
+import { setCurrentMedication } from '@/services/profile'
 import { saveOnboardingDose } from '@/services/session'
 
 import { ResidualPreviewCard } from './ResidualPreviewCard'
@@ -67,7 +68,13 @@ export function MedicationNewPage() {
         setDraft={setDraft}
         step={step}
         setStep={setStep}
-        onConfirmed={(d) => saveOnboardingDose(d)}
+        previousMedId={last?.medicationId ?? null}
+        onConfirmed={async (d) => {
+          const ok = await saveOnboardingDose(d)
+          // 약을 바꿔 기록했으면 '사용 중인 약'도 새 약으로
+          if (ok && d.medicationId && last && d.medicationId !== last.medicationId) await setCurrentMedication(d.medicationId).catch(() => {})
+          return ok
+        }}
         onFinished={() => navigate('/record/medication')}
       />
     </>

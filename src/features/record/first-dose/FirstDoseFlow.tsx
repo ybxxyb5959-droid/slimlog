@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { MEDICATIONS, siteLabel } from '@/fixtures/medications.mock'
 import { isLive } from '@/lib/supabase'
 import { formatFullDate, toDateKey } from '@/lib/date'
+import type { MedicationId } from '@/types/domain'
 
 import { dateTimeError, EMPTY_DRAFT, isDirty, SERIES_INTERVAL_DAYS, weeklyDates, type FirstDoseDraft } from './firstDoseDraft'
 import { StepDateTime, StepDose, StepMedication, StepSite } from './steps'
@@ -37,6 +38,7 @@ export function FirstDoseFlow({
   onConfirmed,
   onFinished,
   mode = 'single',
+  previousMedId = null,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -51,9 +53,12 @@ export function FirstDoseFlow({
   onFinished?: () => void
   /** series: '전부터 투약 중' — 4단계에서 처음 맞은 날을 고르면 오늘까지 7일 간격으로 채우고, 5단계에서 날짜를 고치거나 뺀다 */
   mode?: 'single' | 'series'
+  /** 지난 투약의 약 — 다른 약을 고르면 '약을 바꾸셨나요?' 확인 */
+  previousMedId?: MedicationId | null
 }) {
   const [confirmClose, setConfirmClose] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [switchTo, setSwitchTo] = useState<MedicationId | null>(null)
   const patch = (p: Partial<FirstDoseDraft>) => setDraft({ ...draft, ...p })
   const done = step === 6
   const dtError = dateTimeError(draft)
@@ -159,18 +164,26 @@ export function FirstDoseFlow({
         header={header}
         footer={footer}
       >
+        {step === 1 && previousMedId && (
+          <p className="mb-3 rounded-xl bg-surface-muted px-3.5 py-2.5 text-[13px] break-keep text-text-muted">
+            지난번엔 <b className="text-text">{MEDICATIONS[previousMedId].ingredient}({MEDICATIONS[previousMedId].name})</b>를 기록했어요. 약을 바꿨다면 새 약을 골라 주세요.
+          </p>
+        )}
         {step === 1 && (
           <StepMedication
             value={draft.medicationId}
-            onSelect={(id) =>
-              selectAndNext(
-                id === draft.medicationId
-                  ? {}
-                  : { medicationId: id, doseMg: MEDICATIONS[id].doseOptionsMg?.[0] ?? null, site: null },
-                2,
-              )
-            }
+            onSelect={(id) => {
+              if (id === draft.medicationId) return selectAndNext({}, 2)
+              // 지난 투약과 다른 약 → 바꾼 게 맞는지 먼저 확인
+              if (previousMedId && id !== previousMedId) return setSwitchTo(id)
+              selectAndNext({ medicationId: id, doseMg: MEDICATIONS[id].doseOptionsMg?.[0] ?? null, site: null }, 2)
+            }}
           />
+        )}
+        {step === 2 && previousMedId && draft.medicationId === previousMedId && (
+          <button type="button" onClick={() => setStep(1)} className="mb-3 h-9 rounded-lg px-2 text-[13px] font-medium text-primary hover:bg-primary-soft">
+            약을 바꾸셨나요? 다른 약 고르기
+          </button>
         )}
         {step === 2 && draft.medicationId && (
           <StepDose medicationId={draft.medicationId} value={draft.doseMg} onPatch={patch} />
@@ -182,6 +195,24 @@ export function FirstDoseFlow({
         {done && <Done saved={!!onConfirmed} count={series ? seriesCount : undefined} />}
       </BottomSheet>
 
+      <ConfirmDialog
+        open={switchTo !== null}
+        onOpenChange={(o) => !o && setSwitchTo(null)}
+        title="약을 바꾸셨나요?"
+        description={
+          switchTo && previousMedId
+            ? `${MEDICATIONS[previousMedId].ingredient}(${MEDICATIONS[previousMedId].name}) → ${MEDICATIONS[switchTo].ingredient}(${MEDICATIONS[switchTo].name})로 기록해요. 사용 중인 약도 함께 바뀌고, 지난 기록은 그대로 남아요. 용량은 새 약의 허가 용량에서 골라요.`
+            : undefined
+        }
+        cancelLabel="다시 고를게요"
+        confirmLabel="네, 바꿨어요"
+        onConfirm={() => {
+          if (!switchTo) return
+          // 용량은 새 약의 첫 단계부터 (추천이 아니라 선택지가 바뀌는 것)
+          selectAndNext({ medicationId: switchTo, doseMg: MEDICATIONS[switchTo].doseOptionsMg?.[0] ?? null, site: null }, 2)
+          setSwitchTo(null)
+        }}
+      />
       <ConfirmDialog
         open={confirmClose}
         onOpenChange={setConfirmClose}
