@@ -201,7 +201,14 @@ test('첫 투약 등록 5단계: 순서대로 진행·이전·요약·확인', a
   await expect(sheet.getByRole('button', { name: '다음', exact: true })).toBeDisabled()
   await expect(sheet.getByRole('radio', { name: /왼쪽 허벅지/ })).toHaveAttribute('aria-disabled', 'true')
   await sheet.getByRole('radio', { name: '배 오른쪽' }).click()
-  await expect(sheet.getByText('배 오른쪽 (내 몸 기준)')).toBeVisible()
+  const picked = sheet.getByRole('region', { name: '선택한 부위' })
+  await expect(picked).toContainText('복부')
+  await expect(picked.getByRole('radio', { name: '오른쪽' })).toHaveAttribute('aria-checked', 'true')
+  // 빠른 선택: 허가 부위가 아닌 허벅지·위팔은 막힘
+  await expect(sheet.getByRole('button', { name: '허벅지', exact: true })).toBeDisabled()
+  await expect(sheet.getByRole('button', { name: '위팔', exact: true })).toBeDisabled()
+  await expect(sheet.getByText('같은 부위에 연속 사용을 하지 말아주세요.')).toBeVisible()
+  await expect(sheet.getByRole('radio', { name: '뒷모습' })).toHaveCount(0)
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
   // STEP 4: 미래 날짜 선택 불가, 시간 모름 허용
   await expect(sheet.getByRole('button', { name: /선택할 수 없음/ }).first()).toBeDisabled()
