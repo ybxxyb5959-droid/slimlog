@@ -1,4 +1,6 @@
--- SlimLog 011 · 식단 사진 AI(Gemini) 연결 (비파괴: 칸·테이블 추가, 기존 데이터 삭제·변경 없음)
+-- SlimLog 마이그레이션 012 (식단 사진 AI 연결) — 011 적용한 클라우드에 이어서 Run
+begin;
+-- SlimLog 012 · 식단 사진 AI(Gemini) 연결 (비파괴: 칸·테이블 추가, 기존 데이터 삭제·변경 없음)
 -- 사용 범위: 식단 사진의 음식 이름·예상 인분만 (docs/AI_Gemini_전환계획.md 0장)
 
 -- (1) predictions: 영양 DB에 없는 음식도 AI가 말한 이름으로 남길 수 있게
@@ -35,3 +37,4 @@ revoke all on public.ai_requests from anon, authenticated;
 alter table public.consents drop constraint if exists consents_type_check;
 alter table public.consents add constraint consents_type_check
   check (type in ('terms', 'privacy', 'sensitive', 'photo_improve', 'marketing', 'food_ai'));
+commit;
