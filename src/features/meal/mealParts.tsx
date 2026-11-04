@@ -5,6 +5,7 @@ import { AppIcon } from '@/components/common/AppIcon'
 import { BottomSheet } from '@/components/common/BottomSheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { servingUnit } from '@/lib/foodServing'
 import { amountLabel, fmtG, nutrientsFor, type NutrientTotals } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
 import { isLive } from '@/lib/supabase'
@@ -24,6 +25,7 @@ export function AmountEditor({ food, grams, onChange }: { food: FoodItem; grams:
     onChange(v)
   }
   const n = nutrientsFor(food, grams)
+  const unit = servingUnit(food)
   const typed = Number(text)
   const invalid = !text || !Number.isFinite(typed) || typed <= 0 || typed > 5000
 
@@ -31,7 +33,7 @@ export function AmountEditor({ food, grams, onChange }: { food: FoodItem; grams:
     <div className="space-y-4">
       <div>
         <p className="mb-2 text-[13px] font-medium text-text-muted">
-          빠른 선택 <span className="text-text-subtle">· 1인분 = {food.servingGrams}g</span>
+          빠른 선택 <span className="text-text-subtle">· {unit.label} = {food.servingGrams}g</span>
         </p>
         <div role="radiogroup" aria-label="인분 선택" className="grid grid-cols-4 gap-2">
           {SERVINGS.map((s) => {
@@ -46,7 +48,7 @@ export function AmountEditor({ food, grams, onChange }: { food: FoodItem; grams:
                 onClick={() => set(g)}
                 className={cn('h-11 rounded-xl border text-[14px] font-medium', active ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-surface hover:bg-surface-muted')}
               >
-                {s}인분
+                {s}{unit.word}
               </button>
             )
           })}
@@ -142,6 +144,9 @@ export function FoodResultRow({ food, onPick, quickAdd }: { food: FoodItem; onPi
   const favorites = useMealStore((s) => s.favorites)
   const toggleFavorite = useMealStore((s) => s.toggleFavorite)
   const fav = favorites.includes(food.id)
+  // 100g당이 아니라 '1개·1인분' 기준으로 보여 준다 (바로 담는 양과 같게)
+  const unit = servingUnit(food)
+  const serving = nutrientsFor(food, unit.grams)
   return (
     <div className="flex items-center gap-2">
       <button type="button" onClick={onPick} className="flex min-h-[60px] min-w-0 flex-1 flex-col justify-center rounded-xl px-1 py-2 text-left hover:bg-surface-muted/60">
@@ -151,7 +156,7 @@ export function FoodResultRow({ food, onPick, quickAdd }: { food: FoodItem; onPi
         </span>
         <span className="tabular truncate text-[12px] text-text-muted">
           {food.brand ? `${food.brand} · ` : ''}
-          {food.basisLabel} {food.kcal}kcal · 단백질 {fmtG(food.proteinG)}
+          {unit.label}({Math.round(unit.grams)}g) {Math.round(serving.kcal)}kcal · 단백질 {fmtG(serving.proteinG)}
         </span>
       </button>
       <button
@@ -164,7 +169,7 @@ export function FoodResultRow({ food, onPick, quickAdd }: { food: FoodItem; onPi
         <Star size={18} strokeWidth={1.75} className={fav ? 'fill-review text-review' : 'text-text-subtle'} aria-hidden />
       </button>
       {quickAdd && (
-        <button type="button" onClick={quickAdd} aria-label={`${food.name} 1인분 바로 추가`} className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary-soft">
+        <button type="button" onClick={quickAdd} aria-label={`${food.name} ${unit.label} 바로 추가`} className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary-soft">
           <Plus size={20} strokeWidth={2} aria-hidden />
         </button>
       )}

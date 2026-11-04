@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/StateViews'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { servingUnit } from '@/lib/foodServing'
 import { localInputToIso, toDateTimeLocalValue } from '@/lib/date'
 import { amountLabel, fmtG, sumNutrients } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
@@ -289,8 +290,9 @@ export function MealReviewPage() {
                   compact
                   onPick={(f) => navigate(`/record/meal/food/${f.id}`)}
                   onQuickAdd={(f) => {
-                    d.addItems([makeItem(f, f.servingGrams)])
-                    toast.success(`${f.name} 1인분을 담았어요`)
+                    const u = servingUnit(f)
+                    d.addItems([makeItem(f, u.grams)])
+                    toast.success(`${f.name} ${u.label}을 담았어요`)
                   }}
                   onCreateCustom={(n) => navigate(`/record/meal/custom?name=${encodeURIComponent(n)}`)}
                 />

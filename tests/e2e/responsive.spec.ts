@@ -971,7 +971,7 @@ test.describe('식단 기록', () => {
     await page.getByRole('button', { name: '검색해서 고르기' }).click()
     const sheet = page.getByRole('dialog', { name: '음식 검색' })
     await sheet.getByLabel('음식 검색').fill('계란말이')
-    await sheet.getByRole('button', { name: /^계란말이 100g당/ }).click()
+    await sheet.getByRole('button', { name: /^계란말이 1인분/ }).click()
     // 인식 결과 수정 + 제외
     await page.getByRole('radiogroup', { name: '김치찌개 인식 후보' }).getByRole('radio', { name: '순두부찌개' }).click()
     await expect(page.getByText('직접 고침').first()).toBeVisible()
@@ -1009,7 +1009,7 @@ test.describe('식단 기록', () => {
     await page.goto('/record/meal/new')
     await page.getByRole('link', { name: /음식명 또는 제품명/ }).click()
     await page.getByLabel('음식 검색').fill('닭가슴')
-    await page.getByRole('button', { name: /^닭가슴살 100g당/ }).click()
+    await page.getByRole('button', { name: /^닭가슴살 1인분\(/ }).click()
     await expect(page.getByText('100g당').first()).toBeVisible()
     const grams = page.getByLabel('직접 입력')
     await grams.fill('100')
@@ -1031,7 +1031,7 @@ test.describe('식단 기록', () => {
     await page.getByRole('button', { name: '쌀밥 1인분 바로 추가' }).click()
     // 닭가슴살 100g
     await page.getByLabel('음식 검색').fill('닭가슴살')
-    await page.getByRole('button', { name: /^닭가슴살 100g당/ }).click()
+    await page.getByRole('button', { name: /^닭가슴살 1인분\(/ }).click()
     await page.getByLabel('직접 입력').fill('100')
     await page.getByRole('button', { name: '식단에 추가' }).click()
     // 배추김치 50g — 작성 화면의 '음식 직접 추가하기'에서
@@ -1086,7 +1086,7 @@ test.describe('식단 기록', () => {
       await page.getByRole('button', { name: '간식 추가' }).click()
       await page.getByRole('link', { name: /음식명 또는 제품명/ }).click()
       await page.getByLabel('음식 검색').fill(food)
-      await page.getByRole('button', { name: `${food} 1인분 바로 추가` }).click()
+      await page.getByRole('button', { name: `${food} 1개 바로 추가` }).click()
       await page.getByRole('button', { name: '뒤로 가기' }).click()
       await page.getByRole('radio', { name: '간식' }).click()
       await saveBtn(page).click()

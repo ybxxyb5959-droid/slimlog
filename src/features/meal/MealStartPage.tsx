@@ -1,3 +1,4 @@
+import { servingUnit } from '@/lib/foodServing'
 import { clearCaptureFiles, isNativeApp } from '@/lib/native'
 import { Camera, ChevronRight, Image as ImageIcon, Search, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -120,7 +121,7 @@ export function MealStartPage() {
             </div>
           </div>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {(tab === 'recent' ? recents.map((r) => ({ food: r.food, grams: r.grams })) : favFoods.map((f) => ({ food: f!, grams: f!.servingGrams }))).map(({ food, grams }) => {
+            {(tab === 'recent' ? recents.map((r) => ({ food: r.food, grams: r.grams })) : favFoods.map((f) => ({ food: f!, grams: servingUnit(f!).grams }))).map(({ food, grams }) => {
               const n = nutrientsFor(food, grams)
               return (
                 <li key={food.id}>
@@ -129,7 +130,7 @@ export function MealStartPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium">{food.name}</span>
                       <span className="tabular block text-[12px] text-text-muted">
-                        {tab === 'recent' ? '지난번' : '1인분'} {grams}g · 단백질 {fmtG(n.proteinG)}
+                        {tab === 'recent' ? '지난번' : servingUnit(food).label} {grams}g · 단백질 {fmtG(n.proteinG)}
                       </span>
                     </span>
                     <span className="tabular text-[14px] font-semibold">{n.kcal}kcal</span>
