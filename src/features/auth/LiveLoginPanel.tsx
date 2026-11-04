@@ -60,7 +60,7 @@ export function LiveLoginPanel() {
         const on = !!enabled?.[p.id]
         return (
           <div key={p.id}>
-            <ProviderButton provider={p.id} label={busy === p.id ? '이동 중…' : p.label} disabled={busy !== null} onClick={() => onProvider(p.id)} />
+            <ProviderButton provider={p.id} label={busy === p.id ? '이동 중…' : p.label} disabled={busy !== null || enabled === null} onClick={() => onProvider(p.id)} />
             {enabled && !on && <p className="mt-1 px-1 text-[12px] text-text-subtle">준비 중 · 아직 연결되지 않았어요</p>}
           </div>
         )

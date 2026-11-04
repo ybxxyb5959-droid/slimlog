@@ -14,12 +14,40 @@ test('로그인 안 하면 앱 화면에 못 들어가고 로그인으로 보낸
   }
 })
 
-test('연결 안 된 소셜 로그인은 성공한 척하지 않는다 (준비 중 안내)', async ({ page }) => {
+test('소셜 로그인: 켜진 건 진짜 카카오·구글로 보내고, 안 켜진 건 성공한 척하지 않는다', async ({ page }) => {
+  // 프로젝트에 켜진 로그인 (앱도 같은 주소로 판단)
+  const res = await fetch(`${process.env.LIVE_SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.LIVE_SUPABASE_ANON_KEY! } })
+  const external = ((await res.json()) as { external: Record<string, boolean> }).external
   await page.goto('/login')
-  await expect(page.getByText('준비 중 · 아직 연결되지 않았어요').first()).toBeVisible()
-  await page.getByRole('button', { name: '카카오 로그인' }).click()
-  await expect(page.getByText('아직 연결되지 않은 로그인이에요')).toBeVisible()
-  await expect(page).toHaveURL('/login')
+  for (const [id, label, host] of [['kakao', '카카오 로그인', /kakao\.com/], ['google', 'Google로 계속하기', /google\.com/], ['apple', 'Apple로 계속하기', /apple\.com/]] as const) {
+    if (external[id]) {
+      // 켜짐 → 앱이 Supabase 로그인 시작 주소로 보내는지 가로채서 확인
+      // (테스트 환경 네트워크는 카카오를 막을 수 있어 실제 이동은 안 함. 계정 로그인은 사람이 해야 함)
+      await page.goto('/login')
+      let authorize = ''
+      await page.route('**/auth/v1/authorize**', (r) => {
+        authorize = r.request().url()
+        return r.fulfill({ status: 200, contentType: 'text/html', body: 'ok' })
+      })
+      await page.getByRole('button', { name: label }).click()
+      await expect.poll(() => authorize).toContain(`provider=${id}`)
+      await page.unroute('**/auth/v1/authorize**')
+      // Supabase 가 실제 카카오·구글 로그인 주소로 보내는지 (키·Redirect URI 설정 확인)
+      const r = await fetch(authorize, { redirect: 'manual' })
+      expect(r.status).toBe(302)
+      const next = new URL(r.headers.get('location')!)
+      expect(next.host).toMatch(host)
+      expect(next.searchParams.get('client_id')).toBeTruthy()
+      expect(next.searchParams.get('redirect_uri')).toBe(`${process.env.LIVE_SUPABASE_URL}/auth/v1/callback`)
+    } else {
+      await page.goto('/login')
+      await expect(page.getByText('준비 중 · 아직 연결되지 않았어요').first()).toBeVisible()
+      await page.getByRole('button', { name: label }).click()
+      await expect(page.getByText('아직 연결되지 않은 로그인이에요')).toBeVisible()
+      await expect(page).toHaveURL('/login')
+    }
+  }
+  await page.goto('/login')
   await expect(page.getByText('UI 목업')).toHaveCount(0)
 })
 

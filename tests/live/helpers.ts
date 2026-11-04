@@ -5,6 +5,15 @@ export const uniqueEmail = (tag: string) => `${tag}-${Date.now()}-${Math.floor(M
 export const PASSWORD = 'test-password-1'
 
 export async function devLogin(page: Page, email: string, password = PASSWORD) {
+  // 클라우드는 이메일 확인이 켜져 있어 앱 가입으로는 바로 로그인 불가 → 서버 권한으로 '확인된 계정'을 미리 만든다
+  // (이미 있으면 422 로 무시. 로컬에서도 같은 방식으로 동작)
+  const url = process.env.LIVE_SUPABASE_URL!
+  const key = process.env.LIVE_SUPABASE_SERVICE_KEY!
+  await fetch(`${url}/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { full_name: '김테스트' } }),
+  })
   await page.goto('/login')
   await page.getByLabel('개발용 이메일').fill(email)
   await page.getByLabel('개발용 비밀번호').fill(password)

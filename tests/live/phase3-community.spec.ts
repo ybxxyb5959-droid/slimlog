@@ -29,8 +29,9 @@ test('글쓰기(서버 검사) → 다른 사람 좋아요·댓글·신고 → �
   const reviewTitle = `E2E 증량 ${Date.now() % 10000}`
   await writePost(page, reviewTitle, '몇 mg부터 올리세요? 경험 알려 주세요')
   await expect(page.getByText('관리자 검토 후 공개돼요')).toBeVisible()
+  // (같은 문구가 글쓰기 화면의 사전 검사 상자에도 있어 저장 완료를 기다린다)
+  await expect.poll(async () => (await adminSelect('posts', `user_id=eq.${uidA}&select=status&order=created_at`)).map((p) => p.status)).toEqual(['visible', 'hidden'])
   const posts = await adminSelect('posts', `user_id=eq.${uidA}&select=post_id,title,status&order=created_at`)
-  expect(posts.map((p) => p.status)).toEqual(['visible', 'hidden'])
 
   // B: 공개 글만 보임 → 좋아요·댓글·신고
   const ctx = await browser.newContext()
