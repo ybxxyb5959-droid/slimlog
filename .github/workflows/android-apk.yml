@@ -83,7 +83,9 @@ jobs:
         run: |
           APK=android/app/build/outputs/apk/release/app-release.apk
           SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
-          "$SIGNER" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          # 검증 실패면 여기서 멈춤 (출력은 전부 로그에 남김 — 줄 형식이 버전마다 달라 grep 으로 판정하지 않음)
+          "$SIGNER" verify --verbose --print-certs "$APK" > verify.txt 2>&1 || { cat verify.txt; exit 1; }
+          grep -iE "certificate (DN|SHA-256)|Verified using" verify.txt || cat verify.txt
           mkdir -p out && cp "$APK" "out/SlimLog-1.0.${{ github.run_number }}.apk"
           rm -f "$RUNNER_TEMP/release.jks"
 
