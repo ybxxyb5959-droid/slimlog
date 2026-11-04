@@ -37,17 +37,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 CANDIDATES: dict[str, list[str]] = {
-    "code": ["식품코드", "음식코드", "FOOD_CD", "food_code"],
-    "name": ["식품명", "음식명", "FOOD_NM_KR", "food_name"],
-    "group": ["식품대분류명", "대분류", "식품대분류", "FOOD_CAT1_NM"],
-    "basis": ["영양성분함량기준량", "영양성분기준용량", "1회제공량기준", "SERVING_SIZE", "기준량"],
-    "kcal": ["에너지(kcal)", "에너지(㎉)", "열량(kcal)", "AMT_NUM1", "에너지"],
-    "protein": ["단백질(g)", "AMT_NUM3", "단백질"],
-    "fat": ["지방(g)", "AMT_NUM4", "지방"],
-    "carb": ["탄수화물(g)", "AMT_NUM6", "탄수화물"],
-    "sodium": ["나트륨(mg)", "AMT_NUM13", "나트륨"],
-    "serving": ["1회섭취참고량", "1회 섭취참고량", "식품중량", "총내용량", "1회제공량"],  # 음식 데이터는 '식품중량'이 1인분 무게
-    "maker": ["제조사명", "업체명", "MAKER_NM"],
+    # 한글: 파일 다운로드 / 영문: 오픈 API 응답 (필드 이름이 다르면 --map 으로 지정)
+    "code": ["식품코드", "음식코드", "FOOD_CD", "food_code", "foodCd"],
+    "name": ["식품명", "음식명", "FOOD_NM_KR", "food_name", "foodNm"],
+    "group": ["식품대분류명", "대분류", "식품대분류", "FOOD_CAT1_NM", "foodLv3Nm", "foodLv3NmNm"],
+    "basis": ["영양성분함량기준량", "영양성분기준용량", "1회제공량기준", "SERVING_SIZE", "기준량", "nutConSrtrQua"],
+    "kcal": ["에너지(kcal)", "에너지(㎉)", "열량(kcal)", "AMT_NUM1", "에너지", "enerc"],
+    "protein": ["단백질(g)", "AMT_NUM3", "단백질", "prot"],
+    "fat": ["지방(g)", "AMT_NUM4", "지방", "fatce"],
+    "carb": ["탄수화물(g)", "AMT_NUM6", "탄수화물", "chocdf"],
+    "sodium": ["나트륨(mg)", "AMT_NUM13", "나트륨", "nat"],
+    "serving": ["1회섭취참고량", "1회 섭취참고량", "식품중량", "총내용량", "1회제공량", "foodSize", "servSize"],  # 음식 데이터는 '식품중량'이 1인분 무게
+    "maker": ["제조사명", "업체명", "MAKER_NM", "mfrNm"],
 }
 REQUIRED = ["code", "name", "kcal"]
 
