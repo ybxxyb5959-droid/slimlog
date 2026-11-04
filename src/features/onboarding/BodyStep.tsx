@@ -10,14 +10,14 @@ import { useOnboardingStore } from '@/stores/onboardingStore'
 import { MeasureField, RadioList } from './OnboardingFields'
 import { OnboardingShell } from './OnboardingShell'
 
-/** 온보딩 2/4 — 성별·출생연도·키(모두 선택) + 현재 체중 */
+/** 온보딩 2/4 — 성별(필수) + 출생연도·키(선택) + 현재 체중 */
 export function BodyStep() {
   const navigate = useNavigate()
   const { sex, birthYear, heightCm, weightKg, baselineSavedAt, set } = useOnboardingStore()
   const by = parseBirthYear(birthYear)
   const h = parseMeasure(heightCm, RANGES.height.min, RANGES.height.max, 'cm')
   const w = parseMeasure(weightKg, RANGES.weight.min, RANGES.weight.max, 'kg')
-  const canNext = w.value !== null && !h.error && !by.error
+  const canNext = sex !== null && w.value !== null && !h.error && !by.error
 
   const [saving, setSaving] = useState(false)
   const next = async () => {
@@ -31,7 +31,8 @@ export function BodyStep() {
     navigate('/onboarding/goal')
   }
   const skip = async () => {
-    // 체중은 비워도 고른 성별·출생연도는 저장
+    // 체중은 비워도 되지만 성별은 꼭 저장
+    if (!sex) return
     setSaving(true)
     const ok = await saveProfileBasics({ sex, birthYear: by.error ? null : by.value }, 2)
     setSaving(false)
@@ -54,7 +55,7 @@ export function BodyStep() {
             <Button variant="ghost" size="sm" className="h-10" onClick={() => navigate('/onboarding/nickname')}>
               이전
             </Button>
-            <Button variant="ghost" size="sm" className="h-10" disabled={saving} onClick={skip}>
+            <Button variant="ghost" size="sm" className="h-10" disabled={saving || !sex} onClick={skip}>
               나중에 입력
             </Button>
           </div>
@@ -62,13 +63,16 @@ export function BodyStep() {
       }
     >
       <div className="space-y-5 rounded-3xl border border-border bg-surface p-5">
-        <RadioList<Sex | null> label="성별" optional options={SEX_OPTIONS} value={sex} onChange={(v) => set({ sex: v })} />
+        <div>
+          <RadioList<Sex | null> label="성별" options={SEX_OPTIONS} value={sex} onChange={(v) => set({ sex: v })} />
+          {!sex && <p className="mt-1 text-[12px] text-text-subtle">하루 열량 계산에 꼭 필요해서 골라야 다음으로 넘어가요.</p>}
+        </div>
         <MeasureField id="birthYear" label="출생연도" unit="년" optional inputMode="numeric" placeholder="예: 1990" value={birthYear} error={by.error} onChange={(v) => set({ birthYear: v })} />
         <MeasureField id="heightCm" label="키" unit="cm" optional value={heightCm} error={h.error} onChange={(v) => set({ heightCm: v })} />
         <MeasureField id="weightKg" label="현재 체중" unit="kg" value={weightKg} error={w.error} onChange={(v) => set({ weightKg: v })} />
       </div>
       <p className="mt-4 text-[13px] leading-relaxed break-keep text-text-subtle">
-        성별·출생연도는 하루 열량을 참고로 계산할 때만 써요. 안 넣어도 되고, 마이페이지에서 언제든 바꿀 수 있어요.
+        성별·출생연도는 하루 열량을 참고로 계산할 때만 써요. 출생연도는 안 넣어도 되고, 마이페이지에서 언제든 바꿀 수 있어요.
       </p>
     </OnboardingShell>
   )

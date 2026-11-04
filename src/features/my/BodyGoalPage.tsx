@@ -63,7 +63,7 @@ export function BodyGoalPage() {
         <Card className="space-y-5">
           <div>
             <h2 className="text-[15px] font-semibold">열량 참고 계산용 정보</h2>
-            <p className="mt-0.5 text-[12px] text-text-muted">모두 선택이에요. 하루 열량을 참고로 계산할 때만 써요.</p>
+            <p className="mt-0.5 text-[12px] text-text-muted">하루 열량을 참고로 계산할 때만 써요.</p>
           </div>
           <RadioList<Sex | null> label="성별" options={SEX_OPTIONS} value={sex} onChange={setSex} />
           <div>

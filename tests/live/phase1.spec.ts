@@ -63,6 +63,7 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await acceptRequiredConsents(page)
   await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
   await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
+  await page.getByRole('radio', { name: '여성' }).click()
   await page.getByRole('button', { name: '나중에 입력' }).click()
   await expect(page).toHaveURL('/onboarding/goal')
   await page.getByRole('button', { name: '다음' }).click()

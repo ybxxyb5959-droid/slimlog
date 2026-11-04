@@ -1,14 +1,13 @@
 /**
  * 성별·출생연도·활동량 — 온보딩 2·3단계와 신체 정보 화면에서 같이 쓴다.
- * 모두 선택 입력. 열량 '참고 계산'에만 쓰이고, 없으면 계산 화면에서 그때 물어본다.
+ * 성별은 온보딩에서 꼭 고른다(열량 계산의 기본값). 출생연도·활동량은 선택.
  */
 export type Sex = 'female' | 'male'
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active'
 
-export const SEX_OPTIONS: { value: Sex | null; label: string }[] = [
+export const SEX_OPTIONS: { value: Sex; label: string }[] = [
   { value: 'male', label: '남성' },
   { value: 'female', label: '여성' },
-  { value: null, label: '선택하지 않을래요' },
 ]
 
 /** factor = 하루 쓰는 열량 ÷ 기초대사량 (일반적으로 쓰는 활동 계수) */

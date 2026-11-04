@@ -47,6 +47,7 @@ test('새 사용자는 분석 화면에 가짜 그래프 대신 빈 상태', asy
   await page.goto('/onboarding')
   await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
   await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
+  await page.getByRole('radio', { name: '여성' }).click()
   await page.getByRole('button', { name: '나중에 입력' }).click()
   await expect(page).toHaveURL('/onboarding/goal')
   await page.getByRole('button', { name: '다음' }).click()

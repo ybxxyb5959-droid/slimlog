@@ -27,6 +27,7 @@ export async function quickOnboarding(page: Page, opts: { nickname?: string; wei
   await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
   await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
   await expect(page).toHaveURL('/onboarding/body')
+  await page.getByRole('radio', { name: '여성' }).click()
   await page.getByLabel('현재 체중').fill(opts.weight ?? '80')
   await page.getByRole('button', { name: '다음' }).click()
   await expect(page).toHaveURL('/onboarding/goal')
