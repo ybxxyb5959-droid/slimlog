@@ -128,16 +128,8 @@ export function TimeWheel({ value, onChange }: { value: string; onChange: (v: st
   )
 }
 
-/** 날짜·시간 고르는 바텀시트 */
-export function DateTimeSheet({
-  open,
-  onClose,
-  title,
-  mode,
-  value,
-  max,
-  onConfirm,
-}: {
+/** 날짜·시간 고르는 바텀시트 — [취소][선택]은 시트 아래에 고정 */
+export function DateTimeSheet(props: {
   open: boolean
   onClose: () => void
   title: string
@@ -147,14 +139,11 @@ export function DateTimeSheet({
   max?: string
   onConfirm: (v: string) => void
 }) {
-  return (
-    <BottomSheet open={open} onRequestClose={onClose} title={title}>
-      {open && <SheetBody mode={mode} value={value} max={max} onConfirm={onConfirm} onClose={onClose} />}
-    </BottomSheet>
-  )
+  // 열 때마다 지금 값으로 새로 시작
+  return props.open ? <PickerSheet {...props} /> : null
 }
 
-function SheetBody({ mode, value, max, onConfirm, onClose }: { mode: PickerMode; value: string; max?: string; onConfirm: (v: string) => void; onClose: () => void }) {
+function PickerSheet({ onClose, title, mode, value, max, onConfirm }: { onClose: () => void; title: string; mode: PickerMode; value: string; max?: string; onConfirm: (v: string) => void }) {
   const init = parse(value, mode)
   const now = new Date()
   const nowHm = `${pad(now.getHours())}:${pad(now.getMinutes())}`
@@ -165,64 +154,74 @@ function SheetBody({ mode, value, max, onConfirm, onClose }: { mode: PickerMode;
   const over = !!max && !!out && out > max
   const today = startOfDay(now)
   return (
-    <div className="space-y-4 pb-1">
-      {mode !== 'time' && (
-        <>
-          <div className="flex gap-2">
-            {[
-              { label: '오늘', d: today },
-              { label: '어제', d: addDays(today, -1) },
-            ].map((q) => (
-              <button
-                key={q.label}
-                type="button"
-                aria-pressed={!!date && startOfDay(date).getTime() === q.d.getTime()}
-                onClick={() => setDate(q.d)}
-                className={cn(
-                  'h-10 flex-1 rounded-xl border text-[14px] font-medium',
-                  date && startOfDay(date).getTime() === q.d.getTime() ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-surface hover:bg-surface-muted',
-                )}
-              >
-                {q.label}
-              </button>
-            ))}
+    <BottomSheet
+      open
+      onRequestClose={onClose}
+      title={title}
+      footer={
+        <div className="space-y-2">
+          {over && (
+            <p role="alert" className="text-[13px] text-danger">
+              아직 지나지 않은 시각은 고를 수 없어요.
+            </p>
+          )}
+          <div className="grid grid-cols-[1fr_2fr] gap-2">
+            <Button variant="outline" size="lg" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              size="lg"
+              disabled={!out || over}
+              onClick={() => {
+                onConfirm(out)
+                onClose()
+              }}
+            >
+              선택
+            </Button>
           </div>
-          {/* 고른 날짜의 달이 바뀌면(오늘·어제 버튼 등) 달력도 그 달로 */}
-          <Calendar key={date ? `${date.getFullYear()}-${date.getMonth()}` : 'none'} value={date} onChange={setDate} maxDate={maxDate ?? undefined} />
-        </>
-      )}
-      {mode !== 'date' && (
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <p className="text-[14px] font-semibold">시간</p>
-            <button type="button" onClick={() => setTime(nowHm)} className="h-9 rounded-lg px-3 text-[13px] font-medium text-primary hover:bg-primary-soft">
-              지금
-            </button>
-          </div>
-          <TimeWheel value={time} onChange={setTime} />
         </div>
-      )}
-      {over && (
-        <p role="alert" className="text-[13px] text-danger">
-          아직 지나지 않은 시각은 고를 수 없어요.
-        </p>
-      )}
-      <div className="grid grid-cols-[1fr_2fr] gap-2 pt-1">
-        <Button variant="outline" size="lg" onClick={onClose}>
-          취소
-        </Button>
-        <Button
-          size="lg"
-          disabled={!out || over}
-          onClick={() => {
-            onConfirm(out)
-            onClose()
-          }}
-        >
-          선택
-        </Button>
+      }
+    >
+      <div className="space-y-4 pb-1">
+        {mode !== 'time' && (
+          <>
+            <div className="flex gap-2">
+              {[
+                { label: '오늘', d: today },
+                { label: '어제', d: addDays(today, -1) },
+              ].map((q) => (
+                <button
+                  key={q.label}
+                  type="button"
+                  aria-pressed={!!date && startOfDay(date).getTime() === q.d.getTime()}
+                  onClick={() => setDate(q.d)}
+                  className={cn(
+                    'h-10 flex-1 rounded-xl border text-[14px] font-medium',
+                    date && startOfDay(date).getTime() === q.d.getTime() ? 'border-primary bg-primary-soft font-semibold text-primary' : 'border-border bg-surface hover:bg-surface-muted',
+                  )}
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+            {/* 고른 날짜의 달이 바뀌면(오늘·어제 버튼 등) 달력도 그 달로 */}
+            <Calendar key={date ? `${date.getFullYear()}-${date.getMonth()}` : 'none'} value={date} onChange={setDate} maxDate={maxDate ?? undefined} />
+          </>
+        )}
+        {mode !== 'date' && (
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[14px] font-semibold">시간</p>
+              <button type="button" onClick={() => setTime(nowHm)} className="h-9 rounded-lg px-3 text-[13px] font-medium text-primary hover:bg-primary-soft">
+                지금
+              </button>
+            </div>
+            <TimeWheel value={time} onChange={setTime} />
+          </div>
+        )}
       </div>
-    </div>
+    </BottomSheet>
   )
 }
 
