@@ -82,6 +82,28 @@ export function relativeCurve(
   return raw.map((p) => ({ t: p.t, relative: (p.v / max) * 100 }))
 }
 
+/**
+ * 체내 추정량 곡선(mg) — 흡수 모델(B)에 생체이용률 F 를 곱한 값. 정규화하지 않는다.
+ * RelativePoint.relative 칸에 mg 값을 담아 같은 차트로 그린다.
+ * 반감기가 없으면 빈 배열. tmax 가 없으면 지수 감소(A) × F.
+ */
+export function amountCurve(
+  doses: DoseEvent[],
+  halfLifeHours: number | null,
+  from: number,
+  to: number,
+  stepHours = 3,
+  tmaxHours?: number | null,
+  F = 1,
+): RelativePoint[] {
+  if (!halfLifeHours || halfLifeHours <= 0) return []
+  const times = sampleTimes(from, to, doses, stepHours)
+  const ke = LN2 / halfLifeHours
+  const ka = tmaxHours && tmaxHours > 0 ? kaFromTmax(tmaxHours, ke) : null
+  const pts = times.map((t) => ({ t, relative: ka ? batemanSum(doses, F, ka, ke, t) : F * exponentialSum(doses, halfLifeHours, t) }))
+  return pts.some((p) => p.relative > 0) ? pts : []
+}
+
 /** 곡선 위 임의 시각의 상대값 (같은 기간 최댓값 기준) */
 export function relativeAt(points: RelativePoint[], t: number) {
   if (!points.length) return null

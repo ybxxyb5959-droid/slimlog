@@ -105,7 +105,7 @@ test('참고 곡선 화면은 고정 면책 문구를 항상 표시한다', asyn
 
 test('참고 곡선 화면: 약 바꿔 보기 버튼·증상 겹쳐 보기 없이 내 약 곡선만', async ({ page }) => {
   await page.goto('/analysis/medication')
-  await expect(page.getByText('마OOO 투약 기록으로 계산한 상대값 곡선이에요.')).toBeVisible()
+  await expect(page.getByText('마OOO 투약 기록으로 계산한 체내 추정량(mg)이에요.')).toBeVisible()
   await expect(page.getByRole('radio', { name: '위OO' })).toHaveCount(0)
   await expect(page.getByText('증상 기록 겹쳐 보기')).toHaveCount(0)
   await expect(page.getByText('곡선을 만들지 않아요', { exact: true })).toHaveCount(0)
@@ -266,29 +266,31 @@ test('용량 선택기: 좌우 스와이프로 값이 바뀐다', async ({ page 
   await expect(sheet.getByText('2 / 6')).toBeVisible()
 })
 
-test('참고 곡선: 기간 전환·툴팁·mg 표시 없음', async ({ page }) => {
+test('참고 곡선: 기간 전환·툴팁·체내 추정량 mg 표시', async ({ page }) => {
   await page.goto('/analysis/medication')
-  await expect(page.getByText('현재 참고 수준')).toBeVisible()
+  await expect(page.getByText('현재 체내 추정량')).toBeVisible()
   for (const label of ['2주', '3개월', '1개월']) {
     await page.getByRole('radio', { name: label, exact: true }).click()
     await expect(page.getByRole('radio', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true')
   }
-  const chart = page.getByRole('img', { name: /참고용 잔존량 상대값 곡선/ })
+  const chart = page.getByRole('img', { name: /체내 추정량\(mg\) 곡선/ })
   // 기본: 오늘 값 말풍선, 누르면 그 시점 값으로 바뀐다
   const bubble = page.locator('.residual-bubble-value')
   const before = await bubble.textContent()
   const box = (await chart.boundingBox())!
   await page.mouse.click(box.x + box.width * 0.35, box.y + box.height / 2)
   await expect(bubble).not.toHaveText(before!)
-  // mg 단위는 곡선 값에 쓰지 않는다
-  await expect(page.getByText(/잔존량 \d+(\.\d+)?\s?mg/)).toHaveCount(0)
+  // 값은 mg 으로 (소수 둘째 자리) — 말풍선·큰 숫자 모두
+  await expect(bubble).toHaveText(/^\d+\.\d{2}mg$/)
+  await expect(page.getByText('현재 체내 추정량').locator('..')).toContainText(/\d+\.\d{2}\s*mg/)
 })
 
 test('참고 곡선 ⓘ: 계산 방식·파라미터·출처 안내', async ({ page }) => {
   await page.goto('/analysis/medication')
   await page.getByRole('button', { name: '참고용 잔존량 계산 안내 보기' }).click()
   const sheet = page.getByRole('dialog', { name: '참고용 잔존량 계산 안내' })
-  await expect(sheet.getByText('mg으로 표시하지 않는 이유')).toBeVisible()
+  await expect(sheet.getByText('mg 값을 볼 때 주의할 점')).toBeVisible()
+  await expect(sheet.getByText('계산에 사용').first()).toBeVisible()
   await expect(sheet.getByText('약 5일')).toBeVisible()
   await expect(sheet.getByText('허가자료에 없음')).toBeVisible()
 })
@@ -766,10 +768,10 @@ test.describe('분석 3탭', () => {
   test('탭 전환 시 선택된 콘텐츠만 표시, 주소에 탭 유지', async ({ page }) => {
     await page.goto('/analysis')
     await expect(page.getByRole('tab', { name: '체내 용량' })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByText('현재 참고 수준')).toBeVisible()
+    await expect(page.getByText('현재 체내 추정량')).toBeVisible()
     await page.getByRole('tab', { name: '체중 변화' }).click()
     await expect(page).toHaveURL('/analysis?tab=weight')
-    await expect(page.getByText('현재 참고 수준')).toHaveCount(0)
+    await expect(page.getByText('현재 체내 추정량')).toHaveCount(0)
     await expect(page.getByRole('radiogroup', { name: '기간' })).toBeVisible()
     await expect(page.getByRole('img', { name: '체중 변화 그래프' })).toBeVisible()
     await page.reload()
@@ -1169,7 +1171,7 @@ test.describe('약 변경', () => {
     await expect(page).toHaveURL('/record/medication')
     // 분석: 사용 중인 약이 위OO 로, 이전 약은 따로 점선
     await go(page, '/analysis/medication')
-    await expect(page.getByText('위OO 투약 기록으로 계산한 상대값 곡선이에요.')).toBeVisible()
+    await expect(page.getByText('위OO 투약 기록으로 계산한 체내 추정량(mg)이에요.')).toBeVisible()
     const legend = page.getByRole('list', { name: '곡선 범례' })
     await expect(legend).toContainText('지금 약 · 세마글루타이드(위OO)')
     await expect(legend).toContainText('이전 약 · 터제파타이드(마OOO)')

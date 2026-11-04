@@ -20,7 +20,7 @@ export function MedicationAnalysisPage() {
 
   return (
     <>
-      <PageHeader title="참고용 잔존량" description={`${med.name} 투약 기록으로 계산한 상대값 곡선이에요.`} back="/analysis" actions={<AnalysisNoticeButton />} />
+      <PageHeader title="참고용 잔존량" description={`${med.name} 투약 기록으로 계산한 체내 추정량(mg)이에요.`} back="/analysis" actions={<AnalysisNoticeButton />} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-3">

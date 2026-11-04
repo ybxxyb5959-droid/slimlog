@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 import {
+  amountCurve,
   batemanAmount,
   batemanSum,
   exponentialSum,
@@ -174,4 +175,17 @@ test('흡수 모델: 방금 맞으면 0%에서 시작하고, 최고점 전이면
   // 최고점이 기간 안에 지나갔으면 그 최고점이 100
   const weekAgo = relativeCurve([{ t: to - 7 * 24 * H, doseMg: 0.25 }], half, to - 30 * 24 * H, to, 3, 48)
   expect(Math.max(...weekAgo.map((p) => p.relative))).toBeCloseTo(100, 0)
+})
+
+test('체내 추정량(mg): 한 번 투여 최고점은 용량×F 보다 작고, 반감기마다 대략 절반', () => {
+  const H = 3600 * 1000
+  const t0 = Date.UTC(2026, 9, 1)
+  const pts = amountCurve([{ t: t0, doseMg: 5 }], 120, t0, t0 + 30 * 24 * H, 3, 40, 0.8)
+  const max = Math.max(...pts.map((p) => p.relative))
+  expect(max).toBeLessThan(5 * 0.8)
+  expect(max).toBeGreaterThan(5 * 0.8 * 0.5)
+  const at = (h: number) => pts.reduce((b, p) => (Math.abs(p.t - (t0 + h * H)) < Math.abs(b.t - (t0 + h * H)) ? p : b)).relative
+  // 흡수가 끝난 뒤에는 반감기(120h)마다 절반 가까이
+  expect(at(480) / at(360)).toBeCloseTo(0.5, 1)
+  expect(amountCurve([{ t: t0, doseMg: 5 }], null, t0, t0 + H)).toEqual([])
 })
