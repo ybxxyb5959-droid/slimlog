@@ -47,7 +47,9 @@ CANDIDATES: dict[str, list[str]] = {
     "fat": ["지방(g)", "AMT_NUM4", "지방", "fatce"],
     "carb": ["탄수화물(g)", "AMT_NUM6", "탄수화물", "chocdf"],
     "sodium": ["나트륨(mg)", "AMT_NUM13", "나트륨", "nat"],
-    "serving": ["1회섭취참고량", "1회 섭취참고량", "식품중량", "총내용량", "1회제공량", "foodSize", "servSize"],  # 음식 데이터는 '식품중량'이 1인분 무게
+    "serving": ["1회섭취참고량", "1회 섭취참고량", "식품중량", "총내용량", "1회제공량", "servSize", "foodSize"],  # 음식 데이터는 '식품중량'이 1인분 무게
+    "serving2": ["foodSize", "식품중량"],  # 1회 섭취량이 빈 칸일 때 대신 쓸 값 (가공식품: 총내용량)
+    "kind": ["데이터구분명", "typeNm"],  # 음식 / 원재료성 식품 / 가공식품
     "maker": ["제조사명", "업체명", "MAKER_NM", "mfrNm"],
 }
 REQUIRED = ["code", "name", "kcal"]
@@ -136,12 +138,24 @@ def num(v: str | None) -> float | None:
     return float(m.group(0)) if m else None
 
 
+MAX_G = 99999.0  # DB numeric(6,1) 한도
+
+
+def ok(v: float | None, hi: float) -> float | None:
+    """음수·한도 초과 같은 잘못된 값은 0 으로 바꾸지 않고 '정보 없음'(null)으로"""
+    return v if v is not None and 0 <= v <= hi else None
+
+
 def grams_of(v: str | None) -> float | None:
-    """'100g' '100 g' '900g' '200ml' → 숫자 (ml 은 g 와 같게 본다)"""
+    """'100g' '900g' '200ml' '1.5kg' '1.8L' → 그램 (ml 은 g 와 같게 본다). 한도를 넘거나 0 이면 None"""
     if v is None:
         return None
-    m = re.search(r"(\d+(?:\.\d+)?)\s*(g|ml|mL|그램)?", str(v).replace(",", ""))
-    return float(m.group(1)) if m and float(m.group(1)) > 0 else None
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(kg|㎏|mg|㎎|ml|mL|㎖|l|L|ℓ|g|그램)?", str(v).replace(",", ""))
+    if not m:
+        return None
+    n, u = float(m.group(1)), (m.group(2) or "g")
+    n *= {"kg": 1000, "㎏": 1000, "l": 1000, "L": 1000, "ℓ": 1000, "mg": 0.001, "㎎": 0.001}.get(u, 1)
+    return round(n, 1) if 0 < n <= MAX_G and round(n, 1) > 0 else None
 
 
 def unit_of(v: str | None) -> str:
@@ -149,12 +163,22 @@ def unit_of(v: str | None) -> str:
     return "ml" if v and re.search(r"m[lL]|㎖", str(v)) else "g"
 
 
-def category_of(group: str | None) -> str:
+DRINK = r"음료|커피|주스|우유|두유|^차|차류|다류|주류|생수|탄산"
+
+
+def category_of(group: str | None, kind: str | None = None) -> str:
     g = group or ""
+    if kind and "가공" in kind:  # 가공식품: 음료만 따로, 나머지는 '가공식품' (과자류·빵류 또는 떡류 가 '밥·면'이 되지 않게)
+        return "음료" if re.search(DRINK, g) else "가공식품"
     for pat, cat in GROUP_MAP:
         if re.search(pat, g):
             return cat
     return "일품"
+
+
+def norm_key(s: str) -> str:
+    s = re.sub(r"\(주\)|㈜|주식회사|\(유\)|유한회사|농업회사법인|영농조합법인", "", s)
+    return re.sub(r"[\s()\[\]{}·._,/-]+", "", s).lower()
 
 
 def convert(rows: list[dict[str, str]], cols: dict[str, str | None], source: str, dedupe_name: bool = False) -> tuple[list[Row], list[str]]:
@@ -176,6 +200,9 @@ def convert(rows: list[dict[str, str]], cols: dict[str, str | None], source: str
         if kcal is None:
             skipped.append(f"{i}행 {name}: 열량 없음")
             continue
+        if not 0 <= kcal <= 9999.9:
+            skipped.append(f"{i}행 {name}: 열량 값 이상 ({kcal:g})")
+            continue
         fid = f"mfds-{code}"
         if fid in seen:
             skipped.append(f"{i}행 {name}: 식품코드 중복")
@@ -183,29 +210,30 @@ def convert(rows: list[dict[str, str]], cols: dict[str, str | None], source: str
         maker = (get(r, "maker") or "").strip()
         maker = "" if maker in ("해당없음", "-") else maker
         if dedupe_name:
-            k = (name, maker)
+            # 띄어쓰기·괄호·대소문자만 다른 같은 제품도 한 번만 ('(주)오뚜기'·'주식회사 오뚜기' 도 같은 회사로)
+            k = (norm_key(name), norm_key(maker))
             if k in seen_names:
                 skipped.append(f"{i}행 {name}: 같은 이름 중복")
                 continue
             seen_names.add(k)
         seen.add(fid)
         basis = grams_of(get(r, "basis")) or 100.0
-        serving = grams_of(get(r, "serving")) or basis
+        serving = grams_of(get(r, "serving")) or grams_of(get(r, "serving2")) or basis
         unit = unit_of(get(r, "basis"))
         out.append(
             Row(
                 food_id=fid,
                 name=display_name(name)[:40],
                 brand=maker[:40] or None,
-                category=category_of(get(r, "group")),
+                category=category_of(get(r, "group"), get(r, "kind")),
                 basis_grams=basis,
                 basis_label=f"{basis:g}g당" if unit == "g" else f"{basis:g}mL당(약 {basis:g}g)",
                 serving_g=serving,
                 kcal=kcal,
-                carb_g=num(get(r, "carb")),
-                protein_g=num(get(r, "protein")),
-                fat_g=num(get(r, "fat")),
-                sodium_mg=num(get(r, "sodium")),
+                carb_g=ok(num(get(r, "carb")), 9999.9),
+                protein_g=ok(num(get(r, "protein")), 9999.9),
+                fat_g=ok(num(get(r, "fat")), 9999.9),
+                sodium_mg=ok(num(get(r, "sodium")), 999999.9),
                 data_source=source,
             )
         )

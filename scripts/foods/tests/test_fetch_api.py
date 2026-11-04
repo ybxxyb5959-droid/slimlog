@@ -57,6 +57,10 @@ class FetchTest(unittest.TestCase):
             self.assertEqual(len(data), TOTAL)
             self.assertEqual(data[0].brand, "가짜회사")
 
+    def test_parallel_keeps_order(self):
+        items = f.fetch_all_parallel(self.url, "good", rows=300, workers=4, log=lambda *_: None)
+        self.assertEqual([it["foodCd"] for it in items], [f"P{i}" for i in range(TOTAL)])
+
     def test_bad_key_raises(self):
         with self.assertRaises(RuntimeError):
             f.fetch_all(self.url, "bad", sleep=0, log=lambda *_: None)
