@@ -1181,3 +1181,20 @@ test.describe('약 변경', () => {
     await expect(sheet.getByRole('slider')).toBeVisible()
   })
 })
+
+test('키보드가 올라오면(화면 높이 줄어듦) 입력 중인 칸이 보이고 하단 탭바는 숨는다', async ({ page }) => {
+  test.skip(test.info().project.name !== 'mobile-390', '폰 화면에서만')
+  await page.goto('/community/write')
+  const body = page.getByLabel('내용')
+  await body.click()
+  // 키보드가 화면 아래 절반을 차지한 것처럼
+  await page.setViewportSize({ width: 390, height: 420 })
+  await expect(page.locator('html')).toHaveAttribute('data-keyboard-open', '')
+  await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeHidden()
+  await expect(body).toBeInViewport()
+  // 키보드 내림 → 원래대로
+  await page.setViewportSize({ width: 390, height: 844 })
+  await body.blur()
+  await expect(page.locator('html')).not.toHaveAttribute('data-keyboard-open', '')
+  await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeVisible()
+})

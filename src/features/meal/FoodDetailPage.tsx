@@ -77,7 +77,7 @@ export function FoodDetailPage() {
           <AmountEditor food={food} grams={grams} onChange={setGrams} />
         </Card>
       </div>
-      <div className="fixed inset-x-0 bottom-[calc(4rem+var(--sab))] z-20 border-t border-border bg-surface/95 px-5 py-3 backdrop-blur md:bottom-0 md:left-20 lg:left-60">
+      <div className="hide-on-keyboard fixed inset-x-0 bottom-[calc(4rem+var(--sab))] z-20 border-t border-border bg-surface/95 px-5 py-3 backdrop-blur md:bottom-0 md:left-20 lg:left-60">
         <div className="mx-auto max-w-lg">
           <Button
             size="lg"

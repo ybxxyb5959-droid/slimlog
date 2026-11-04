@@ -110,6 +110,11 @@
   --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
+/* 키보드가 열려 있으면 하단 탭바·하단 고정 버튼이 입력칸을 가리지 않게 숨긴다 (src/lib/keyboard.ts) */
+html[data-keyboard-open] .hide-on-keyboard {
+  display: none !important;
+}
+
 @layer base {
   /* 스크롤한 내용이 상단바(시계·배터리) 뒤로 비치지 않게 그 높이만큼 배경색으로 덮는다 */
   body::before {

@@ -314,7 +314,7 @@ export function MealReviewPage() {
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-[calc(4rem+var(--sab))] z-20 border-t border-border bg-surface/95 px-5 py-3 backdrop-blur md:bottom-0 md:left-20 lg:left-60">
+      <div className="hide-on-keyboard fixed inset-x-0 bottom-[calc(4rem+var(--sab))] z-20 border-t border-border bg-surface/95 px-5 py-3 backdrop-blur md:bottom-0 md:left-20 lg:left-60">
         <div className="mx-auto flex max-w-lg items-center gap-3">
           <p className="tabular min-w-0 flex-1 truncate text-[13px] text-text-muted">
             합계 <b className="text-[16px] text-text">{totals.kcal.toLocaleString()}kcal</b>
