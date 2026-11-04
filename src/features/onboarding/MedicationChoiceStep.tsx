@@ -58,7 +58,8 @@ export function MedicationChoiceStep() {
 
   const start = async () => {
     if (choice === 'later') {
-      if (await completeOnboarding('later')) navigate('/home', { replace: true })
+      // 가입 완료 → 영양 목표 제안(선택, 한 번만) → 홈
+      if (await completeOnboarding('later')) navigate('/onboarding/nutrition-goal', { replace: true })
     } else if (choice === 'now') {
       // 프로필·신체정보는 이미 저장된 상태 → 투약 기록을 취소해도 유지된다
       set({ doseChoice: 'now' })
@@ -118,7 +119,7 @@ export function MedicationChoiceStep() {
         onConfirmed={(d) => saveOnboardingDose(d)}
         onFinished={async () => {
           // 완료 화면을 닫을 때 온보딩 완료 처리 (먼저 처리하면 완료 화면이 보이기 전에 홈으로 넘어감)
-          if (await completeOnboarding('now')) navigate('/home', { replace: true })
+          if (await completeOnboarding('now')) navigate('/onboarding/nutrition-goal', { replace: true })
         }}
       />
     </OnboardingShell>

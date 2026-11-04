@@ -1,6 +1,7 @@
-import { ChevronRight, Heart, MessagesSquare, Ruler, Settings, UserRound, type LucideIcon } from 'lucide-react'
+import { Calculator, ChevronRight, Heart, MessagesSquare, Ruler, Settings, UserRound, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router'
 
+import { useIntakeStore } from '@/stores/intakeStore'
 import { AppIcon } from '@/components/common/AppIcon'
 import { MockBadge } from '@/components/common/MockBadge'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -24,6 +25,7 @@ function CardRow({ to, icon, title, description, meta }: { to: string; icon: Luc
 
 /** 마이페이지 — 설정 메뉴는 우측 상단 톱니바퀴(설정 화면)로 분리 */
 export function MyPage() {
+  const kcalGoal = useIntakeStore((st) => st.kcalGoal)
   const p = useMyProfile()
   const posts = useCommunityStore((s) => s.posts)
   const myPosts = posts.filter((x) => x.mine).length
@@ -73,7 +75,15 @@ export function MyPage() {
 
         <section className="pt-2">
           <h2 className="mb-2 px-1 text-[14px] font-semibold text-text-muted">나의 건강 관리</h2>
-          <CardRow to="/my/body" icon={Ruler} title="신체 정보 · 목표 관리" description="키 · 시작 체중 · 목표 체중 설정" />
+          <div className="space-y-3">
+            <CardRow to="/my/body" icon={Ruler} title="신체 정보 · 목표 관리" description="키 · 시작 체중 · 목표 체중 설정" />
+            <CardRow
+              to="/my/goals"
+              icon={Calculator}
+              title="칼로리 계산"
+              description={kcalGoal ? `하루 ${kcalGoal.toLocaleString()}kcal · 탄단지·물 목표` : '하루 열량·탄단지 참고 목표 계산'}
+            />
+          </div>
         </section>
 
         <section className="space-y-3 pt-2">

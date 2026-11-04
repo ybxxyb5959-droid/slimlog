@@ -134,6 +134,9 @@ test('온보딩 4단계: 성별·출생연도·키·체중 → 목표 체중·�
   expect(u.onboarding_step).toBe(3)
   await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
   await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+  // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
   await expect(page).toHaveURL('/home')
 
   // 신체 정보에서 수정 (새로고침 후에도 값이 채워져 있음)

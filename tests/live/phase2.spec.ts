@@ -188,7 +188,7 @@ test('케어: 물·영양제·복용약이 DB 에 저장되고 새로고침 후�
 
 test('기록 목표: 단백질·물 목표가 user_health 에 저장되고 새로고침 후 케어·식단 분석에 쓰임', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-goal')
-  await page.goto('/my/settings/app')
+  await page.goto('/my/goals')
   await expect(page.getByLabel('하루 단백질 목표')).toHaveValue('')
   await expect(page.getByLabel('하루 물 목표')).toHaveValue('8')
   await page.getByLabel('하루 물 목표').fill('30')
@@ -209,7 +209,7 @@ test('기록 목표: 단백질·물 목표가 user_health 에 저장되고 새�
 
 test('하루 영양 목표: 온보딩 정보로 참고 계산 → 내 목표로 쓰기 → user_health 4개 목표 + 바꾼 활동량 저장', async ({ page }) => {
   const { uid } = await newUser(page, 'p2-target')
-  await page.goto('/my/settings/app')
+  await page.goto('/my/goals')
   await page.getByRole('button', { name: '계산하기' }).click()
   const sheet = page.getByRole('dialog', { name: '하루 영양 목표' })
   // quickOnboarding 은 성별·체중만 넣음 → 출생연도·키는 시트에서 채움

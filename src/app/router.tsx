@@ -24,6 +24,7 @@ import { EyebodyDataPage } from '@/features/my/EyebodyDataPage'
 import { MyPage } from '@/features/my/MyPage'
 import { ProfilePage } from '@/features/my/ProfilePage'
 import { AppSettingsPage } from '@/features/my/AppSettingsPage'
+import { GoalsPage } from '@/features/my/GoalsPage'
 import { BodyGoalPage } from '@/features/my/BodyGoalPage'
 import { DataManagePage } from '@/features/my/DataManagePage'
 import { LikedPostsPage } from '@/features/my/LikedPostsPage'
@@ -38,6 +39,7 @@ import { AnalysisSection } from '@/features/analysis/AnalysisSection'
 import { MedicationAnalysisPage } from '@/features/analysis/MedicationAnalysisPage'
 import { BrandPreview } from '@/features/dev/BrandPreview'
 import { WeightCardGallery } from '@/features/dev/WeightCardGallery'
+import { NutritionIntroPage } from '@/features/onboarding/NutritionIntroPage'
 import { FirstDosePage } from '@/features/record/first-dose/FirstDosePage'
 import { NotFoundPage } from '@/features/common/NotFoundPage'
 import { HomePage } from '@/features/home/HomePage'
@@ -112,6 +114,7 @@ const routes: RouteObject[] = [
       { path: 'my/settings', element: <SettingsHubPage /> },
       { path: 'my/settings/notifications', element: <NotificationSettingsPage /> },
       { path: 'my/settings/app', element: <AppSettingsPage /> },
+      { path: 'my/goals', element: <GoalsPage /> },
       { path: 'my/data', element: <DataManagePage /> },
       { path: 'my/support', element: <SupportPage /> },
       { path: 'my/terms', element: <TermsPage /> },
@@ -135,6 +138,15 @@ const routes: RouteObject[] = [
     element: (
       <LiveGate need="consented">
         <OnboardingRoute />
+      </LiveGate>
+    ),
+  },
+  {
+    // 가입 직후 한 번만: 하루 영양 목표 제안 (선택)
+    path: 'onboarding/nutrition-goal',
+    element: (
+      <LiveGate need="ready">
+        <NutritionIntroPage />
       </LiveGate>
     ),
   },

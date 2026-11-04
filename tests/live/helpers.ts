@@ -45,6 +45,9 @@ export async function quickOnboarding(page: Page, opts: { nickname?: string; wei
   await expect(page).toHaveURL('/onboarding/medication')
   await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
   await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+  // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
   await expect(page).toHaveURL('/home')
 }
 

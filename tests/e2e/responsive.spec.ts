@@ -18,6 +18,7 @@ const PAGES = [
   { path: '/my/settings', heading: '설정' },
   { path: '/my/settings/notifications', heading: '알림 설정' },
   { path: '/my/settings/app', heading: '화면 및 앱 환경' },
+  { path: '/my/goals', heading: '칼로리 계산' },
   { path: '/my/body', heading: '신체 정보 · 목표' },
   { path: '/my/liked', heading: '공감한 글' },
   { path: '/my/data', heading: '내 데이터 관리' },
@@ -30,7 +31,7 @@ const PAGES = [
   { path: '/login', heading: 'SlimLog 로그인' },
   { path: '/signup', heading: '이메일로 가입' },
   { path: '/consent', heading: '약관 동의' },
-  { path: '/record/meal', heading: 'AI 식단' },
+  { path: '/record/meal', heading: '오늘의 식단' },
   { path: '/record/meal/new', heading: '오늘 무엇을 드셨나요?' },
   { path: '/record/meal/search', heading: '음식 직접 추가' },
   { path: '/record/meal/food/rice', heading: '쌀밥' },
@@ -540,6 +541,9 @@ test.describe('온보딩', () => {
     await page.getByRole('button', { name: '다음' }).click()
     await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
     await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+    // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+    await expect(page).toHaveURL('/onboarding/nutrition-goal')
+    await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
     await expect(page).toHaveURL('/home')
     await expect(page.getByText('첫 기록을 시작했어요')).toBeVisible()
     await expect(page.getByText('80.0')).toBeVisible()
@@ -618,6 +622,9 @@ test.describe('온보딩', () => {
     await sheet.getByRole('button', { name: '확인', exact: true }).click()
     await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
     await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
+    // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+    await expect(page).toHaveURL('/onboarding/nutrition-goal')
+    await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
     await expect(page).toHaveURL('/home')
     await expect(page.getByText('마운자로 2.5mg').first()).toBeVisible()
     await expect(page.getByText('시작 체중을 기록해 볼까요?')).toBeVisible()
@@ -763,12 +770,15 @@ test.describe('홈 인사말 (이름 없이 고정 문구)', () => {
     await page.getByRole('button', { name: '다음' }).click()
     await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
     await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+    // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+    await expect(page).toHaveURL('/onboarding/nutrition-goal')
+    await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('오늘도 기록해볼까요')
   })
 })
 
 test('설정: 단백질 목표 저장 → 식단 분석 단백질 그래프에 목표선, 잘못된 값은 저장 막힘', async ({ page }) => {
-  await page.goto('/my/settings/app')
+  await page.goto('/my/goals')
   const save = page.getByRole('button', { name: '저장' })
   await expect(save).toBeDisabled() // 바뀐 게 없으면 저장 비활성
   await page.getByLabel('하루 단백질 목표').fill('500')
@@ -844,7 +854,7 @@ test('증상 수정: 빠른 기록과 같은 모양(강도 약함/보통/심함�
 })
 
 test('하루 영양 목표 참고 계산: 결과·아이콘 카드·활동량 바꾸면 다시 계산·계산 과정 → 내 목표로 쓰기 → 설정·식단 분석에 반영', async ({ page }) => {
-  await page.goto('/my/settings/app')
+  await page.goto('/my/goals')
   await page.getByRole('button', { name: '계산하기' }).click()
   const sheet = page.getByRole('dialog', { name: '하루 영양 목표' })
   await expect(sheet.getByText('예시 정보')).toBeVisible()
@@ -875,7 +885,7 @@ test('하루 영양 목표 참고 계산: 결과·아이콘 카드·활동량 �
   // 직접 정할게요 → 설정 화면으로
   await page.getByRole('button', { name: '목표 다시 계산' }).click()
   await page.getByRole('dialog', { name: '하루 영양 목표' }).getByRole('button', { name: '직접 정할게요' }).click()
-  await expect(page).toHaveURL('/my/settings/app')
+  await expect(page).toHaveURL('/my/goals')
 })
 
 test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {
@@ -1041,4 +1051,36 @@ test.describe('식단 기록', () => {
     // 예시 간식 1건 + 새로 저장한 2건
     await expect(snackCards).toHaveCount(3)
   })
+})
+
+test('가입 직후 한 번만: 하루 영양 목표 제안 → 참고 목표 계산하기(시트) / 다시 들어오면 홈으로', async ({ page }) => {
+  await page.goto('/onboarding/nickname')
+  await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+  await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
+  await page.getByRole('radio', { name: '여성' }).click()
+  await page.getByRole('button', { name: '나중에 입력' }).click()
+  await page.getByRole('button', { name: '다음' }).click()
+  await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
+  await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await expect(page.getByRole('heading', { name: '하루 영양 목표를 설정할까요?' })).toBeVisible()
+  await expect(page.getByText('선택 설정')).toBeVisible()
+  await page.getByRole('button', { name: '참고 목표 계산하기' }).click()
+  await expect(page.getByRole('dialog', { name: '하루 영양 목표' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL('/home')
+  // 한 번 본 뒤에는 다시 안 뜸
+  await page.goto('/onboarding/nutrition-goal')
+  await expect(page).toHaveURL('/home')
+})
+
+test('마이 메인 → 칼로리 계산(계산기 아이콘) → 목표 화면, 화면 및 앱 환경에는 목표 없음', async ({ page }) => {
+  await page.goto('/my')
+  await page.getByRole('link', { name: /칼로리 계산/ }).click()
+  await expect(page).toHaveURL('/my/goals')
+  await expect(page.getByRole('button', { name: '계산하기' })).toBeVisible()
+  await expect(page.getByLabel('하루 열량 목표')).toBeVisible()
+  await page.goto('/my/settings/app')
+  await expect(page.getByLabel('하루 열량 목표')).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: '어둡게' })).toBeVisible()
 })

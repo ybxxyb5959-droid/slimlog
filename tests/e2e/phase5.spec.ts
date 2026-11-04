@@ -53,6 +53,9 @@ test('새 사용자는 분석 화면에 가짜 그래프 대신 빈 상태', asy
   await page.getByRole('button', { name: '다음' }).click()
   await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
   await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+  // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
   await softGo(page, '/analysis/nutrition')
   await closeNotice(page)
   await expect(page.getByText('이 기간에 식단 기록이 없어요')).toBeVisible()

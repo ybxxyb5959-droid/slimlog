@@ -185,7 +185,7 @@ export function NutritionPage() {
         onClose={() => setGoalOpen(false)}
         onManual={() => {
           setGoalOpen(false)
-          navigate('/my/settings/app')
+          navigate('/my/goals')
         }}
       />
     </>

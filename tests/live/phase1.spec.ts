@@ -108,6 +108,9 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await sheet.getByRole('button', { name: '확인', exact: true }).click()
   await expect(sheet.getByText('투약 기록을 남겼어요')).toBeVisible()
   await sheet.getByRole('button', { name: '닫기', exact: true }).first().click()
+  // 가입 직후 한 번: 영양 목표 제안 → 건너뛰기
+  await expect(page).toHaveURL('/onboarding/nutrition-goal')
+  await page.getByRole('button', { name: '지금은 건너뛰기' }).click()
   await expect(page).toHaveURL('/home')
 
   const uid = await userIdOf(email)
