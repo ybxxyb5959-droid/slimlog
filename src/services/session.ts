@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 
 import { combineDateTime, type FirstDoseDraft } from '@/features/record/first-dose/firstDoseDraft'
 import { MOCK_BODY_LOGS, MOCK_DOSES, MOCK_SYMPTOMS } from '@/fixtures/records.mock'
+import type { ActivityLevel, Sex } from '@/lib/bodyProfile'
 import { dbErrorMessage, isLive, sb } from '@/lib/supabase'
 import { insertDose } from '@/services/live/account'
 import { fetchBodyLogs } from '@/services/live/records'
@@ -33,16 +34,32 @@ const requireAccount = () => {
   return a
 }
 
-/** 온보딩 2단계 저장 — 키·시작/목표 체중 + 최초 체중 기록(사람당 1개, 다시 고치면 같은 행 갱신) */
-export async function saveOnboardingBody(v: { heightCm: number | null; weightKg: number; goalKg: number }): Promise<boolean> {
+/**
+ * 신체 정보 저장 — 온보딩 2단계와 마이 > 신체 정보에서 같이 쓴다.
+ * 키·시작 체중 + 최초 체중 기록(사람당 1개, 다시 고치면 같은 행 갱신).
+ * 성별·출생연도·목표 체중·활동량은 넘긴 것만 바꾼다 (undefined = 그대로).
+ */
+export async function saveOnboardingBody(v: {
+  heightCm: number | null
+  weightKg: number
+  goalKg?: number | null
+  sex?: Sex | null
+  birthYear?: number | null
+  activity?: ActivityLevel | null
+}): Promise<boolean> {
   if (!isLive) return true
   try {
     const a = requireAccount()
     const db = sb()
-    const h = await db
-      .from('user_health')
-      .update({ height_cm: v.heightCm, start_weight_kg: v.weightKg, goal_weight_kg: v.goalKg })
-      .eq('user_id', a.userId)
+    const patch = {
+      height_cm: v.heightCm,
+      start_weight_kg: v.weightKg,
+      ...(v.goalKg !== undefined && { goal_weight_kg: v.goalKg }),
+      ...(v.sex !== undefined && { sex: v.sex }),
+      ...(v.birthYear !== undefined && { birth_year: v.birthYear }),
+      ...(v.activity !== undefined && { activity_level: v.activity }),
+    }
+    const h = await db.from('user_health').update(patch).eq('user_id', a.userId)
     if (h.error) throw h.error
     const base = await db.from('body_logs').select('log_id').eq('is_baseline', true).maybeSingle()
     if (base.error) throw base.error
@@ -52,7 +69,50 @@ export async function saveOnboardingBody(v: { heightCm: number | null; weightKg:
     if (b.error) throw b.error
     useRecordsStore.setState({ bodyLogs: await fetchBodyLogs() })
     await setOnboardingStep(2)
-    useAuthStore.setState({ account: { ...a, heightCm: v.heightCm, startWeightKg: v.weightKg, goalWeightKg: v.goalKg, onboardingStep: Math.max(a.onboardingStep, 2) } })
+    useAuthStore.setState({
+      account: {
+        ...a,
+        heightCm: v.heightCm,
+        startWeightKg: v.weightKg,
+        ...(v.goalKg !== undefined && { goalWeightKg: v.goalKg }),
+        ...(v.sex !== undefined && { sex: v.sex }),
+        ...(v.birthYear !== undefined && { birthYear: v.birthYear }),
+        ...(v.activity !== undefined && { activityLevel: v.activity }),
+        onboardingStep: Math.max(a.onboardingStep, 2),
+      },
+    })
+    return true
+  } catch (e) {
+    toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
+    return false
+  }
+}
+
+/** 신체 정보 없이 성별·출생연도만 (온보딩 2단계에서 체중을 비우고 넘어갈 때) */
+export async function saveProfileBasics(v: { sex: Sex | null; birthYear: number | null }, step: number): Promise<boolean> {
+  if (!isLive) return true
+  try {
+    const a = requireAccount()
+    const r = await sb().from('user_health').update({ sex: v.sex, birth_year: v.birthYear }).eq('user_id', a.userId)
+    if (r.error) throw r.error
+    await setOnboardingStep(step)
+    useAuthStore.setState({ account: { ...requireAccount(), sex: v.sex, birthYear: v.birthYear } })
+    return true
+  } catch (e) {
+    toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
+    return false
+  }
+}
+
+/** 온보딩 3단계 저장 — 목표 체중(선택)·활동량(선택) */
+export async function saveOnboardingGoal(v: { goalKg: number | null; activity: ActivityLevel | null }): Promise<boolean> {
+  if (!isLive) return true
+  try {
+    const a = requireAccount()
+    const r = await sb().from('user_health').update({ goal_weight_kg: v.goalKg, activity_level: v.activity }).eq('user_id', a.userId)
+    if (r.error) throw r.error
+    await setOnboardingStep(3)
+    useAuthStore.setState({ account: { ...requireAccount(), goalWeightKg: v.goalKg, activityLevel: v.activity } })
     return true
   } catch (e) {
     toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
@@ -99,9 +159,9 @@ export async function completeOnboarding(choice: 'now' | 'later'): Promise<boole
   if (isLive) {
     try {
       const a = requireAccount()
-      const r = await sb().from('users').update({ onboarding_step: 3, onboarding_completed_at: now }).eq('user_id', a.userId)
+      const r = await sb().from('users').update({ onboarding_step: 4, onboarding_completed_at: now }).eq('user_id', a.userId)
       if (r.error) throw r.error
-      useAuthStore.setState({ account: { ...a, onboardingStep: 3, onboardingCompletedAt: now } })
+      useAuthStore.setState({ account: { ...a, onboardingStep: 4, onboardingCompletedAt: now } })
     } catch (e) {
       toast.error('저장하지 못했어요', { description: dbErrorMessage(e) })
       return false

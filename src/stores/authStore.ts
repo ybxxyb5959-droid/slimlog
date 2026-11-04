@@ -6,6 +6,7 @@ import { fetchDoses, loadAccount, type LiveAccount } from '@/services/live/accou
 import { fetchFoodsByIds, fetchMeals, fetchMyFoods } from '@/services/live/meals'
 import { fetchBodyLogs, fetchDailyChecks, fetchIntake, fetchSymptoms } from '@/services/live/records'
 import { cacheFoods, useFoodCache } from '@/services/foodCatalog'
+import { lock as lockEyebody } from '@/lib/eyebodyVault'
 import { DEFAULT_WATER_GOAL_ML, useIntakeStore } from '@/stores/intakeStore'
 import { loadFavorites, setFavoritesUser, useMealStore } from '@/stores/mealStore'
 import { useMockRecordStore } from '@/stores/mockRecordStore'
@@ -29,7 +30,7 @@ interface AuthState {
   signOut: () => Promise<void>
 }
 
-const STEP_BY_NUMBER: OnboardingStep[] = ['nickname', 'body', 'medication']
+const STEP_BY_NUMBER: OnboardingStep[] = ['nickname', 'body', 'goal', 'medication']
 
 /** 서버 상태를 화면용 스토어에 채운다. 예시(목업) 데이터는 비운다 */
 async function hydrate(account: LiveAccount) {
@@ -38,11 +39,14 @@ async function hydrate(account: LiveAccount) {
     name: account.legalName ?? '',
     nickname: account.nickname ?? '',
     nicknameSaved: !!account.nickname,
+    sex: account.sex,
+    birthYear: account.birthYear === null ? '' : String(account.birthYear),
+    activity: account.activityLevel,
     heightCm: fmt(account.heightCm),
     weightKg: fmt(account.startWeightKg),
     goalKg: fmt(account.goalWeightKg),
     baselineSavedAt: account.startWeightKg !== null ? 'server' : null,
-    step: STEP_BY_NUMBER[Math.min(account.onboardingStep, 2)] ?? 'nickname',
+    step: STEP_BY_NUMBER[Math.min(account.onboardingStep, 3)] ?? 'nickname',
     completedAt: account.onboardingCompletedAt,
   })
   // 식단: 최근 60일 식사 + 내 음식 + 기록에 쓰인 공용 음식(섭취량 단위 표시용)
@@ -57,6 +61,9 @@ async function hydrate(account: LiveAccount) {
   useIntakeStore.setState({
     waterGoalMl: account.waterGoalMl ?? DEFAULT_WATER_GOAL_ML,
     proteinGoalG: account.proteinGoalG,
+    kcalGoal: account.kcalGoal,
+    carbGoalG: account.carbGoalG,
+    fatGoalG: account.fatGoalG,
     water: intake.logs.filter((l) => l.kind === 'water').map((l) => ({ id: l.log_id, ml: l.amount_ml ?? 0, at: l.taken_at })),
     items: intake.items.map((i) => ({ id: i.item_id, kind: i.kind as 'supplement' | 'medicine', name: i.name, remindEnabled: i.remind_enabled, remindHour: i.remind_hour, remindAsked: i.remind_asked })),
     logs: intake.logs.filter((l) => l.kind !== 'water' && l.item_id).map((l) => ({ id: l.log_id, itemId: l.item_id!, at: l.taken_at, status: l.status as 'taken' | 'skipped' })),
@@ -71,6 +78,8 @@ async function hydrate(account: LiveAccount) {
 }
 
 function clearLocal() {
+  // 로그아웃하면 눈바디 금고도 잠근다 (키는 메모리에만 있음)
+  lockEyebody()
   setFavoritesUser(null)
   useFoodCache.setState({ foods: [] })
   useOnboardingStore.getState().reset()

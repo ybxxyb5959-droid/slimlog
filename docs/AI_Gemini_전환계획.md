@@ -148,7 +148,7 @@
 
 **DB: 최소 변경 초안 (실행 안 함, 승인 후 파일만 작성 → 👤 SQL Editor 실행)**
 ```sql
--- 010_gemini_food_ai (초안)
+-- 011_gemini_food_ai (초안, 처음엔 010 으로 썼다가 다른 작업의 010 과 겹쳐 011 로 바꿈)
 -- (1) predictions: DB에 없는 음식도 기록할 수 있게
 alter table public.predictions alter column predicted_food_id drop not null;
 alter table public.predictions
@@ -250,7 +250,7 @@ alter table public.consents add constraint consents_type_check
 |---|---|---|---|
 | 11/5~11/7 | 준비 | API 키 발급, 결제 여부 결정, 식약처 CSV 다운로드 | 영양 DB 변환 SQL |
 | 11/7~11/12 | AI 모듈 | — | 인터페이스 + Gemini + 목업, 스키마, 오류 처리, 가짜 Gemini로 테스트 |
-| 11/12~11/15 | 서버 연결 | DB 010 SQL 실행 | `/meals/photo` 연결, 매칭, 횟수 제한, 사용량 기록 |
+| 11/12~11/15 | 서버 연결 | DB 011 SQL 실행 | `/meals/photo` 연결, 매칭, 횟수 제한, 사용량 기록 |
 | 11/15~11/20 | 화면 | 내 폰으로 확인 | 3단계 신뢰도, DB 없는 음식, 추정값 문구, 외부 전송 안내 |
 | 11/20~11/25 | 배포·통합 테스트 | 호스팅 계정, 키 입력 | 배포 설정, 시나리오 테스트 |
 | 11/26~12/1 | 발표 준비 | 연습 | 시연 시나리오, 자료용 표 |
@@ -268,12 +268,12 @@ alter table public.consents add constraint consents_type_check
 |---|---|---|
 | AI 모듈 (교체 가능) | `server/app/ai/` — `base.py`(규격), `gemini_food.py`(Gemini 전용), `mock_food.py`, `matching.py`(영양 DB 연결), `usage.py`(횟수·사용량), `food_aliases.json` | ✅ |
 | 사진 경로 | `server/app/routers/meals.py` `POST /meals/photo` — purpose 확인, 동의, 하루 10회, 실패 시 직접 입력 | ✅ |
-| DB 010 | `supabase/migrations/20261105000010_food_ai_gemini.sql` / SQL Editor용 `supabase/sql_editor_적용용_010.sql` / 되돌리기 `supabase/rollback/20261105_010_down.sql` | ✅ 로컬 적용 확인 · ⏳ 👤 클라우드 실행 |
+| DB 011 (처음 이름 010) | `supabase/migrations/20261105000011_food_ai_gemini.sql` / SQL Editor용 `supabase/sql_editor_적용용_011.sql` / 되돌리기 `supabase/rollback/20261105_011_down.sql` | ✅ 로컬 적용 확인 · ⏳ 👤 클라우드 실행 |
 | 화면 | 사진 화면(외부 전송 안내·첫 동의·실패 시 직접 입력), 검토 화면(신뢰도 높음/보통/확인 필요, DB 없는 음식, 추정값 안내), 동의 관리에 '식단 사진 AI 분석' 추가 | ✅ |
 | 테스트 | 서버 44 (새 30: 범위 지키기·Gemini 오류·횟수 제한 등) · DB RLS 51 · HTTP 30 · 화면 E2E 307 · 실서비스 E2E 18 | ✅ 전부 통과 |
 
 **👤 남은 일**
-1. ~~클라우드에 010 실행~~ → ✅ 완료 (2026-11-04, RLS 51줄 PASS)
+1. ~~클라우드에 식단 AI SQL(지금 이름 011) 실행~~ → ✅ 완료 (2026-11-04, RLS 51줄 PASS)
 2. Google AI Studio 에서 API 키 발급 → 서버 환경변수 `GEMINI_API_KEY` (채팅에 붙이지 말 것)
 3. ~~식약처 영양 DB 넣기~~ → ✅ 이미 완료 (2026-11-04, 331,002개: 음식 16,791 · 원재료 3,693 · 가공식품 310,518, `docs/DB_Supabase_설계안.md`). 매칭은 음식(mfds-D) → 원재료(R) → 제조사 없는 것 → 가공식품 순
 4. 서버 배포 후 실제 음식 사진 몇 장으로 확인 → 모델 ID·응답 품질 점검
@@ -287,5 +287,5 @@ alter table public.consents add constraint consents_type_check
 | 무료 플랜으로 개발 | ✅ 확정 |
 | 사용자당 하루 10회 | ✅ 확정 |
 | 9장 순서대로 구현 시작 | ✅ 승인 (2026-11-04) |
-| DB 010 (1)(2)(3) | ✅ 승인 · 파일 작성 완료 (클라우드 실행은 👤) |
+| DB 011 (1)(2)(3) | ✅ 승인 · 파일 작성 완료 (클라우드 실행은 👤) |
 | 별도 동의 `food_ai` | ✅ 첫 분석 때 1회 동의 (마이 > 동의 관리에서 철회) |

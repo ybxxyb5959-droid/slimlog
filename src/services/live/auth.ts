@@ -1,3 +1,4 @@
+import { isNativeApp } from '@/lib/native'
 import { sb } from '@/lib/supabase'
 import type { ProviderId } from '@/features/auth/providers'
 
@@ -12,8 +13,23 @@ export async function enabledProviders(): Promise<Partial<Record<ProviderId, boo
   return { kakao: !!ext.kakao, google: !!ext.google, apple: !!ext.apple, naver: false }
 }
 
-/** 소셜 로그인 시작 — 브라우저가 카카오/구글 로그인 화면으로 이동했다가 /auth/callback 으로 돌아온다 */
+/** 갤럭시 앱 로그인 후 돌아오는 주소 (AndroidManifest intent-filter, Supabase Redirect URLs 에 등록 필요) */
+export const NATIVE_AUTH_CALLBACK = 'com.slimlog.app://auth-callback'
+
+/**
+ * 소셜 로그인 시작
+ * - 웹: 브라우저가 카카오/구글 로그인 화면으로 이동했다가 /auth/callback 으로 돌아온다
+ * - 갤럭시 앱: 구글은 앱 안 웹뷰 로그인을 막으므로 시스템 브라우저(Custom Tabs)로 열고,
+ *   로그인이 끝나면 com.slimlog.app://auth-callback?code=… 로 앱이 다시 열린다 (src/lib/nativeApp.ts 에서 처리)
+ */
 export async function startOAuth(provider: 'kakao' | 'google' | 'apple') {
+  if (isNativeApp()) {
+    const { data, error } = await sb().auth.signInWithOAuth({ provider, options: { redirectTo: NATIVE_AUTH_CALLBACK, skipBrowserRedirect: true } })
+    if (error) throw error
+    const { Browser } = await import('@capacitor/browser')
+    await Browser.open({ url: data.url })
+    return
+  }
   const { error } = await sb().auth.signInWithOAuth({
     provider,
     options: { redirectTo: `${window.location.origin}/auth/callback` },

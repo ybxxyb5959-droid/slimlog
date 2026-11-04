@@ -1,0 +1,23 @@
+diff --git a/node_modules/@capgo/capacitor-native-biometric/android/src/main/java/ee/forgr/biometric/AsymmetricSecureDataHelper.java b/node_modules/@capgo/capacitor-native-biometric/android/src/main/java/ee/forgr/biometric/AsymmetricSecureDataHelper.java
+index c2447ac..917d4b7 100644
+--- a/node_modules/@capgo/capacitor-native-biometric/android/src/main/java/ee/forgr/biometric/AsymmetricSecureDataHelper.java
++++ b/node_modules/@capgo/capacitor-native-biometric/android/src/main/java/ee/forgr/biometric/AsymmetricSecureDataHelper.java
+@@ -161,15 +161,9 @@ final class AsymmetricSecureDataHelper {
+         try {
+             generateKeyPair(alias, invalidatedByEnrollment);
+         } catch (ProviderException e) {
+-            if (invalidatedByEnrollment) {
+-                try {
+-                    generateKeyPair(alias, false);
+-                } catch (ProviderException retryError) {
+-                    throw new GeneralSecurityException("Keystore key generation failed", retryError);
+-                }
+-            } else {
+-                throw new GeneralSecurityException("Keystore key generation failed", e);
+-            }
++            // SlimLog 패치: 지문 재등록 시 무효화 옵션을 조용히 빼고 다시 만들지 않는다 (보안 요구사항).
++            // 이 기기에서 해당 옵션을 지원하지 않으면 실패로 돌려보내고, 앱은 지문 잠금을 켜지 않는다.
++            throw new GeneralSecurityException("Keystore key generation failed (biometric enrollment invalidation unsupported)", e);
+         }
+         return requirePrivateKeyEntry(ks, alias);
+     }

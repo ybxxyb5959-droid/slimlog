@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 
+import type { ActivityLevel, Sex } from '@/lib/bodyProfile'
+
 /**
  * 온보딩 진행 상태 — 앱을 껐다 켜도 이어서 할 수 있게 저장한다.
  * 목업: localStorage / 실제: PROFILES.onboarding_step, onboarding_completed_at (사용자별, RLS)
  * 건강 정보(키·체중)와 공개 정보(닉네임)는 서버에서 서로 다른 테이블에 저장한다.
  */
-export type OnboardingStep = 'nickname' | 'body' | 'medication'
+export type OnboardingStep = 'nickname' | 'body' | 'goal' | 'medication'
 
 export interface OnboardingState {
   step: OnboardingStep
@@ -14,9 +16,12 @@ export interface OnboardingState {
   name: string
   nickname: string
   nicknameSaved: boolean
+  sex: Sex | null
+  birthYear: string
   heightCm: string
   weightKg: string
   goalKg: string
+  activity: ActivityLevel | null
   bodySkipped: boolean
   /** STEP 2 저장 시각 — 최초 체중 기록이 중복 저장되지 않게 한 번만 만든다 */
   baselineSavedAt: string | null
@@ -55,9 +60,12 @@ const INITIAL = {
   name: '',
   nickname: '',
   nicknameSaved: false,
+  sex: null as Sex | null,
+  birthYear: '',
   heightCm: '',
   weightKg: '',
   goalKg: '',
+  activity: null as ActivityLevel | null,
   bodySkipped: false,
   baselineSavedAt: null,
   doseChoice: null,
@@ -77,4 +85,4 @@ export const useOnboardingStore = create<OnboardingState>()(
   ),
 )
 
-export const STEP_ORDER: OnboardingStep[] = ['nickname', 'body', 'medication']
+export const STEP_ORDER: OnboardingStep[] = ['nickname', 'body', 'goal', 'medication']

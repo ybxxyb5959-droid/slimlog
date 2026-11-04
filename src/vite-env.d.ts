@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   /** SlimLog API(FastAPI) 주소 — 없으면 서버 기능(사진 인식·커뮤니티 쓰기·탈퇴)은 '준비 중' */
   readonly VITE_API_URL?: string
   readonly VITE_PREVIEW?: string
+  /** E2E 테스트 빌드에서만 '1' — 가짜 지문 등 테스트 훅 (배포 빌드에는 넣지 않음) */
+  readonly VITE_E2E_HOOKS?: string
 }
 
 interface ImportMeta {

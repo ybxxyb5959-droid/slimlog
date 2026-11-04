@@ -49,6 +49,10 @@ interface IntakeState {
   waterGoalMl: number
   /** 하루 단백질 목표(g). 직접 정한 값만, 없으면 null (앱이 추천하지 않음) */
   proteinGoalG: number | null
+  /** 하루 열량·탄수화물·지방 목표 (직접 정한 값만) */
+  kcalGoal: number | null
+  carbGoalG: number | null
+  fatGoalG: number | null
   items: IntakeItem[]
   logs: IntakeLog[]
   addWater: (ml: number) => void
@@ -75,6 +79,9 @@ const demo = () => ({
     : [],
   waterGoalMl: MOCK_TODAY_CHECK.waterGoalCups * ML_PER_CUP,
   proteinGoalG: MOCK_TODAY_CHECK.proteinGoalG as number | null,
+  kcalGoal: null as number | null,
+  carbGoalG: null as number | null,
+  fatGoalG: null as number | null,
   items: [{ id: 'sup-1', kind: 'supplement' as const, name: '종합비타민 (예시)' }],
   logs: MOCK_TODAY_CHECK.supplementTaken ? [{ id: 'log-1', itemId: 'sup-1', at: todayAt(8, 30) }] : [],
 })
@@ -157,7 +164,7 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
     set((s) => ({ logs: s.logs.filter((l) => l.id !== logId) }))
     persist(() => deleteIntakeLog(logId), () => set({ logs: prev }))
   },
-  resetEmpty: () => set({ water: [], items: [], logs: [], waterGoalMl: DEFAULT_WATER_GOAL_ML, proteinGoalG: null }),
+  resetEmpty: () => set({ water: [], items: [], logs: [], waterGoalMl: DEFAULT_WATER_GOAL_ML, proteinGoalG: null, kcalGoal: null, carbGoalG: null, fatGoalG: null }),
   resetDemo: () => set(demo()),
 }))
 

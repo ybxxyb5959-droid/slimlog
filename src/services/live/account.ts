@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js'
 
+import { isActivity, isSex, type ActivityLevel, type Sex } from '@/lib/bodyProfile'
 import { sb } from '@/lib/supabase'
 import type { ConsentId } from '@/fixtures/consents'
 import type { Dose, InjectionSite, MedicationId } from '@/types/domain'
@@ -17,10 +18,17 @@ export interface LiveAccount {
   startWeightKg: number | null
   goalWeightKg: number | null
   currentMedId: MedicationId | null
+  sex: Sex | null
+  birthYear: number | null
+  activityLevel: ActivityLevel | null
   /** 하루 단백질 목표(g) — 직접 정한 값, 없으면 null */
   proteinGoalG: number | null
   /** 하루 물 목표(ml) — 직접 정한 값, 없으면 null */
   waterGoalMl: number | null
+  /** 하루 열량·탄수화물·지방 목표 — 직접 정하거나 참고 계산을 '내 목표로 쓰기' 한 값 */
+  kcalGoal: number | null
+  carbGoalG: number | null
+  fatGoalG: number | null
   consents: ConsentId[]
 }
 
@@ -45,7 +53,7 @@ export async function loadAccount(user: User): Promise<LiveAccount> {
   const db = sb()
   const [u, h, c] = await Promise.all([
     db.from('users').select('nickname, role, onboarding_step, onboarding_completed_at').eq('user_id', user.id).single(),
-    db.from('user_health').select('legal_name, height_cm, start_weight_kg, goal_weight_kg, current_med_id, protein_goal_g, water_goal_ml').eq('user_id', user.id).single(),
+    db.from('user_health').select('legal_name, birth_year, sex, activity_level, height_cm, start_weight_kg, goal_weight_kg, current_med_id, protein_goal_g, water_goal_ml, kcal_goal, carb_goal_g, fat_goal_g').eq('user_id', user.id).single(),
     db.from('consents').select('type').eq('user_id', user.id).is('withdrawn_at', null),
   ])
   if (u.error) throw u.error
@@ -74,8 +82,14 @@ export async function loadAccount(user: User): Promise<LiveAccount> {
     startWeightKg: h.data.start_weight_kg,
     goalWeightKg: h.data.goal_weight_kg,
     currentMedId: (h.data.current_med_id as MedicationId | null) ?? null,
+    sex: isSex(h.data.sex) ? h.data.sex : null,
+    birthYear: h.data.birth_year,
+    activityLevel: isActivity(h.data.activity_level) ? h.data.activity_level : null,
     proteinGoalG: h.data.protein_goal_g,
     waterGoalMl: h.data.water_goal_ml,
+    kcalGoal: h.data.kcal_goal,
+    carbGoalG: h.data.carb_goal_g,
+    fatGoalG: h.data.fat_goal_g,
     consents: [...new Set(c.data.map((r) => r.type as ConsentId))],
   }
 }
@@ -175,6 +189,12 @@ export async function updateHealth(
     current_med_id: string | null
     protein_goal_g: number | null
     water_goal_ml: number | null
+    sex: Sex | null
+    birth_year: number | null
+    activity_level: ActivityLevel | null
+    kcal_goal: number | null
+    carb_goal_g: number | null
+    fat_goal_g: number | null
   }>,
 ) {
   const r = await sb().from('user_health').update(patch).eq('user_id', userId)

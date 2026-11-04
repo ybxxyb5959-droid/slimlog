@@ -16,10 +16,12 @@ import { isLive } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { isNewUser } from '@/services/session'
 import { useIntakeStore } from '@/stores/intakeStore'
+import { MACRO_META } from '@/lib/nutritionMeta'
 import { useMealDraftStore } from '@/stores/mealDraftStore'
 import { useMealStore } from '@/stores/mealStore'
 import type { MealRecord } from '@/types/meal'
 
+import { NutritionGoalSheet } from '../goals/NutritionGoalSheet'
 import { buildDays, type DayRow } from './analysisData'
 
 /**
@@ -46,7 +48,14 @@ const dayLabel = (k: string) => formatShortDateWithDay(new Date(`${k}T12:00:00`)
 export function NutritionPage() {
   const [period, setPeriod] = useState<Period>(7)
   const meals = useMealStore((s) => s.records)
-  const proteinGoal = useIntakeStore((s) => s.proteinGoalG)
+  const goals: Record<Key, number | null> = {
+    kcal: useIntakeStore((s) => s.kcalGoal),
+    carbG: useIntakeStore((s) => s.carbGoalG),
+    proteinG: useIntakeStore((s) => s.proteinGoalG),
+    fatG: useIntakeStore((s) => s.fatGoalG),
+  }
+  const [goalOpen, setGoalOpen] = useState(false)
+  const navigate = useNavigate()
   const rows = buildDays({ meals, doses: [], bodyLogs: [], symptoms: [], daily: [], water: [] }, period)
   const recorded = rows.filter((r) => r.kcal !== null)
   const [tab, setTab] = useState<Key>('kcal')
@@ -106,6 +115,11 @@ export function NutritionPage() {
                 <p className="mt-1.5 text-[12px] text-text-muted">
                   기록한 날 기준 평균 · <span className="tabular">{recorded.length}/{period === 90 ? '90' : period}일</span> 기록
                 </p>
+                {goals.kcal ? (
+                  <p className="tabular mt-1 text-[12px] font-medium text-text">
+                    목표 {goals.kcal.toLocaleString()}kcal 대비 {Math.round((avgKcal! / goals.kcal) * 100)}%
+                  </p>
+                ) : null}
               </div>
               <div className="flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface-muted" aria-hidden>
                 <Flame size={20} strokeWidth={1.75} className="text-primary" />
@@ -119,11 +133,14 @@ export function NutritionPage() {
                 {MACROS.map((m) => {
                   const g = avgOf(recorded, m.key)!
                   const share = avgKcal ? Math.round(((g * m.kcalPerG!) / avgKcal) * 100) : 0
-                  const goalPct = m.key === 'proteinG' && proteinGoal ? Math.round((g / proteinGoal) * 100) : null
+                  const goal = goals[m.key]
+                  const goalPct = goal ? Math.round((g / goal) * 100) : null
+                  const bar = goalPct ?? share
+                  const meta = MACRO_META.find((x) => x.key === m.key)!
                   return (
                     <li key={m.key} className="rounded-2xl bg-surface-muted px-3 py-3">
                       <p className="flex items-center gap-1.5 text-[12px] font-semibold">
-                        <span aria-hidden className="size-2 rounded-full" style={{ background: m.color }} />
+                        <meta.icon size={14} strokeWidth={2} aria-hidden style={{ color: m.color }} />
                         {m.label}
                       </p>
                       <p className="tabular mt-1 text-[22px] leading-tight font-bold">
@@ -133,28 +150,29 @@ export function NutritionPage() {
                       <div
                         className="mt-2 h-1.5 overflow-hidden rounded-full bg-border"
                         role="meter"
-                        aria-label={`${m.label} 열량 비율`}
+                        aria-label={goal ? `${m.label} 목표 대비` : `${m.label} 열량 비율`}
                         aria-valuemin={0}
                         aria-valuemax={100}
-                        aria-valuenow={Math.min(share, 100)}
+                        aria-valuenow={Math.min(bar, 100)}
                       >
-                        <div className="h-full rounded-full" style={{ width: `${Math.min(share, 100)}%`, background: m.color }} />
+                        <div className="h-full rounded-full" style={{ width: `${Math.min(bar, 100)}%`, background: m.color }} />
                       </div>
-                      <p className="tabular mt-1.5 text-[11px] text-text-muted">열량 중 {share}%</p>
-                      {goalPct !== null && <p className="tabular text-[11px] font-medium text-text">목표 대비 {goalPct}%</p>}
+                      <p className="tabular mt-1.5 text-[11px] text-text-muted">{goal ? `목표 ${goal}g 대비 ${goalPct}%` : `열량 중 ${share}%`}</p>
                     </li>
                   )
                 })}
               </ul>
-              <p className="mt-2 text-[12px] text-text-subtle">
-                막대는 하루 열량 중 그 영양소가 차지하는 비율이에요.
-                {proteinGoal ? '' : ' 단백질 목표는 설정에서 직접 정할 수 있어요.'}
-              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[12px] text-text-subtle">{MACROS.every((m) => goals[m.key]) ? '막대는 내가 정한 목표 대비예요.' : '목표가 없는 영양소는 하루 열량 중 비율을 보여줘요.'}</p>
+                <Button variant="outline" size="sm" onClick={() => setGoalOpen(true)}>
+                  {goals.kcal || goals.carbG || goals.proteinG || goals.fatG ? '목표 다시 계산' : '하루 영양 목표 정하기'}
+                </Button>
+              </div>
             </div>
           </Card>
 
           {/* ③ 영양소별 추이 */}
-          <TrendCard rows={rows} tab={tab} setTab={setTab} proteinGoal={proteinGoal} onPickDay={(d) => setPickedDate(d)} />
+          <TrendCard rows={rows} tab={tab} setTab={setTab} goal={goals[tab]} onSetGoal={() => setGoalOpen(true)} onPickDay={(d) => setPickedDate(d)} />
 
           {/* ④ 날짜별 상세 */}
           <section ref={detailRef} aria-labelledby="day-detail" className="scroll-mt-4">
@@ -169,16 +187,25 @@ export function NutritionPage() {
           <p className="text-[12px] text-text-subtle">기록하지 않은 날은 0이 아니라 '미기록'이에요. 평균은 기록한 날만으로 계산해요.</p>
         </div>
       )}
+      <NutritionGoalSheet
+        open={goalOpen}
+        onClose={() => setGoalOpen(false)}
+        onManual={() => {
+          setGoalOpen(false)
+          navigate('/my/settings/app')
+        }}
+      />
     </>
   )
 }
 
-function TrendCard({ rows, tab, setTab, proteinGoal, onPickDay }: { rows: DayRow[]; tab: Key; setTab: (k: Key) => void; proteinGoal: number | null; onPickDay: (d: string) => void }) {
+function TrendCard({ rows, tab, setTab, goal, onSetGoal, onPickDay }: { rows: DayRow[]; tab: Key; setTab: (k: Key) => void; goal: number | null; onSetGoal: () => void; onPickDay: (d: string) => void }) {
   const n = NUTRIENTS.find((x) => x.key === tab)!
-  const goal = tab === 'proteinG' ? proteinGoal : null
   const data = rows.map((r) => ({ date: r.date, label: r.date.slice(8), v: r[tab] === null ? 0 : round1(r[tab]!), empty: r[tab] === null, incomplete: r.nutritionIncomplete }))
   const recorded = data.filter((d) => !d.empty)
-  const goalDays = goal ? recorded.filter((d) => d.v >= goal).length : 0
+  // 단백질은 목표 이상, 나머지(열량·탄수화물·지방)는 목표 이하인 날을 센다
+  const reach = tab === 'proteinG'
+  const goalDays = goal ? recorded.filter((d) => (reach ? d.v >= goal : d.v <= goal)).length : 0
   return (
     <Card>
       <div className="flex items-baseline justify-between gap-2">
@@ -208,15 +235,16 @@ function TrendCard({ rows, tab, setTab, proteinGoal, onPickDay }: { rows: DayRow
         </span>
         {goal ? (
           <span className="tabular">
-            목표 {goal}g 넘긴 날 <b className="text-text">{goalDays}일</b> / 기록한 {recorded.length}일
+            목표 {goal.toLocaleString()}
+            {n.unit} {reach ? '넘긴' : '이하인'} 날 <b className="text-text">{goalDays}일</b> / 기록한 {recorded.length}일
           </span>
-        ) : tab === 'proteinG' ? (
-          <Link to="/my/settings/app" className="font-medium text-primary underline-offset-2 hover:underline">
+        ) : (
+          <button type="button" onClick={onSetGoal} className="font-medium text-primary underline-offset-2 hover:underline">
             목표 정하기
-          </Link>
-        ) : null}
+          </button>
+        )}
       </div>
-      <div className="mt-2 h-[220px]" role="img" aria-label={`날짜별 ${n.label} 막대 그래프${goal ? `, 목표 ${goal}g 점선` : ''}`}>
+      <div className="mt-2 h-[220px]" role="img" aria-label={`날짜별 ${n.label} 막대 그래프${goal ? `, 목표 ${goal}${n.unit} 점선` : ''}`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }} onClick={(s) => {
             const p = (s as { activePayload?: { payload: { date: string; empty: boolean } }[] } | null)?.activePayload?.[0]?.payload

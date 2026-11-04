@@ -34,3 +34,4 @@ __pycache__/
 .env
 .env.*
 !.env.example
+dist-e2e

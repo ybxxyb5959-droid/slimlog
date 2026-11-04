@@ -114,7 +114,7 @@ select pg_temp.ok('43 철회 → 동의 이력 남음', (select count(*) from co
 select pg_temp.fails('44 철회 후 투약 기록', $$insert into doses (med_id,dose_mg,injected_at) values ('test-med',2.5,now())$$);
 reset role;
 
--- ===== 010 식단 사진 AI =====
+-- ===== 011 식단 사진 AI =====
 insert into ai_requests (user_id, provider, model, ok) values ('bbbbbbbb-0000-0000-0000-000000000002', 'gemini', 'rls-test', true);
 set local role authenticated; set local request.jwt.claim.sub = 'bbbbbbbb-0000-0000-0000-000000000002';
 select pg_temp.fails('46 앱에서 AI 요청 기록 읽기', $$select count(*) from ai_requests$$);

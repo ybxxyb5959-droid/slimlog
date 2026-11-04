@@ -5,6 +5,7 @@ import { beginNewUser } from '@/services/session'
 import { STEP_ORDER, useOnboardingStore, type OnboardingStep } from '@/stores/onboardingStore'
 
 import { BodyStep } from './BodyStep'
+import { GoalStep } from './GoalStep'
 import { MedicationChoiceStep } from './MedicationChoiceStep'
 import { NicknameStep } from './NicknameStep'
 
@@ -29,5 +30,6 @@ export function OnboardingRoute() {
 
   if (step === 'nickname') return <NicknameStep />
   if (step === 'body') return <BodyStep />
+  if (step === 'goal') return <GoalStep />
   return <MedicationChoiceStep />
 }

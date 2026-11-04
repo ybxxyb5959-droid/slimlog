@@ -106,3 +106,48 @@ test('동의 관리: 선택 동의 켜고 끄기 + 민감정보 철회 시 투�
   await page.goto('/record/medication')
   await expect(page.getByText(/마운자로 5mg/)).toHaveCount(0)
 })
+
+test('온보딩 4단계: 성별·출생연도·키·체중 → 목표 체중·활동량이 user_health 에 저장되고 신체 정보에서 고칠 수 있음', async ({ page }) => {
+  const email = uniqueEmail('my-onb4')
+  await devLogin(page, email)
+  await acceptRequiredConsents(page)
+  await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
+  await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
+  await expect(page).toHaveURL('/onboarding/body')
+  await page.getByRole('radio', { name: '여성' }).click()
+  await page.getByLabel('출생연도').fill('1992')
+  await page.getByLabel('키').fill('165')
+  await page.getByLabel('현재 체중').fill('80')
+  await page.getByRole('button', { name: '다음' }).click()
+  await expect(page).toHaveURL('/onboarding/goal')
+  await page.getByLabel('목표 체중').fill('70')
+  await page.getByRole('radio', { name: '주 3~5회 운동해요' }).click()
+  await page.getByRole('button', { name: '다음' }).click()
+  await expect(page).toHaveURL('/onboarding/medication')
+  const uid = await userIdOf(email)
+  let [h] = await adminSelect('user_health', `user_id=eq.${uid}&select=sex,birth_year,height_cm,start_weight_kg,goal_weight_kg,activity_level`)
+  expect({ ...h, height_cm: Number(h.height_cm), start_weight_kg: Number(h.start_weight_kg), goal_weight_kg: Number(h.goal_weight_kg) }).toEqual({
+    sex: 'female',
+    birth_year: 1992,
+    height_cm: 165,
+    start_weight_kg: 80,
+    goal_weight_kg: 70,
+    activity_level: 'moderate',
+  })
+  const [u] = await adminSelect('users', `user_id=eq.${uid}&select=onboarding_step`)
+  expect(u.onboarding_step).toBe(3)
+  await page.getByRole('radio', { name: /나중에 기록할게요/ }).click()
+  await page.getByRole('button', { name: '슬림로그 시작하기' }).click()
+  await expect(page).toHaveURL('/home')
+
+  // 신체 정보에서 수정 (새로고침 후에도 값이 채워져 있음)
+  await page.goto('/my/body')
+  await expect(page.getByLabel('출생연도')).toHaveValue('1992')
+  await expect(page.getByRole('radio', { name: '주 3~5회 운동해요' })).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('radio', { name: '남성' }).click()
+  await page.getByRole('radio', { name: '가벼운 활동을 해요' }).click()
+  await page.getByRole('button', { name: '저장' }).click()
+  await expect(page).toHaveURL('/my')
+  ;[h] = await adminSelect('user_health', `user_id=eq.${uid}&select=sex,activity_level`)
+  expect(h).toEqual({ sex: 'male', activity_level: 'light' })
+})

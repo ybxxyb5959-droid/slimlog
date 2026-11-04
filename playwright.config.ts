@@ -16,9 +16,12 @@ export default defineConfig({
     { name: 'desktop-1440', testDir: './tests/e2e', use: { viewport: { width: 1440, height: 900 } } },
   ],
   webServer: {
-    command: 'npm run build && npx vite preview --port 4173 --strictPort',
+    // 테스트 빌드는 dist-e2e 에 따로 (배포용 dist 에 테스트 훅이 섞이지 않게)
+    command: 'npx tsc -b && npx vite build --outDir dist-e2e && npx vite preview --outDir dist-e2e --port 4173 --strictPort',
     port: 4173,
     reuseExistingServer: true,
     timeout: 120_000,
+    // 테스트 빌드에서만 가짜 지문 훅 (src/lib/biometric.ts)
+    env: { VITE_E2E_HOOKS: '1' },
   },
 })

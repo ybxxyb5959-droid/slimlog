@@ -1,4 +1,4 @@
--- 010 되돌리기 (필요할 때만). AI 이름만 있고 food_id 가 없는 예측 행은 not null 복구 전에 지워야 하므로 개수를 먼저 확인할 것:
+-- 011 되돌리기 (필요할 때만). AI 이름만 있고 food_id 가 없는 예측 행은 not null 복구 전에 지워야 하므로 개수를 먼저 확인할 것:
 --   select count(*) from predictions where predicted_food_id is null;
 begin;
 alter table public.consents drop constraint if exists consents_type_check;
