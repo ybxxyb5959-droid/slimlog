@@ -203,3 +203,30 @@ test('기록 목표: 단백질·물 목표가 user_health 에 저장되고 새�
   await page.goto('/record/daily')
   await expect(page.getByText(/목표 1.5L/)).toBeVisible()
 })
+
+test('하루 영양 목표: 온보딩 정보로 참고 계산 → 내 목표로 쓰기 → user_health 4개 목표 + 바꾼 활동량 저장', async ({ page }) => {
+  const { uid } = await newUser(page, 'p2-target')
+  await page.goto('/my/settings/app')
+  await page.getByRole('button', { name: '계산하기' }).click()
+  const sheet = page.getByRole('dialog', { name: '하루 영양 목표' })
+  // quickOnboarding 은 성별·체중만 넣음 → 출생연도·키는 시트에서 채움
+  await expect(sheet.getByText('계산에 필요한 정보를 채워 주세요')).toBeVisible()
+  await sheet.getByLabel('출생연도').fill(String(new Date().getFullYear() - 34))
+  await sheet.getByLabel('키').fill('165')
+  await sheet.getByLabel('평소 활동량').selectOption('light')
+  await expect(sheet.getByLabel('하루 참고 열량')).toContainText('1,650')
+  await sheet.getByRole('button', { name: '내 목표로 쓰기' }).click()
+  await expect(page.getByText('하루 영양 목표를 저장했어요')).toBeVisible()
+  const [h] = await adminSelect('user_health', `user_id=eq.${uid}&select=kcal_goal,carb_goal_g,protein_goal_g,fat_goal_g,activity_level,birth_year,height_cm`)
+  expect({ ...h, height_cm: Number(h.height_cm) }).toEqual({
+    kcal_goal: 1650,
+    carb_goal_g: 209,
+    protein_goal_g: 100,
+    fat_goal_g: 46,
+    activity_level: 'light',
+    birth_year: new Date().getFullYear() - 34,
+    height_cm: 165,
+  })
+  await page.reload()
+  await expect(page.getByLabel('하루 열량 목표')).toHaveValue('1650')
+})

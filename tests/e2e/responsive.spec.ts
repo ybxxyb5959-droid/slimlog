@@ -736,7 +736,7 @@ test('설정: 단백질 목표 저장 → 식단 분석 단백질 그래프에 �
   })
   const notice = page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' })
   await notice.getByRole('button', { name: '확인했어요' }).click({ timeout: 2000 }).catch(() => {})
-  await expect(page.getByText('목표 대비', { exact: false })).toBeVisible()
+  await expect(page.getByText(/목표 60g 대비/)).toBeVisible()
   await page.getByRole('tab', { name: '단백질' }).click()
   await expect(page.getByRole('img', { name: /단백질 막대 그래프, 목표 60g 점선/ })).toBeVisible()
   await expect(page.getByText(/목표 60g 넘긴 날/)).toBeVisible()
@@ -747,7 +747,8 @@ test('식단 분석: 칼로리 요약 → 탄·단·지 일평균 → 영양소 
   await page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' }).getByRole('button', { name: '확인했어요' }).click({ timeout: 2000 }).catch(() => {})
   await expect(page.getByRole('heading', { name: '식단 · 영양 분석' })).toBeVisible()
   await expect(page.getByText('일평균 섭취 칼로리')).toBeVisible()
-  for (const name of ['탄수화물 열량 비율', '단백질 열량 비율', '지방 열량 비율']) await expect(page.getByRole('meter', { name })).toBeVisible()
+  // 예시 사용자는 단백질 목표(80g)만 있음 → 단백질은 목표 대비, 나머지는 열량 비율
+  for (const name of ['탄수화물 열량 비율', '단백질 목표 대비', '지방 열량 비율']) await expect(page.getByRole('meter', { name })).toBeVisible()
   // 탭 전환
   const tabs = page.getByRole('tablist', { name: '영양소' })
   await expect(tabs.getByRole('tab', { name: '칼로리' })).toHaveAttribute('aria-selected', 'true')
@@ -791,6 +792,41 @@ test('증상 수정: 빠른 기록과 같은 모양(강도 약함/보통/심함�
   await page.getByRole('button', { name: '수정 저장' }).click()
   await expect(page).toHaveURL('/record/symptom')
   await expect(page.getByRole('link', { name: '두통 기록 수정' }).first()).toContainText('지속 중 · 오후 내내')
+})
+
+test('하루 영양 목표 참고 계산: 결과·아이콘 카드·활동량 바꾸면 다시 계산·계산 과정 → 내 목표로 쓰기 → 설정·식단 분석에 반영', async ({ page }) => {
+  await page.goto('/my/settings/app')
+  await page.getByRole('button', { name: '계산하기' }).click()
+  const sheet = page.getByRole('dialog', { name: '하루 영양 목표' })
+  await expect(sheet.getByText('예시 정보')).toBeVisible()
+  const kcal = sheet.getByLabel('하루 참고 열량')
+  await expect(kcal).toContainText('kcal')
+  const before = await kcal.textContent()
+  await expect(sheet.getByRole('list', { name: '탄수화물·단백질·지방 참고량' }).locator('> li')).toHaveCount(3)
+  // 활동량 라벨에 계수(괄호) 표기 없음
+  await expect(sheet.getByLabel('평소 활동량').locator('option', { hasText: '(' })).toHaveCount(0)
+  await sheet.getByLabel('평소 활동량').selectOption('moderate')
+  await expect(kcal).not.toHaveText(before!)
+  await sheet.getByText('어떻게 계산했나요?').click()
+  await expect(sheet.getByText('Mifflin-St Jeor', { exact: false })).toBeVisible()
+  await expect(sheet.getByText('× 1.55', { exact: false })).toBeVisible()
+  await sheet.getByRole('button', { name: '내 목표로 쓰기' }).click()
+  await expect(page.getByText('목업: 화면에만 저장됐어요')).toBeVisible()
+  await expect(sheet).toHaveCount(0)
+  await expect(page.getByLabel('하루 열량 목표')).not.toHaveValue('')
+  await expect(page.getByLabel('하루 탄수화물 목표')).not.toHaveValue('')
+  await expect(page.getByLabel('하루 지방 목표')).not.toHaveValue('')
+  await page.evaluate(() => {
+    history.pushState({}, '', '/analysis/nutrition')
+    dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await page.getByRole('dialog', { name: '분석 결과를 확인하기 전에' }).getByRole('button', { name: '확인했어요' }).click({ timeout: 2000 }).catch(() => {})
+  for (const name of ['탄수화물 목표 대비', '단백질 목표 대비', '지방 목표 대비']) await expect(page.getByRole('meter', { name })).toBeVisible()
+  await expect(page.getByText(/목표 [\d,]+kcal 대비/)).toBeVisible()
+  // 직접 정할게요 → 설정 화면으로
+  await page.getByRole('button', { name: '목표 다시 계산' }).click()
+  await page.getByRole('dialog', { name: '하루 영양 목표' }).getByRole('button', { name: '직접 정할게요' }).click()
+  await expect(page).toHaveURL('/my/settings/app')
 })
 
 test('설정에서 분석 유의사항 다시 보기', async ({ page }) => {

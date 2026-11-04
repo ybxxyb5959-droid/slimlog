@@ -44,9 +44,10 @@ export function useMyProfile() {
     startWeightKg: MOCK_PROFILE.startWeightKg as number | null,
     goalWeightKg: MOCK_PROFILE.goalWeightKg as number | null,
     medicationId: MOCK_PROFILE.medicationId as MedicationId | null,
-    sex: null as Sex | null,
-    birthYear: null as number | null,
-    activity: null as ActivityLevel | null,
+    // 예시 사용자 — 참고 계산 화면을 보여 주기 위한 예시 값
+    sex: 'female' as Sex | null,
+    birthYear: 1992 as number | null,
+    activity: 'light' as ActivityLevel | null,
     isExample: true,
   }
 }

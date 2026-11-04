@@ -60,6 +60,9 @@ async function hydrate(account: LiveAccount) {
   useIntakeStore.setState({
     waterGoalMl: account.waterGoalMl ?? DEFAULT_WATER_GOAL_ML,
     proteinGoalG: account.proteinGoalG,
+    kcalGoal: account.kcalGoal,
+    carbGoalG: account.carbGoalG,
+    fatGoalG: account.fatGoalG,
     water: intake.logs.filter((l) => l.kind === 'water').map((l) => ({ id: l.log_id, ml: l.amount_ml ?? 0, at: l.taken_at })),
     items: intake.items.map((i) => ({ id: i.item_id, kind: i.kind as 'supplement' | 'medicine', name: i.name, remindEnabled: i.remind_enabled, remindHour: i.remind_hour, remindAsked: i.remind_asked })),
     logs: intake.logs.filter((l) => l.kind !== 'water' && l.item_id).map((l) => ({ id: l.log_id, itemId: l.item_id!, at: l.taken_at, status: l.status as 'taken' | 'skipped' })),
