@@ -11,9 +11,9 @@ import {
 } from '@/stores/noticePreferences'
 
 const POINTS: { icon: LucideIcon; title: string; body: string }[] = [
-  { icon: ActivitySquare, title: '실제 측정값이 아니에요', body: '실제 혈중농도나 체내 잔존량을 직접 측정한 값이 아닙니다.' },
-  { icon: HeartPulse, title: '약효·부작용을 예측하지 않아요', body: '그래프만으로 약효 또는 부작용 강도를 예측할 수 없습니다.' },
-  { icon: ShieldCheck, title: '투약 결정에 사용하지 마세요', body: '투약 용량이나 일정을 결정하는 의료적 판단에 사용해서는 안 됩니다.' },
+  { icon: ActivitySquare, title: '실제 측정값이 아니에요', body: '혈중농도나 체내 잔존량을 직접 잰 값이 아니에요.' },
+  { icon: HeartPulse, title: '약효·부작용을 예측하지 않아요', body: '그래프만으로 약효나 부작용의 세기를 알 수 없어요.' },
+  { icon: ShieldCheck, title: '투약 결정에 쓰지 마세요', body: '용량이나 일정은 의료진의 안내를 따라 주세요.' },
 ]
 
 /** 분석 탭 최초 진입 유의사항 — 적용 범위: 약물 노출 추정 그래프 */
@@ -41,7 +41,7 @@ export function AnalysisNoticeSheet({
       title="분석 결과를 확인하기 전에"
       description="참고용 계산값에 대한 안내"
       footer={
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px]">
             <input
               id="analysisNoticeDontShow"
@@ -59,24 +59,23 @@ export function AnalysisNoticeSheet({
         </div>
       }
     >
-      <div className="space-y-4">
-        <p className="text-[15px] leading-relaxed text-text">
-          슬림로그의 약물 노출 추정 그래프는 사용자가 입력한 투약 기록과 약물별 참고 자료를 바탕으로 계산한 추정 결과입니다.
+      <div className="space-y-6 pt-1 pb-2">
+        <p className="text-[15px] leading-[1.7] break-keep text-text">
+          참고용 잔존량 그래프는 내가 입력한 투약 기록과
+          <br />
+          약물별 참고 자료로 계산한 <b className="font-semibold">추정값</b>이에요.
         </p>
-        <ul className="space-y-3.5">
+        <ul className="space-y-5">
           {POINTS.map((p) => (
-            <li key={p.title} className="flex gap-3">
-              <AppIcon icon={p.icon} size="sm" className="mt-0.5" />
-              <div>
-                <p className="text-[15px] font-semibold text-text">{p.title}</p>
-                <p className="text-[13px] leading-relaxed text-text-muted">{p.body}</p>
+            <li key={p.title} className="flex items-start gap-3.5">
+              <AppIcon icon={p.icon} size="sm" bg="soft" className="mt-0.5 shrink-0" />
+              <div className="min-w-0 space-y-1">
+                <p className="text-[15px] leading-snug font-semibold break-keep text-text">{p.title}</p>
+                <p className="text-[13px] leading-[1.6] break-keep text-text-muted">{p.body}</p>
               </div>
             </li>
           ))}
         </ul>
-        <p className="rounded-xl bg-surface-muted px-4 py-3 text-[13px] leading-relaxed text-text-muted">
-          이 안내는 약물 노출 추정 그래프(참고용 잔존량)에 대한 내용이에요. 체중·식단·증상 분석은 입력한 기록을 그대로 보여줘요.
-        </p>
       </div>
     </BottomSheet>
   )

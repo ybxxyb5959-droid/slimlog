@@ -57,7 +57,8 @@ interface IntakeState {
   logs: IntakeLog[]
   addWater: (ml: number) => void
   removeWater: (id: string) => void
-  addItem: (kind: IntakeKind, name: string) => void
+  /** 새 항목 id(저장 전이면 임시 id)를 돌려준다 */
+  addItem: (kind: IntakeKind, name: string) => string
   removeItem: (id: string) => void
   logItem: (itemId: string, at: string, status?: 'taken' | 'skipped') => void
   setReminder: (itemId: string, patch: { enabled?: boolean; hour?: number | null; asked?: boolean }) => void
@@ -137,6 +138,7 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
       () => set((s) => ({ items: s.items.filter((x) => x.id !== item.id) })),
       (dbId) => set((s) => ({ items: s.items.map((x) => (x.id === item.id ? { ...x, id: dbId } : x)), logs: s.logs.map((l) => (l.itemId === item.id ? { ...l, itemId: dbId } : l)) })),
     )
+    return item.id
   },
   removeItem: (id) => {
     const prev = { items: get().items, logs: get().logs }
@@ -163,8 +165,8 @@ export const useIntakeStore = create<IntakeState>((set, get) => ({
       ),
     }))
     persist(
-      () =>
-        updateIntakeReminder(itemId, {
+      async () =>
+        updateIntakeReminder(await realId(itemId), {
           ...(patch.enabled !== undefined ? { remind_enabled: patch.enabled } : {}),
           ...(patch.hour !== undefined ? { remind_hour: patch.hour } : {}),
           ...(patch.asked !== undefined ? { remind_asked: patch.asked } : {}),

@@ -649,9 +649,10 @@ test.describe('케어', () => {
     await expect(card).toContainText('물 1.8L')
   })
 
-  test('영양제 등록(자동완성)·섭취 완료·알림 묻기·시계, 복용약 탭 안내', async ({ page }) => {
+  test('영양제 등록(자동완성) → 바로 섭취 체크 · 영양제마다 알림 안 물음 · 시트 닫을 때 한 번만 알림 제안 → 시계, 복용약 탭 안내', async ({ page }) => {
     await page.goto('/home')
-    await page.getByRole('button', { name: /케어/ }).click()
+    const openCare = () => page.getByRole('button', { name: /케어/ }).click()
+    await openCare()
     const sheet = page.getByRole('dialog', { name: '케어' })
     await sheet.getByRole('tab', { name: '영양제' }).click()
     await sheet.getByRole('button', { name: '등록' }).click()
@@ -661,18 +662,31 @@ test.describe('케어', () => {
     await sheet.getByLabel('영양제 이름').fill('유산균')
     await sheet.getByRole('button', { name: '등록하기' }).click()
     const row = sheet.locator('li', { hasText: '유산균' })
-    await expect(row).toContainText('아직 기록하지 않았어요')
-    await sheet.getByRole('button', { name: '유산균 섭취 완료' }).click()
-    // 처음 섭취 완료 → 매일 알림 받을지 물어봄 → 확인 → 원판 시계
-    await page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' }).getByRole('button', { name: '확인' }).click()
+    // 등록 즉시 오늘 섭취 완료, 알림 질문은 아직 없음
+    await expect(row).toContainText('오늘 섭취 완료')
+    await expect(page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' })).toHaveCount(0)
+    await sheet.getByRole('button', { name: '등록' }).click()
+    await sheet.getByLabel('영양제 이름').fill('오메가3')
+    await sheet.getByRole('button', { name: '등록하기' }).click()
+    await expect(sheet.locator('li', { hasText: '오메가3' })).toContainText('오늘 섭취 완료')
+    await expect(page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' })).toHaveCount(0)
+    // X(닫기) → 한 번만 알림 제안 → 확인 → 시계 → 저장
+    await page.keyboard.press('Escape')
+    const ask = page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' })
+    await expect(ask).toContainText('유산균 외 1개')
+    await ask.getByRole('button', { name: '확인' }).click()
     const clock = page.getByRole('slider', { name: '알림 시각' })
     await clock.focus()
     await page.getByRole('radio', { name: '오전' }).click()
     await clock.press('ArrowRight')
     await expect(clock).toHaveAttribute('aria-valuetext', /오전 \d+시/)
     await page.getByRole('dialog', { name: '알림 시간' }).getByRole('button', { name: '저장' }).click()
-    await expect(row).toContainText('오늘 섭취 완료')
+    await expect(sheet).toHaveCount(0)
+    // 다시 열면 두 영양제 모두 알림이 설정돼 있고, 닫아도 다시 안 물음
+    await openCare()
+    await sheet.getByRole('tab', { name: '영양제' }).click()
     await expect(row.getByRole('button', { name: /알림 오전 \d+시 바꾸기/ })).toBeVisible()
+    await expect(sheet.locator('li', { hasText: '오메가3' }).getByRole('button', { name: /알림 오전 \d+시 바꾸기/ })).toBeVisible()
     // 다시 누르면 취소, 건너뛰기
     await sheet.getByRole('button', { name: '유산균 섭취 취소' }).click()
     await row.getByRole('button', { name: '건너뛰기' }).click()
@@ -680,6 +694,17 @@ test.describe('케어', () => {
     await sheet.getByRole('tab', { name: '복용약' }).click()
     await expect(sheet.getByText('주사는 홈의 ‘투약’에서 기록해요', { exact: false })).toBeVisible()
     await expect(sheet.getByText('등록한 복용약이 없어요', { exact: false })).toBeVisible()
+    // 복용약 등록 → 닫기 → '알림받지 않기' → 다시 열고 닫으면 안 물음
+    await sheet.getByRole('button', { name: '등록' }).click()
+    await sheet.getByLabel('복용약 이름').fill('위장약')
+    await sheet.getByRole('button', { name: '등록하기' }).click()
+    await page.keyboard.press('Escape')
+    await ask.getByRole('button', { name: '알림받지 않기' }).click()
+    await expect(sheet).toHaveCount(0)
+    await openCare()
+    await page.keyboard.press('Escape')
+    await expect(ask).toHaveCount(0)
+    await expect(sheet).toHaveCount(0)
   })
 })
 

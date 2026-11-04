@@ -146,25 +146,29 @@ test('케어: 물·영양제·복용약이 DB 에 저장되고 새로고침 후�
   const hints = sheet.getByRole('listbox', { name: '영양제 추천' }).getByRole('option')
   expect(await hints.count()).toBeLessThanOrEqual(5)
   await sheet.getByRole('button', { name: '유산균(프로바이오틱스)' }).click()
-  // 카드 눌러 섭취 완료 → 처음이면 매일 알림 물어봄 → 확인 → 시계로 시 고르기
-  await sheet.getByRole('button', { name: '유산균(프로바이오틱스) 섭취 완료' }).click()
-  await expect(page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' })).toBeVisible()
+  // 등록하면 바로 오늘 섭취로 체크 (영양제마다 알림 안 물음)
+  await expect(sheet.locator('li', { hasText: '유산균' })).toContainText('오늘 섭취 완료')
+  await expect(page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' })).toHaveCount(0)
+  // 복용약: 직접 입력 등록 → 바로 복용 체크
+  await sheet.getByRole('tab', { name: '복용약' }).click()
+  await sheet.getByRole('button', { name: '등록' }).click()
+  await sheet.getByLabel('복용약 이름').fill('위장약')
+  await sheet.getByRole('button', { name: '등록하기' }).click()
+  await expect(sheet.locator('li', { hasText: '위장약' })).toContainText('오늘 복용 완료')
+  // 시트를 닫을 때 한 번만 알림 제안 → 확인 → 시계로 시 고르기 → 두 항목 모두 같은 시각
+  await page.keyboard.press('Escape')
   await page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' }).getByRole('button', { name: '확인' }).click()
   const clock = page.getByRole('slider', { name: '알림 시각' })
   await clock.focus()
   await clock.press('ArrowRight')
   const hourNow = Number(await clock.getAttribute('aria-valuenow'))
   await page.getByRole('dialog', { name: '알림 시간' }).getByRole('button', { name: '저장' }).click()
-  await expect.poll(async () => (await adminSelect('intake_items', `user_id=eq.${uid}&kind=eq.supplement&select=remind_enabled,remind_hour,remind_asked`))[0]).toEqual({ remind_enabled: true, remind_hour: hourNow, remind_asked: true })
-
-  // 복용약: 직접 입력 등록 → 섭취 완료 → '알림받지 않기' → 다시 안 물음
-  await sheet.getByRole('tab', { name: '복용약' }).click()
-  await sheet.getByRole('button', { name: '등록' }).click()
-  await sheet.getByLabel('복용약 이름').fill('위장약')
-  await sheet.getByRole('button', { name: '등록하기' }).click()
-  await sheet.getByRole('button', { name: '위장약 복용 완료' }).click()
-  await page.getByRole('dialog', { name: '매일 알림을 보내드릴게요' }).getByRole('button', { name: '알림받지 않기' }).click()
-  await expect.poll(async () => (await adminSelect('intake_items', `user_id=eq.${uid}&kind=eq.medicine&select=remind_enabled,remind_asked`))[0]).toEqual({ remind_enabled: false, remind_asked: true })
+  await expect
+    .poll(async () => (await adminSelect('intake_items', `user_id=eq.${uid}&select=kind,remind_enabled,remind_hour,remind_asked&order=kind`)))
+    .toEqual([
+      { kind: 'medicine', remind_enabled: true, remind_hour: hourNow, remind_asked: true },
+      { kind: 'supplement', remind_enabled: true, remind_hour: hourNow, remind_asked: true },
+    ])
   await expect.poll(async () => (await adminSelect('intake_logs', `user_id=eq.${uid}&select=log_id`)).length).toBe(4)
   const logs = await adminSelect('intake_logs', `user_id=eq.${uid}&select=kind,amount_ml,status`)
   expect(logs.filter((l) => l.kind === 'water').reduce((a, l) => a + Number(l.amount_ml), 0)).toBe(500)
@@ -173,7 +177,6 @@ test('케어: 물·영양제·복용약이 DB 에 저장되고 새로고침 후�
   const items = await adminSelect('intake_items', `user_id=eq.${uid}&select=kind,name`)
   expect(items.map((i) => i.name).sort()).toEqual(['위장약', '유산균(프로바이오틱스)'].sort())
 
-  await page.keyboard.press('Escape')
   await page.reload()
   await expect(page.getByRole('button', { name: /케어/ })).toContainText('물 500mL · 복용 2건')
 
