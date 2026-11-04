@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 
-import { AppIcon } from '@/components/common/AppIcon'
 import { BottomSheet } from '@/components/common/BottomSheet'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Notice } from '@/components/common/Notice'
@@ -17,16 +16,16 @@ import { formatShortDateWithDay, toDateKey } from '@/lib/date'
 import {
   addPhoto,
   ANGLES,
-  createVault,
+  beginPicker,
+  endPicker,
   listPhotos,
   LOCAL_ONLY_NOTICE,
+  LOCK_EVENT,
   lock,
   removePhoto,
   setVaultUser,
-  unlock,
   updatePhotoMeta,
   vaultState,
-  wipeVault,
   type Angle,
   type PhotoMeta,
 } from '@/lib/eyebodyVault'
@@ -35,6 +34,7 @@ import { useBodyLogs } from '@/services/body'
 import { useAuthStore } from '@/stores/authStore'
 
 import { EyebodyCalendar } from './EyebodyCalendar'
+import { PasswordGate, SecuritySettings } from './EyebodyLock'
 import { PhotoZoom } from './PhotoZoom'
 import { VaultImage } from './VaultImage'
 
@@ -53,90 +53,12 @@ function useVault() {
     vaultState().then(setState).catch(() => setState('new'))
   }, [uid])
   useEffect(() => refresh(), [refresh])
-  // 백그라운드에서 자동 잠금됐으면 돌아왔을 때 잠금 화면으로
+  // 자동 잠금(백그라운드·5분 무입력·로그아웃)되면 바로 잠금 화면으로
   useEffect(() => {
-    const on = () => document.visibilityState === 'visible' && refresh()
-    document.addEventListener('visibilitychange', on)
-    return () => document.removeEventListener('visibilitychange', on)
+    window.addEventListener(LOCK_EVENT, refresh)
+    return () => window.removeEventListener(LOCK_EVENT, refresh)
   }, [refresh])
   return { state, refresh }
-}
-
-function PasswordGate({ mode, onDone }: { mode: 'new' | 'locked'; onDone: () => void }) {
-  const [pw, setPw] = useState('')
-  const [pw2, setPw2] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [wipe, setWipe] = useState(false)
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (mode === 'new' && pw !== pw2) return setError('비밀번호가 서로 달라요.')
-    setBusy(true)
-    setError(null)
-    try {
-      if (mode === 'new') await createVault(pw)
-      else await unlock(pw)
-      onDone()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <Card className="space-y-4 md:max-w-md">
-      <div className="flex items-center gap-3">
-        <AppIcon icon={LockKeyhole} bg="soft" />
-        <div>
-          <p className="text-[16px] font-bold">{mode === 'new' ? '눈바디 비밀번호 만들기' : '눈바디 잠금 해제'}</p>
-          <p className="text-[13px] text-text-muted">사진은 이 비밀번호로 암호화돼서 이 기기에만 저장돼요.</p>
-        </div>
-      </div>
-      {mode === 'new' && (
-        <Notice tone="review" title="처음 쓰기 전에 꼭 읽어 주세요">
-          {LOCAL_ONLY_NOTICE}. 비밀번호는 서버에도 저장되지 않아서, 잊으면 사진을 열 수 없어요.
-        </Notice>
-      )}
-      <form onSubmit={submit} className="space-y-3">
-        <div>
-          <Label htmlFor="vaultPw">비밀번호 (6자 이상)</Label>
-          <Input id="vaultPw" type="password" autoComplete={mode === 'new' ? 'new-password' : 'current-password'} value={pw} onChange={(e) => setPw(e.target.value)} />
-        </div>
-        {mode === 'new' && (
-          <div>
-            <Label htmlFor="vaultPw2">비밀번호 확인</Label>
-            <Input id="vaultPw2" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
-          </div>
-        )}
-        {error && (
-          <p role="alert" className="text-[13px] text-danger">
-            {error}
-          </p>
-        )}
-        <Button type="submit" className="w-full" disabled={busy || pw.length < 6}>
-          {busy ? '확인 중…' : mode === 'new' ? '만들기' : '잠금 해제'}
-        </Button>
-      </form>
-      {mode === 'locked' && (
-        <button type="button" className="text-[13px] text-text-muted underline-offset-2 hover:underline" onClick={() => setWipe(true)}>
-          비밀번호를 잊었어요 (사진 전부 지우고 새로 시작)
-        </button>
-      )}
-      <ConfirmDialog
-        open={wipe}
-        onOpenChange={setWipe}
-        title="눈바디 사진을 전부 지울까요?"
-        description="비밀번호 없이는 사진을 열 수 없어서, 새로 시작하려면 이 기기의 눈바디 사진을 모두 지워야 해요."
-        confirmLabel="전부 지우기"
-        tone="danger"
-        onConfirm={async () => {
-          await wipeVault()
-          toast('눈바디 사진을 지웠어요')
-          onDone()
-        }}
-      />
-    </Card>
-  )
 }
 
 /** 날짜 → 각도 → 사진들(최신 먼저). 같은 칸에 여러 장이면(예전 데이터) 첫 장이 대표 */
@@ -246,10 +168,11 @@ export function EyebodyPage() {
             {LOCAL_ONLY_NOTICE}.
           </Notice>
           <ul className="space-y-1 text-[13px] leading-relaxed text-text-muted">
-            <li>· 사진은 비밀번호로 암호화해서 이 기기 앱 저장소에만 둬요. 서버나 외부 AI 로 보내지 않아요.</li>
+            <li>· 사진은 암호화해서 이 기기 앱 저장소에만 둬요. 서버나 외부 AI 로 보내지 않아요.</li>
             <li>· 휴대폰 갤러리에 따로 저장하지 않아요.</li>
-            <li>· 다른 앱에 5분 넘게 가 있거나 로그아웃하면 자동으로 잠겨요.</li>
+            <li>· 다른 앱으로 넘어가거나, 5분 동안 손대지 않거나, 로그아웃하면 자동으로 잠겨요.</li>
           </ul>
+          <SecuritySettings />
           <Button
             variant="outline"
             className="w-full"
@@ -326,6 +249,7 @@ function RecordView({
     }
   }
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    endPicker()
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
@@ -409,10 +333,10 @@ function RecordView({
             {day?.get(regAngle)?.length ? <p className="mt-1.5 text-[12px] text-text-muted">이미 {angleLabel(regAngle)} 사진이 있어요. 새로 찍으면 바꿀지 물어볼게요.</p> : null}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => camera.current?.click()} className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface text-[15px] font-semibold hover:bg-surface-muted">
+            <button type="button" onClick={() => (beginPicker(), camera.current?.click())} className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface text-[15px] font-semibold hover:bg-surface-muted">
               <Camera size={24} strokeWidth={1.75} aria-hidden className="text-icon" /> 카메라
             </button>
-            <button type="button" onClick={() => gallery.current?.click()} className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface text-[15px] font-semibold hover:bg-surface-muted">
+            <button type="button" onClick={() => (beginPicker(), gallery.current?.click())} className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface text-[15px] font-semibold hover:bg-surface-muted">
               <ImageIcon size={24} strokeWidth={1.75} aria-hidden className="text-icon" /> 앨범
             </button>
           </div>

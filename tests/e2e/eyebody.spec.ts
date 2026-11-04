@@ -26,7 +26,15 @@ async function createVault(page: Page) {
   await page.getByLabel('비밀번호 (6자 이상)').fill(PW)
   await page.getByLabel('비밀번호 확인').fill(PW)
   await page.getByRole('button', { name: '만들기' }).click()
+  // 복구 코드 한 번 보여 주기 → 적어 뒀어요 체크해야 확인
+  await expect(page.getByText('복구 코드를 적어 두세요')).toBeVisible()
+  const code = (await page.getByLabel('복구 코드').textContent())!.trim()
+  expect(code).toMatch(/^([0-9A-HJKMNP-TV-Z]{4}-){5}[0-9A-HJKMNP-TV-Z]{4}$/)
+  await expect(page.getByRole('button', { name: '확인' })).toBeDisabled()
+  await page.getByLabel('안전한 곳에 적어 뒀어요').check()
+  await page.getByRole('button', { name: '확인' }).click()
   await expect(page.getByRole('tablist', { name: '눈바디 화면' })).toBeVisible()
+  return code
 }
 
 /** 바텀시트 [카메라 | 앨범] → 각도 → 앨범 파일 */
@@ -214,7 +222,7 @@ test('수정(각도 바꾸기) · 삭제 · 설정에서 잠그기 → 틀린 �
   await expect(page.getByText('등록된 변화가 없어요')).toBeVisible()
 })
 
-test('예전 형식 금고(각도 없음·31만 회) → 새 화면에서 같은 비밀번호로 열리고 정면으로 보임, 데이터는 그대로', async ({ page }) => {
+test('예전 형식 금고(각도 없음·31만 회) → 같은 비밀번호로 열면 새 방식(DEK)으로 검증 이전, 정면으로 보임', async ({ page }) => {
   onlyMobile()
   await page.goto('/home')
   // 예전 코드와 같은 방식으로 직접 만든 금고 + 사진 1장(angle 칸 없음)
@@ -260,24 +268,39 @@ test('예전 형식 금고(각도 없음·31만 회) → 새 화면에서 같은
   await expect(page.getByText('눈바디 잠금 해제')).toBeVisible()
   await page.getByLabel('비밀번호 (6자 이상)').fill(PW)
   await page.getByRole('button', { name: '잠금 해제' }).click()
+  // 새 방식으로 옮기고(검증) 새 복구 코드를 보여 줌
+  await expect(page.getByText('보안 방식이 새로워졌어요')).toBeVisible()
+  await expect(page.getByText('예전 사진 1장을 새 방식으로 옮기고', { exact: false })).toBeVisible()
+  await page.getByLabel('안전한 곳에 적어 뒀어요').check()
+  await page.getByRole('button', { name: '확인' }).click()
   const d = new Date(`${dateKey}T12:00:00`)
   if (d.getMonth() !== new Date().getMonth()) await page.getByRole('button', { name: '이전 달' }).click()
   await page.getByRole('gridcell', { name: new RegExp(`^${day(d)}, 사진 있음`) }).click()
   await expect(page.getByRole('img', { name: /정면 눈바디$/ })).toBeVisible()
-  // 저장된 행은 고치지 않음 (angle 칸이 여전히 없음 → 읽을 때만 정면으로 봄)
+  // 같은 id 로 v2 암호문으로 바뀌고(각도 칸은 그대로 없음), 예전 확인값(meta.key)은 다 옮긴 뒤 삭제
   const stored = await page.evaluate(
     () =>
-      new Promise<{ hasAngle: boolean; hasIter: boolean }>((resolve) => {
+      new Promise<{ v: number; hasAngle: boolean; legacyMeta: boolean; migration: string }>((resolve) => {
         const req = indexedDB.open('slimlog-eyebody')
         req.onsuccess = () => {
           const t = req.result.transaction(['meta', 'photos'])
           const p = t.objectStore('photos').get('legacy-1')
-          const m = t.objectStore('meta').get('key')
-          t.oncomplete = () => resolve({ hasAngle: 'angle' in p.result, hasIter: 'iter' in m.result })
+          const k = t.objectStore('meta').get('key')
+          const v2 = t.objectStore('meta').get('v2')
+          t.oncomplete = () => resolve({ v: p.result.v, hasAngle: 'angle' in p.result, legacyMeta: !!k.result, migration: v2.result.migration })
         }
       }),
   )
-  expect(stored).toEqual({ hasAngle: false, hasIter: false })
+  expect(stored).toEqual({ v: 2, hasAngle: false, legacyMeta: false, migration: 'done' })
+  // 잠갔다가 같은 비밀번호로 다시 열어도 사진이 보임 (새 열쇠 구조로)
+  await page.getByRole('button', { name: '눈바디 설정' }).click()
+  await page.getByRole('button', { name: '지금 잠그기' }).click()
+  await page.getByLabel('비밀번호 (6자 이상)').fill(PW)
+  await page.getByRole('button', { name: '잠금 해제' }).click()
+  await expect(page.getByText('보안 방식이 새로워졌어요')).toHaveCount(0)
+  if (d.getMonth() !== new Date().getMonth()) await page.getByRole('button', { name: '이전 달' }).click()
+  await page.getByRole('gridcell', { name: new RegExp(`^${day(d)}, 사진 있음`) }).click()
+  await expect(page.getByRole('img', { name: /정면 눈바디$/ })).toBeVisible()
 })
 
 test('작은 화면(320×568)에서도 사진 영역과 캘린더가 겹치지 않음', async ({ page }) => {
