@@ -21,13 +21,15 @@ export async function acceptRequiredConsents(page: Page) {
   await expect(page).toHaveURL('/onboarding/nickname')
 }
 
-/** 닉네임 확정 → 신체정보 저장 → '나중에 기록' → 홈 */
+/** 닉네임 확정 → 신체정보 → 목표 → '나중에 기록' → 홈 */
 export async function quickOnboarding(page: Page, opts: { nickname?: string; weight?: string; goal?: string } = {}) {
   if (opts.nickname) await page.getByLabel('나의 닉네임').fill(opts.nickname)
   await expect(page.getByText('사용할 수 있는 닉네임이에요.')).toBeVisible()
   await page.getByRole('button', { name: '이 닉네임으로 계속하기' }).click()
   await expect(page).toHaveURL('/onboarding/body')
   await page.getByLabel('현재 체중').fill(opts.weight ?? '80')
+  await page.getByRole('button', { name: '다음' }).click()
+  await expect(page).toHaveURL('/onboarding/goal')
   await page.getByLabel('목표 체중').fill(opts.goal ?? '72')
   await page.getByRole('button', { name: '다음' }).click()
   await expect(page).toHaveURL('/onboarding/medication')

@@ -493,14 +493,14 @@ isOneToOne: false
                   ]
                 },"user_health": {
                   Row: {
-                    "birth_year": number | null,"current_med_id": string | null,"goal_weight_kg": number | null,"height_cm": number | null,"legal_name": string | null,"protein_goal_g": number | null,"start_weight_kg": number | null,"updated_at": string,"user_id": string,"water_goal_ml": number | null
+                    "birth_year": number | null,"current_med_id": string | null,"goal_weight_kg": number | null,"height_cm": number | null,"legal_name": string | null,"protein_goal_g": number | null,"start_weight_kg": number | null,"updated_at": string,"user_id": string,"water_goal_ml": number | null,"sex": string | null,"activity_level": string | null,"kcal_goal": number | null,"carb_goal_g": number | null,"fat_goal_g": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "birth_year"?: number | null,"current_med_id"?: string | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id": string,"water_goal_ml"?: number | null
+                    "birth_year"?: number | null,"current_med_id"?: string | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id": string,"water_goal_ml"?: number | null,"sex"?: string | null,"activity_level"?: string | null,"kcal_goal"?: number | null,"carb_goal_g"?: number | null,"fat_goal_g"?: number | null
                   }
                   Update: {
-                    "birth_year"?: number | null,"current_med_id"?: string | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id"?: string,"water_goal_ml"?: number | null
+                    "birth_year"?: number | null,"current_med_id"?: string | null,"goal_weight_kg"?: number | null,"height_cm"?: number | null,"legal_name"?: string | null,"protein_goal_g"?: number | null,"start_weight_kg"?: number | null,"updated_at"?: string,"user_id"?: string,"water_goal_ml"?: number | null,"sex"?: string | null,"activity_level"?: string | null,"kcal_goal"?: number | null,"carb_goal_g"?: number | null,"fat_goal_g"?: number | null
                   }
                   Relationships: [
                     {

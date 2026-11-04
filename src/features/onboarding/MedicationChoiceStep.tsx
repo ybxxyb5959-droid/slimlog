@@ -68,7 +68,7 @@ export function MedicationChoiceStep() {
 
   return (
     <OnboardingShell
-      step={3}
+      step={4}
       title={
         <>
           투약 내역도
@@ -82,7 +82,7 @@ export function MedicationChoiceStep() {
           <Button size="lg" className="h-[52px] w-full" disabled={!choice} onClick={start}>
             {choice === 'now' ? '투약 기록 시작하기' : '슬림로그 시작하기'}
           </Button>
-          <Button variant="ghost" size="sm" className="h-10" onClick={() => navigate('/onboarding/body')}>
+          <Button variant="ghost" size="sm" className="h-10" onClick={() => navigate('/onboarding/goal')}>
             이전
           </Button>
         </div>

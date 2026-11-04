@@ -1,4 +1,5 @@
 import { MOCK_PROFILE } from '@/fixtures/records.mock'
+import { parseBirthYear, type ActivityLevel, type Sex } from '@/lib/bodyProfile'
 import { parseMeasure, RANGES } from '@/lib/measure'
 import { isLive } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
@@ -18,6 +19,9 @@ export function useMyProfile() {
       startWeightKg: account?.startWeightKg ?? null,
       goalWeightKg: account?.goalWeightKg ?? null,
       medicationId: (account?.currentMedId ?? null) as MedicationId | null,
+      sex: account?.sex ?? null,
+      birthYear: account?.birthYear ?? null,
+      activity: account?.activityLevel ?? null,
       isExample: false,
     }
   }
@@ -28,6 +32,9 @@ export function useMyProfile() {
       startWeightKg: parseMeasure(o.weightKg, RANGES.weight.min, RANGES.weight.max, 'kg').value,
       goalWeightKg: parseMeasure(o.goalKg, RANGES.weight.min, RANGES.weight.max, 'kg').value,
       medicationId: MOCK_PROFILE.medicationId as MedicationId | null,
+      sex: o.sex,
+      birthYear: parseBirthYear(o.birthYear).value,
+      activity: o.activity,
       isExample: false,
     }
   }
@@ -37,6 +44,9 @@ export function useMyProfile() {
     startWeightKg: MOCK_PROFILE.startWeightKg as number | null,
     goalWeightKg: MOCK_PROFILE.goalWeightKg as number | null,
     medicationId: MOCK_PROFILE.medicationId as MedicationId | null,
+    sex: null as Sex | null,
+    birthYear: null as number | null,
+    activity: null as ActivityLevel | null,
     isExample: true,
   }
 }

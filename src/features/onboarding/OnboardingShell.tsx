@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
  */
 export function OnboardingShell({
   step,
-  total = 3,
+  total = 4,
   title,
   description,
   children,
