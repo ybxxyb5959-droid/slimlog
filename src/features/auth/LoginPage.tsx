@@ -31,9 +31,6 @@ export function LoginPage() {
       <div className="flex flex-1 flex-col items-center justify-center py-10 md:flex-none md:py-0 md:pb-12">
         <h1 className="sr-only">SlimLog 로그인</h1>
         <Logo variant="vertical" size={84} />
-        <p className="mt-6 max-w-[260px] text-center text-[14px] leading-relaxed text-balance text-text-muted break-keep">
-          투약·식단·체중·컨디션을 하나의 날짜로 모아 봐요
-        </p>
       </div>
 
       {isLive ? (

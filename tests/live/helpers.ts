@@ -92,13 +92,13 @@ export async function adminPatch(table: string, query: string, patch: Record<str
 }
 
 /** 투약 추가 — 5단계 바텀시트 (약 → 용량 → 부위 → 날짜·시간(오늘·지금) → 확인) */
-export async function addDoseViaSheet(page: Page, opts: { med?: '마운자로' | '위고비' | '에페'; mg: string; site: string }) {
+export async function addDoseViaSheet(page: Page, opts: { med?: '마OOO' | '위OO' | '에O'; mg: string; site: string }) {
   await page.goto('/record/medication/new')
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByRole('progressbar')).toBeVisible()
   // 지난 기록이 있으면 2단계(용량)부터 열림 → 약을 바꾸려면 1단계로
   if (opts.med && (await sheet.getByRole('slider').isVisible().catch(() => false))) await sheet.getByRole('button', { name: '이전 단계' }).click()
-  if (await sheet.getByRole('radio', { name: /마운자로/ }).isVisible().catch(() => false)) await sheet.getByRole('radio', { name: new RegExp(opts.med ?? '마운자로') }).click()
+  if (await sheet.getByRole('radio', { name: /마OOO/ }).isVisible().catch(() => false)) await sheet.getByRole('radio', { name: new RegExp(opts.med ?? '마OOO') }).click()
   const slider = sheet.getByRole('slider')
   await slider.press('Home')
   for (let i = 0; i < 10 && (await slider.getAttribute('aria-valuetext')) !== opts.mg; i++) await slider.press('ArrowRight')

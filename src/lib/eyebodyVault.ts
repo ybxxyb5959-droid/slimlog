@@ -564,6 +564,13 @@ export async function countPhotos(): Promise<number> {
   return tx<number>('photos', 'readonly', (s) => s.count())
 }
 
+/** 회원 탈퇴: 이 사용자의 기기 눈바디 사진·비밀번호·복구 코드·지문 키를 모두 지운다 */
+export async function wipeVaultForUser(userId: string) {
+  setVaultUser(userId)
+  await wipeVault()
+  setVaultUser(null)
+}
+
 /** 전부 지우기 (비밀번호·복구 코드·지문 모두 없을 때 새로 시작). 지문 보호 저장값도 지운다 */
 export async function wipeVault() {
   lock()

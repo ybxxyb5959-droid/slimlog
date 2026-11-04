@@ -14,40 +14,40 @@ test('로그인 안 하면 앱 화면에 못 들어가고 로그인으로 보낸
   }
 })
 
-test('소셜 로그인: 켜진 건 진짜 카카오·구글로 보내고, 안 켜진 건 성공한 척하지 않는다', async ({ page }) => {
-  // 프로젝트에 켜진 로그인 (앱도 같은 주소로 판단)
+test('소셜 로그인: 카카오만 보이고, 진짜 카카오로 보내며, 뒤로 가기로 돌아오면 다시 누를 수 있다', async ({ page }) => {
   const res = await fetch(`${process.env.LIVE_SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.LIVE_SUPABASE_ANON_KEY! } })
   const external = ((await res.json()) as { external: Record<string, boolean> }).external
   await page.goto('/login')
-  for (const [id, label, host] of [['kakao', '카카오 로그인', /kakao\.com/], ['google', 'Google로 계속하기', /google\.com/], ['apple', 'Apple로 계속하기', /apple\.com/]] as const) {
-    if (external[id]) {
-      // 켜짐 → 앱이 Supabase 로그인 시작 주소로 보내는지 가로채서 확인
-      // (테스트 환경 네트워크는 카카오를 막을 수 있어 실제 이동은 안 함. 계정 로그인은 사람이 해야 함)
-      await page.goto('/login')
-      let authorize = ''
-      await page.route('**/auth/v1/authorize**', (r) => {
-        authorize = r.request().url()
-        return r.fulfill({ status: 200, contentType: 'text/html', body: 'ok' })
-      })
-      await page.getByRole('button', { name: label }).click()
-      await expect.poll(() => authorize).toContain(`provider=${id}`)
-      await page.unroute('**/auth/v1/authorize**')
-      // Supabase 가 실제 카카오·구글 로그인 주소로 보내는지 (키·Redirect URI 설정 확인)
-      const r = await fetch(authorize, { redirect: 'manual' })
-      expect(r.status).toBe(302)
-      const next = new URL(r.headers.get('location')!)
-      expect(next.host).toMatch(host)
-      expect(next.searchParams.get('client_id')).toBeTruthy()
-      expect(next.searchParams.get('redirect_uri')).toBe(`${process.env.LIVE_SUPABASE_URL}/auth/v1/callback`)
-    } else {
-      await page.goto('/login')
-      await expect(page.getByText('준비 중 · 아직 연결되지 않았어요').first()).toBeVisible()
-      await page.getByRole('button', { name: label }).click()
-      await expect(page.getByText('아직 연결되지 않은 로그인이에요')).toBeVisible()
-      await expect(page).toHaveURL('/login')
-    }
+  await expect(page.getByRole('button', { name: 'Google로 계속하기' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Apple로 계속하기' })).toHaveCount(0)
+  await expect(page.getByText('준비 중 · 아직 연결되지 않았어요')).toHaveCount(0)
+  await expect(page.getByText('하나의 날짜로 모아 봐요')).toHaveCount(0)
+  const kakao = page.getByRole('button', { name: '카카오 로그인' })
+  if (external.kakao) {
+    // 켜짐 → 앱이 Supabase 로그인 시작 주소로 보내는지 가로채서 확인 (실제 카카오 계정 로그인은 사람이 해야 함)
+    let authorize = ''
+    await page.route('**/auth/v1/authorize**', (r) => {
+      authorize = r.request().url()
+      return r.fulfill({ status: 200, contentType: 'text/html', body: 'ok' })
+    })
+    await kakao.click()
+    await expect.poll(() => authorize).toContain('provider=kakao')
+    await page.unroute('**/auth/v1/authorize**')
+    const r = await fetch(authorize, { redirect: 'manual' })
+    expect(r.status).toBe(302)
+    const next = new URL(r.headers.get('location')!)
+    expect(next.host).toMatch(/kakao\.com/)
+    expect(next.searchParams.get('client_id')).toBeTruthy()
+    expect(next.searchParams.get('redirect_uri')).toBe(`${process.env.LIVE_SUPABASE_URL}/auth/v1/callback`)
+    // 카카오 화면에서 뒤로 가기 → '이동 중…'에 멈추지 않고 다시 누를 수 있어야 함
+    await page.goBack()
+    await expect(page).toHaveURL('/login')
+    await expect(kakao).toBeEnabled({ timeout: 6000 })
+  } else {
+    await kakao.click()
+    await expect(page.getByText('아직 연결되지 않은 로그인이에요')).toBeVisible()
+    await expect(page).toHaveURL('/login')
   }
-  await page.goto('/login')
   await expect(page.getByText('UI 목업')).toHaveCount(0)
 })
 
@@ -98,7 +98,7 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await page.getByRole('radio', { name: /지금 투약 내역 기록하기/ }).click()
   await page.getByRole('button', { name: '투약 기록 시작하기' }).click()
   const sheet = page.getByRole('dialog')
-  await sheet.getByRole('radio', { name: /마운자로/ }).click()
+  await sheet.getByRole('radio', { name: /마OOO/ }).click()
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
   await sheet.getByRole('radio', { name: '배 왼쪽' }).click()
   await sheet.getByRole('button', { name: '다음', exact: true }).click()
@@ -121,10 +121,10 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   // 새로고침 후 목록에 그대로
   await page.goto('/record/medication')
   await page.reload()
-  await expect(page.getByText('마운자로 2.5mg').first()).toBeVisible()
+  await expect(page.getByText('마OOO 2.5mg').first()).toBeVisible()
 
   // 추가
-  await addDoseViaSheet(page, { med: '위고비', mg: '0.5mg', site: '배 오른쪽' })
+  await addDoseViaSheet(page, { med: '위OO', mg: '0.5mg', site: '배 오른쪽' })
   doses = await adminSelect('doses', `user_id=eq.${uid}&select=dose_id,med_id,dose_mg`)
   expect(doses).toHaveLength(2)
   const wegovy = doses.find((d) => d.med_id === 'wegovy')!
@@ -145,7 +145,7 @@ test('온보딩 첫 투약 저장 → 투약 추가·수정·삭제가 DB 에 �
   await expect(page.getByText('투약 기록을 삭제했어요')).toBeVisible()
   expect(await adminSelect('doses', `dose_id=eq.${wegovy.dose_id}&select=dose_id`)).toHaveLength(0)
   await page.reload()
-  await expect(page.getByText(/위고비/)).toHaveCount(0)
+  await expect(page.getByText(/위OO/)).toHaveCount(0)
 })
 
 test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', async ({ page, browser }) => {
@@ -155,7 +155,7 @@ test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', 
   await acceptRequiredConsents(page)
   const nickA = `중복${Date.now() % 100000}`
   await quickOnboarding(page, { nickname: nickA })
-  await addDoseViaSheet(page, { med: '마운자로', mg: '5mg', site: '배 왼쪽' })
+  await addDoseViaSheet(page, { med: '마OOO', mg: '5mg', site: '배 왼쪽' })
 
   // B: 다른 브라우저 — A 의 닉네임은 못 쓰고, A 의 투약은 안 보임
   const ctxB = await browser.newContext({ viewport: { width: 390, height: 844 } })
@@ -166,7 +166,7 @@ test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', 
   await expect(pageB.getByText('이미 사용 중인 닉네임이에요.', { exact: false })).toBeVisible()
   await quickOnboarding(pageB, { nickname: `다른${Date.now() % 100000}` })
   await pageB.goto('/record/medication')
-  await expect(pageB.getByText(/마운자로 5mg/)).toHaveCount(0)
+  await expect(pageB.getByText(/마OOO 5mg/)).toHaveCount(0)
   await ctxB.close()
 
   // A 로그아웃 → 보호 화면 차단
@@ -180,5 +180,5 @@ test('사용자 간 데이터 분리 + 닉네임 중복 차단 + 로그아웃', 
   await devLogin(page, emailA)
   await expect(page).toHaveURL('/home')
   await page.goto('/record/medication')
-  await expect(page.getByText('마운자로 5mg').first()).toBeVisible()
+  await expect(page.getByText('마OOO 5mg').first()).toBeVisible()
 })

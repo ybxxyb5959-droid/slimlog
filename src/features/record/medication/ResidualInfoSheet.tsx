@@ -84,7 +84,7 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
         <Section title="계산의 한계">
           <ul className="list-disc space-y-1 pl-5">
             <li>흡수 속도는 허가자료의 최고농도 도달 시간 범위 중간값으로 근사했어요. 실제로는 사람마다 더 빠르거나 느릴 수 있어요.</li>
-            {medication.id === 'efpe' && <li>에페는 단회 투여 값이 없어 반복 투여(항정상태) 중앙값 48시간을 썼어요.</li>}
+            {medication.id === 'efpe' && <li>에O는 단회 투여 값이 없어 반복 투여(항정상태) 중앙값 48시간을 썼어요.</li>}
             <li>체중, 주사 부위, 개인차, 놓친 투약은 반영하지 않아요.</li>
             <li>입력한 기록이 틀리거나 빠지면 곡선도 달라져요.</li>
           </ul>

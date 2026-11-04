@@ -12,7 +12,7 @@ async function writePost(page: import('@playwright/test').Page, title: string, b
   await page.getByRole('button', { name: '게시하기' }).click()
 }
 
-test('글쓰기(서버 검사) → 다른 사람 좋아요·댓글·신고 → 관리자 검토(숨김 글 승인)', async ({ page, browser }) => {
+test('글쓰기(서버 검사) → 다른 사람 좋아요·댓글·신고 → 관리자 신고 글 숨김', async ({ page, browser }) => {
   const emailA = uniqueEmail('p3-c-a')
   await devLogin(page, emailA)
   await acceptRequiredConsents(page)
@@ -25,12 +25,10 @@ test('글쓰기(서버 검사) → 다른 사람 좋아요·댓글·신고 → �
   await writePost(page, title, '단백질 챙기면서 기록하고 있어요. 다들 화이팅!')
   await expect(page.getByText('게시됐어요')).toBeVisible()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
-  // REVIEW → 검토 중 (작성자만)
+  // 용량 질문도 관리자 검토 없이 바로 공개
   const reviewTitle = `E2E 증량 ${Date.now() % 10000}`
   await writePost(page, reviewTitle, '몇 mg부터 올리세요? 경험 알려 주세요')
-  await expect(page.getByText('관리자 검토 후 공개돼요')).toBeVisible()
-  // (같은 문구가 글쓰기 화면의 사전 검사 상자에도 있어 저장 완료를 기다린다)
-  await expect.poll(async () => (await adminSelect('posts', `user_id=eq.${uidA}&select=status&order=created_at`)).map((p) => p.status)).toEqual(['visible', 'hidden'])
+  await expect.poll(async () => (await adminSelect('posts', `user_id=eq.${uidA}&select=status&order=created_at`)).map((p) => p.status)).toEqual(['visible', 'visible'])
   const posts = await adminSelect('posts', `user_id=eq.${uidA}&select=post_id,title,status&order=created_at`)
 
   // B: 공개 글만 보임 → 좋아요·댓글·신고
@@ -41,9 +39,10 @@ test('글쓰기(서버 검사) → 다른 사람 좋아요·댓글·신고 → �
   await quickOnboarding(b)
   await b.goto('/community')
   await expect(b.getByText(title)).toBeVisible()
-  await expect(b.getByText(reviewTitle)).toHaveCount(0)
+  await expect(b.getByText(reviewTitle)).toBeVisible()
   await b.getByText(title).click()
-  await expect(b.getByText(nickA)).toBeVisible()
+  await expect(b.getByRole('heading', { name: title })).toBeVisible()
+  await expect(b.getByText(nickA).first()).toBeVisible()
   await b.getByRole('button', { name: /좋아요/ }).click()
   await expect.poll(async () => (await adminSelect('posts', `post_id=eq.${posts[0].post_id}&select=like_count`))[0].like_count).toBe(1)
   await b.getByLabel('댓글').fill('응원해요!')
@@ -60,19 +59,19 @@ test('글쓰기(서버 검사) → 다른 사람 좋아요·댓글·신고 → �
   await expect(b).toHaveURL('/community/write')
   await ctx.close()
 
-  // 관리자: DB 에서 권한 부여 → 숨김 글 승인 → 공개
+  // 관리자: DB 에서 권한 부여 → 신고된 글 숨김
   await adminPatch('users', `user_id=eq.${uidA}`, { role: 'admin' })
   await page.reload()
   await page.goto('/admin/moderation')
-  await expect(page.getByRole('option', { name: new RegExp(reviewTitle) })).toBeVisible()
-  await page.getByRole('option', { name: new RegExp(reviewTitle) }).click()
-  await page.getByRole('radio', { name: '승인' }).click()
-  await page.getByLabel('사유 (필수)').fill('경험 공유 질문으로 판단')
+  await expect(page.getByRole('option', { name: new RegExp(title) })).toBeVisible()
+  await page.getByRole('option', { name: new RegExp(title) }).click()
+  await page.getByRole('radio', { name: '숨김' }).click()
+  await page.getByLabel('사유 (필수)').fill('광고 신고 확인')
   await page.getByRole('button', { name: '조치 저장' }).click()
-  await expect(page.getByText('승인 처리했어요')).toBeVisible()
-  await expect.poll(async () => (await adminSelect('posts', `post_id=eq.${posts[1].post_id}&select=status`))[0].status).toBe('visible')
+  await expect(page.getByText('숨김 처리했어요')).toBeVisible()
+  await expect.poll(async () => (await adminSelect('posts', `post_id=eq.${posts[0].post_id}&select=status`))[0].status).toBe('blocked')
   const acts = await adminSelect('admin_actions', `admin_id=eq.${uidA}&select=action,reason`)
-  expect(acts).toContainEqual({ action: 'restore', reason: '경험 공유 질문으로 판단' })
+  expect(acts).toContainEqual({ action: 'hide', reason: '광고 신고 확인' })
 })
 
 test('관리자가 아니면 검토 화면 접근 불가', async ({ page }) => {

@@ -90,6 +90,7 @@ export function PostWritePage() {
               <legend>카테고리</legend>
             </Label>
             <ChipGroup
+              columns={5}
               label="카테고리"
               options={(Object.entries(CATEGORY_LABEL) as [PostCategory, string][]).map(([value, label]) => ({ value, label }))}
               value={category}

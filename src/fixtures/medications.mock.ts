@@ -7,31 +7,31 @@ import type { ApprovalSource, BodyArea, InjectionSite, Medication, MedicationId 
  */
 const SRC = {
   mounjaroDoses: {
-    title: '데일리팜 「비만약 마운자로 제형 확대…퀵펜 6개 용량 허가」 (식약처 허가 보도)',
+    title: '데일리팜 「비만약 마OOO 제형 확대…퀵펜 6개 용량 허가」 (식약처 허가 보도)',
     url: 'https://www.dailypharm.com/user/news/2409',
     checkedAt: '2026-11-03',
     status: 'secondary',
   },
   mounjaroSites: {
-    title: '닥터나우 「마운자로 사용법」 (복부·허벅지·위팔 피하주사 안내)',
+    title: '닥터나우 「마OOO 사용법」 (복부·허벅지·위팔 피하주사 안내)',
     url: 'https://doctornow.co.kr/content/magazine/67a66e0c3b9c48f9adceebedace1bc56',
     checkedAt: '2026-11-03',
     status: 'secondary',
   },
   wegovy: {
-    title: '코메디닷컴 「위고비프리필드펜 5개 용량 허가」 (식약처 허가 보도)',
+    title: '코메디닷컴 「위OO프리필드펜 5개 용량 허가」 (식약처 허가 보도)',
     url: 'https://kormedi.com/1586984/',
     checkedAt: '2026-11-03',
     status: 'secondary',
   },
   efpeDoses: {
-    title: '식약처 의약품안전나라 「에페오토인젝터주(에페글레나타이드)」 제품정보',
+    title: '식약처 의약품안전나라 「에O오토인젝터주(에페글레나타이드)」 제품정보',
     url: 'https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetailCache?cacheSeq=202603059aupdateTs2026-10-20+08%3A11%3A12.723686b',
     checkedAt: '2026-11-03',
     status: 'secondary',
   },
   efpeSites: {
-    title: '마이닥터 「한미약품 에페 허가 대상 투여 방법」 (복부 피하주사 안내)',
+    title: '마이닥터 「한미약품 에O 허가 대상 투여 방법」 (복부 피하주사 안내)',
     url: 'https://my-doctor.io/healthLab/info/4258',
     checkedAt: '2026-11-03',
     status: 'secondary',
@@ -73,12 +73,12 @@ const ALL_AREAS: BodyArea[] = ['abdomen', 'thigh', 'upper_arm']
 /**
  * 약물 메타데이터.
  * pk: 허가자료(라벨)에서 확인한 값만 넣는다. 확인 못 한 항목은 null — 임의 값 금지.
- * 에페: 허가자료에서 반감기를 못 찾아 2상 약동학 논문 값(135~180시간)의 중간값 157.5시간을 쓴다.
+ * 에O: 허가자료에서 반감기를 못 찾아 2상 약동학 논문 값(135~180시간)의 중간값 157.5시간을 쓴다.
  */
 export const MEDICATIONS: Record<MedicationId, Medication> = {
   mounjaro: {
     id: 'mounjaro',
-    name: '마운자로',
+    name: '마OOO',
     ingredient: '터제파타이드',
     pk: {
       halfLifeHours: { value: 5 * 24, text: '약 5일', source: SRC.mounjaroHalfLife },
@@ -91,7 +91,7 @@ export const MEDICATIONS: Record<MedicationId, Medication> = {
   },
   wegovy: {
     id: 'wegovy',
-    name: '위고비',
+    name: '위OO',
     ingredient: '세마글루타이드',
     pk: {
       halfLifeHours: { value: 7 * 24, text: '약 1주', source: SRC.wegovyHalfLife },
@@ -104,7 +104,7 @@ export const MEDICATIONS: Record<MedicationId, Medication> = {
   },
   efpe: {
     id: 'efpe',
-    name: '에페',
+    name: '에O',
     ingredient: '에페글레나타이드',
     pk: {
       halfLifeHours: { value: 157.5, text: '약 6~7일 (135~180시간)', source: SRC.efpeHalfLife },
@@ -157,9 +157,9 @@ export const AREA_LABEL: Record<BodyArea, string> = { abdomen: '복부', thigh: 
 /**
  * 참고 곡선(흡수 모델)에 쓰는 최고점 도달 시간 대표값(시간).
  * 허가자료에는 흡수 속도(ka)가 없고 tmax '범위'만 있어서 그 중간값으로 근사한다 → src/lib/pk/residual.ts kaFromTmax
- * - 마운자로: 라벨 8~72시간 → 40시간
- * - 위고비: 라벨 1~3일 → 48시간
- * - 에페: 2상 논문 항정상태 중앙값 48시간 (단회 투여 값이 아니라 근사임을 안내 시트에 표시)
+ * - 마OOO: 라벨 8~72시간 → 40시간
+ * - 위OO: 라벨 1~3일 → 48시간
+ * - 에O: 2상 논문 항정상태 중앙값 48시간 (단회 투여 값이 아니라 근사임을 안내 시트에 표시)
  */
 export function curveTmaxHours(med: Medication): number | null {
   if (med.id === 'efpe') return 48

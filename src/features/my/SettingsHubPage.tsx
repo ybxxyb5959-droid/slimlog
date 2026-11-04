@@ -24,7 +24,7 @@ const GROUPS: { title: string; rows: { to: string; icon: LucideIcon; label: stri
     title: '개인정보 및 계정',
     rows: [
       { to: '/my/consent', icon: KeyRound, label: '개인정보 · 보안' },
-      { to: '/my/account', icon: Link2, label: '연결된 로그인 계정', meta: '카카오' },
+      { to: '/my/account', icon: Link2, label: '연결된 로그인 계정' },
       { to: '/my/data', icon: Database, label: '내 데이터 관리' },
     ],
   },
@@ -36,8 +36,8 @@ const GROUPS: { title: string; rows: { to: string; icon: LucideIcon; label: stri
     ],
   },
   {
-    title: '운영 (관리자 계정에만 보임 · 목업)',
-    rows: [{ to: '/admin/moderation', icon: ShieldUser, label: '관리자 검토', meta: '대기 3건' }],
+    title: '운영',
+    rows: [{ to: '/admin/moderation', icon: ShieldUser, label: '관리자 검토' }],
   },
 ]
 
@@ -45,11 +45,13 @@ const GROUPS: { title: string; rows: { to: string; icon: LucideIcon; label: stri
 export function SettingsHubPage() {
   const navigate = useNavigate()
   const [logout, setLogout] = useState(false)
+  // 운영 메뉴는 관리자 계정에만 (목업은 화면 확인용으로 보여 줌)
+  const isAdmin = useAuthStore((s) => (isLive ? s.account?.role === 'admin' : true))
   return (
     <>
       <PageHeader title="설정" back="/my" />
       <div className="space-y-6 md:max-w-2xl">
-        {GROUPS.map((g) => (
+        {GROUPS.filter((g) => g.title !== '운영' || isAdmin).map((g) => (
           <MyGroup key={g.title} title={g.title}>
             {g.rows.map((r) => (
               <MyRow key={r.to} {...r} />

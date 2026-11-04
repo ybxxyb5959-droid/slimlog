@@ -85,17 +85,36 @@ test('사진 식단: 업로드 → 서버 인식(목업 모드 표시) → 고�
   expect(file.status).toBeGreaterThanOrEqual(400)
 })
 
-test('회원 탈퇴: 서버가 계정·기록을 지우고 로그인 화면으로', async ({ page }) => {
+test('회원 탈퇴: 서버 계정·기록 + 이 기기의 눈바디 사진까지 지우고 로그인 화면으로', async ({ page }) => {
   const email = uniqueEmail('p3-bye')
   await devLogin(page, email)
   await acceptRequiredConsents(page)
   await quickOnboarding(page)
   const uid = (await userIdOf(email))!
+  // 이 기기의 눈바디 저장소(사용자별 IndexedDB)와 사용자별 저장값을 미리 만들어 둔다
+  await page.evaluate(async (id) => {
+    await new Promise<void>((res, rej) => {
+      const r = indexedDB.open(`slimlog-eyebody-${id}`, 1)
+      r.onupgradeneeded = () => {
+        r.result.createObjectStore('meta')
+        r.result.createObjectStore('photos', { keyPath: 'id' })
+      }
+      r.onsuccess = () => (r.result.close(), res())
+      r.onerror = () => rej(r.error)
+    })
+    localStorage.setItem(`slimlog:test-key:${id}`, '1')
+  }, uid)
   await page.goto('/my/account')
+  await expect(page.getByText('이 기기에 저장된 눈바디 사진까지 함께 삭제돼요')).toBeVisible()
   await page.getByRole('button', { name: '회원 탈퇴' }).click()
   await page.getByRole('dialog').getByRole('button', { name: '탈퇴', exact: true }).click()
   await expect(page).toHaveURL('/login')
   expect(await userIdOf(email)).toBeNull()
   expect(await adminSelect('users', `user_id=eq.${uid}&select=user_id`)).toHaveLength(0)
   expect(await adminSelect('body_logs', `user_id=eq.${uid}&select=log_id`)).toHaveLength(0)
+  const local = await page.evaluate(async (id) => ({
+    dbs: (await indexedDB.databases()).map((d) => d.name).filter((n) => n?.includes(id)),
+    keys: Object.keys(localStorage).filter((k) => k.includes(id)),
+  }), uid)
+  expect(local).toEqual({ dbs: [], keys: [] })
 })

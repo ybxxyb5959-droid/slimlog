@@ -40,12 +40,11 @@ def test_community_screening_and_ownership(client, make_user):
     assert len(admin_rest("GET", "posts", params={"user_id": f"eq.{a.id}", "select": "post_id"}).json()) == 1
     logs = admin_rest("GET", "filter_logs", params={"user_id": f"eq.{a.id}", "select": "level"}).json()
     assert sorted(l["level"] for l in logs) == ["BLOCKED", "LOW"]
-    # REVIEW → 작성자만 보임
+    # 용량 질문은 관리자 검토 없이 바로 공개 (질문 탭에 올라올 수 있는 글)
     r = client.post("/posts", json={"category": "question", "title": "증량", "body": "몇 mg부터 올리세요?"}, headers=a.h)
     hid = r.json()["post_id"]
-    assert r.json()["status"] == "hidden"
-    assert len(b.rest("GET", "posts", params={"post_id": f"eq.{hid}"}).json()) == 0
-    assert len(a.rest("GET", "posts", params={"post_id": f"eq.{hid}"}).json()) == 1
+    assert r.json()["status"] == "visible" and r.json()["risk_level"] == "LOW"
+    assert len(b.rest("GET", "posts", params={"post_id": f"eq.{hid}"}).json()) == 1
     # 남의 글 수정·삭제 불가
     assert client.patch(f"/posts/{pid}", json={"category": "review", "title": "x", "body": "y"}, headers=b.h).status_code == 403
     assert client.delete(f"/posts/{pid}", headers=b.h).status_code == 403

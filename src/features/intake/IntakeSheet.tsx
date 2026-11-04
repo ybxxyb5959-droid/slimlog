@@ -150,7 +150,7 @@ function ItemTab({ kind, onRegistered }: { kind: IntakeKind; onRegistered: (key:
     <div className="space-y-4">
       {kind === 'medicine' && (
         <p className="rounded-2xl bg-surface-muted px-4 py-3 text-[13px] leading-relaxed text-text-muted">
-          마운자로·위고비·에페 같은 주사는 홈의 ‘투약’에서 기록해요. 앱은 약의 복용량이나 복용 주기를 추천하지 않아요.
+          마OOO·위OO·에O 같은 주사는 홈의 ‘투약’에서 기록해요. 앱은 약의 복용량이나 복용 주기를 추천하지 않아요.
         </p>
       )}
       <div className="flex items-start justify-between gap-3">

@@ -1,5 +1,8 @@
 import { isNativeApp } from './native'
 
+/** 소셜 로그인에서 정상으로 돌아왔을 때 알리는 이벤트 */
+export const AUTH_RETURN_EVENT = 'slimlog:auth-return'
+
 /**
  * 갤럭시 앱(Capacitor) 시작 때 한 번 — 웹에서는 아무 일도 하지 않는다.
  * 1) 지문 저장소 연결 (src/lib/biometric.native.ts)
@@ -18,6 +21,7 @@ export async function initNativeApp() {
 
   await App.addListener('appUrlOpen', async ({ url }) => {
     if (!url.startsWith(NATIVE_AUTH_CALLBACK)) return
+    window.dispatchEvent(new Event(AUTH_RETURN_EVENT)) // 로그인 화면의 '되돌아옴' 감지 타이머 취소
     await Browser.close().catch(() => {})
     const u = new URL(url.replace(/^com\.slimlog\.app:\/\//, 'https://app/'))
     const err = u.searchParams.get('error_description') ?? u.searchParams.get('error')
