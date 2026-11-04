@@ -13,7 +13,11 @@ $MaxJsonPerZip = 3000      # zip 하나에서 읽을 JSON 최대 개수 (속도�
 $RawPreviewLines = 40      # 첫 JSON 미리보기 줄 수
 $NameKeyPattern = '(?i)(name|class|label|category|code|food|음식|이름|분류)'
 
+$BoxKeyPattern = '(?i)^(bbox|box|boxes|point|points|polygon|segmentation|x|y|w|h|x1|y1|x2|y2|xmin|ymin|xmax|ymax|width|height|좌표)$'
+
 $out = New-Object System.Collections.Generic.List[string]
+$GlobalNameFiles = @{}   # 모든 zip 합계: 이름 경로 -> 값 -> 등장 사진 수
+$GlobalRead = 0; $GlobalTotal = 0
 function Say([string]$s) { $out.Add($s); Write-Host $s }
 
 function Cut([string]$s, [int]$n) {
@@ -51,6 +55,7 @@ function Walk($node, [string]$path, $seenPaths, $arrayLens, $nameVals, $samples)
     if ($node -is [string] -and $last -match $NameKeyPattern) {
         if (-not $nameVals.ContainsKey($path)) { $nameVals[$path] = @{} }
         Bump $nameVals[$path] $node
+        $seenPaths["VAL`t$path`t$node"] = $true   # 파일(=사진)별로 어떤 음식이 나왔는지
     }
 }
 
@@ -110,6 +115,7 @@ foreach ($zipPath in $Zips) {
 
         # 여러 파일 집계
         $pathFiles = @{}; $arrayLens = @{}; $nameVals = @{}; $samples = @{}
+        $nameFiles = @{}; $distinctDist = @{}
         $ok = 0; $bad = 0
         $take = [math]::Min($jsons.Count, $MaxJsonPerZip)
         for ($i = 0; $i -lt $take; $i++) {
@@ -117,13 +123,34 @@ foreach ($zipPath in $Zips) {
                 $obj = ConvertFrom-Json (ReadEntryText $jsons[$i])
                 $seen = @{}
                 Walk $obj '' $seen $arrayLens $nameVals $samples
-                foreach ($k in $seen.Keys) { Bump $pathFiles $k }
+                $perFile = @{}
+                foreach ($k in @($seen.Keys)) {
+                    if ($k.StartsWith("VAL`t")) {
+                        $parts = $k.Split("`t")
+                        $np = $parts[1]; $v = $parts[2]
+                        if (-not $nameFiles.ContainsKey($np)) { $nameFiles[$np] = @{} }
+                        Bump $nameFiles[$np] $v
+                        if (-not $GlobalNameFiles.ContainsKey($np)) { $GlobalNameFiles[$np] = @{} }
+                        Bump $GlobalNameFiles[$np] $v
+                        Bump $perFile $np
+                    } else { Bump $pathFiles $k }
+                }
+                foreach ($np in @($perFile.Keys)) {
+                    if (-not $distinctDist.ContainsKey($np)) { $distinctDist[$np] = @{} }
+                    Bump $distinctDist[$np] ([int]$perFile[$np])
+                }
                 $ok++
             } catch { $bad++ }
             if (($i + 1) % 500 -eq 0) { Write-Host "    ...$($i + 1)/$take 읽는 중" }
         }
+        $GlobalRead += $ok; $GlobalTotal += $jsons.Count
         Say ''
         Say "  [집계] JSON $($jsons.Count)개 중 $take 개 읽음 (성공 $ok, 실패 $bad)"
+        if ($take -lt $jsons.Count) { Say "  ※ 앞쪽 $take 개만 읽은 샘플 기준 숫자임 (전체 수량 아님)" }
+
+        $boxKeys = @($pathFiles.Keys | Where-Object { (($_ -split '\.')[-1] -replace '\[\]', '') -match $BoxKeyPattern })
+        if ($boxKeys.Count -gt 0) { Say ('  박스(위치) 같아 보이는 키: ' + (($boxKeys | Sort-Object) -join ', ')) }
+        else { Say '  박스(위치) 같아 보이는 키: 못 찾음' }
 
         Say '  키 목록 (등장 파일 수 / 예시 값):'
         $pathFiles.GetEnumerator() | Sort-Object Name | Select-Object -First 80 | ForEach-Object {
@@ -137,14 +164,30 @@ foreach ($zipPath in $Zips) {
             Say ("    {0}: {1}" -f $ap, ($dist -join ', '))
         }
 
-        Say '  이름처럼 보이는 값 (상위 30개):'
+        Say '  이름처럼 보이는 값 (상위 30개, 박스 수 / 사진 수):'
         foreach ($np in ($nameVals.Keys | Sort-Object)) {
             $t = $nameVals[$np]
             Say ("    {0}  (서로 다른 값 {1}개)" -f $np, $t.Count)
             $t.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 30 |
-                ForEach-Object { Say ("      {0} : {1}" -f (Cut $_.Key 40), $_.Value) }
+                ForEach-Object { Say ("      {0} : 박스 {1} / 사진 {2}" -f (Cut $_.Key 40), $_.Value, $nameFiles[$np][$_.Key]) }
+            if ($distinctDist.ContainsKey($np)) {
+                $dd = $distinctDist[$np].GetEnumerator() | Sort-Object { [int]$_.Key } | ForEach-Object { "$($_.Key)종=$($_.Value)장" }
+                Say ('      사진 1장당 서로 다른 값 개수: ' + ($dd -join ', '))
+            }
         }
     } finally { $zip.Dispose() }
+    Say ''
+}
+
+if ($GlobalNameFiles.Count -gt 0 -and $Zips.Count -gt 1) {
+    Say ('=' * 60)
+    Say "[전체 합계] 읽은 JSON $GlobalRead 개 / 전체 $GlobalTotal 개"
+    foreach ($np in ($GlobalNameFiles.Keys | Sort-Object)) {
+        $t = $GlobalNameFiles[$np]
+        Say ("  {0}  (서로 다른 값 {1}개) — 값별 사진 수 상위 100" -f $np, $t.Count)
+        $t.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 100 |
+            ForEach-Object { Say ("    {0} : {1}" -f (Cut $_.Key 40), $_.Value) }
+    }
     Say ''
 }
 
