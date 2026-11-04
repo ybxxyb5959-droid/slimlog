@@ -83,9 +83,12 @@ export function relativeCurve(
 }
 
 /**
- * 체내 추정량 곡선(mg) — 흡수 모델(B)에 생체이용률 F 를 곱한 값. 정규화하지 않는다.
- * RelativePoint.relative 칸에 mg 값을 담아 같은 차트로 그린다.
- * 반감기가 없으면 빈 배열. tmax 가 없으면 지수 감소(A) × F.
+ * 체내 추정량 곡선(mg) — '주사량 기준' 환산
+ * 흡수 모델(B)로 서서히 올라갔다 반감기대로 내려가는 모양을 쓰되, 한 번 맞았을 때의 최고점이 맞은 용량(mg)과 같도록 맞춘다.
+ * (흡수율·흡수 중 감소분을 빼면 최고점이 용량보다 한참 낮아져 '2.5mg 맞았는데 1.6mg'처럼 보이는 문제 → 용량 기준으로 통일)
+ * 반복 투여는 그대로 더한다: 이전 투여분이 남은 위에 새 투여분이 올라감.
+ * RelativePoint.relative 칸에 mg 값을 담아 같은 차트로 그린다. 반감기가 없으면 빈 배열, tmax 가 없으면 지수 감소(A, 맞은 순간 용량).
+ * F 는 곱하는 배율(기본 1 — 화면에서는 쓰지 않음)
  */
 export function amountCurve(
   doses: DoseEvent[],
@@ -100,7 +103,9 @@ export function amountCurve(
   const times = sampleTimes(from, to, doses, stepHours)
   const ke = LN2 / halfLifeHours
   const ka = tmaxHours && tmaxHours > 0 ? kaFromTmax(tmaxHours, ke) : null
-  const pts = times.map((t) => ({ t, relative: ka ? batemanSum(doses, F, ka, ke, t) : F * exponentialSum(doses, halfLifeHours, t) }))
+  // 한 번 투여(1mg) 최고점 높이 → 이 값으로 나누면 최고점 = 용량
+  const unitPeak = ka ? batemanAmount(1, 1, ka, ke, tmaxFromRates(ka, ke)) : 1
+  const pts = times.map((t) => ({ t, relative: (F * (ka ? batemanSum(doses, 1, ka, ke, t) : exponentialSum(doses, halfLifeHours, t))) / unitPeak }))
   return pts.some((p) => p.relative > 0) ? pts : []
 }
 

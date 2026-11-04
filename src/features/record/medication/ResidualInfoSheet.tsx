@@ -31,7 +31,7 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
   const tmax = curveTmaxHours(medication)
   const rows: { label: string; value: string; use: string; source?: ApprovalSource }[] = [
     { label: '제거 반감기', value: pk.halfLifeHours?.text ?? '확인 못 함', use: pk.halfLifeHours ? '계산에 사용' : '곡선 미생성', source: pk.halfLifeHours?.source },
-    { label: '생체이용률', value: pk.bioavailability?.text ?? '확인 못 함', use: pk.bioavailability ? '계산에 사용' : '100%로 가정', source: pk.bioavailability?.source },
+    { label: '생체이용률', value: pk.bioavailability?.text ?? '확인 못 함', use: '참고만 · 미사용', source: pk.bioavailability?.source },
     { label: '최고농도 도달', value: pk.tmaxHours?.text ?? '확인 못 함', use: tmax ? `대표값 ${tmax}시간 사용` : '미사용', source: pk.tmaxHours?.source },
     { label: '흡수 속도(ka)', value: pk.absorptionRateKa?.text ?? '허가자료에 없음', use: tmax ? '대표 tmax 로 역산' : '흡수 모델 비활성' },
   ]
@@ -54,7 +54,10 @@ export function ResidualInfoSheet({ open, onClose, medication }: { open: boolean
             맞은 뒤 약이 천천히 흡수돼 {tmax ? `약 ${tmax}시간` : '며칠'} 뒤 가장 높아지고, 그다음 반감기만큼 시간이 지날 때마다 절반으로 줄어드는 모양(1차 흡수 모델)으로 계산해요.
             이전 투여분과 새 투여분을 모두 더해요.
           </p>
-          <p>맞은 용량에 생체이용률(몸에 흡수되는 비율)을 곱해 몸속에 남아 있는 양을 mg으로 추정해요. 선택한 약의 기록만 계산해요.</p>
+          <p>
+            주사량 기준으로 계산해요. 한 번 맞으면 서서히 올라가 최고점이 맞은 용량(예: 2.5mg)과 같아지고, 그 뒤 반감기마다 절반으로 줄어요. 다음 투약은 남아 있는 양 위에 더해져요.
+            선택한 약의 기록만 계산해요.
+          </p>
         </Section>
 
         <Section title={`사용한 파라미터 · ${medication.name}`}>

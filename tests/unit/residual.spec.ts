@@ -177,15 +177,16 @@ test('흡수 모델: 방금 맞으면 0%에서 시작하고, 최고점 전이면
   expect(Math.max(...weekAgo.map((p) => p.relative))).toBeCloseTo(100, 0)
 })
 
-test('체내 추정량(mg): 한 번 투여 최고점은 용량×F 보다 작고, 반감기마다 대략 절반', () => {
+test('체내 추정량(mg, 주사량 기준): 한 번 맞으면 최고점 = 용량, 2.5mg 두 번(7일 간격)이면 약 3.5mg', () => {
   const H = 3600 * 1000
   const t0 = Date.UTC(2026, 9, 1)
-  const pts = amountCurve([{ t: t0, doseMg: 5 }], 120, t0, t0 + 30 * 24 * H, 3, 40, 0.8)
-  const max = Math.max(...pts.map((p) => p.relative))
-  expect(max).toBeLessThan(5 * 0.8)
-  expect(max).toBeGreaterThan(5 * 0.8 * 0.5)
-  const at = (h: number) => pts.reduce((b, p) => (Math.abs(p.t - (t0 + h * H)) < Math.abs(b.t - (t0 + h * H)) ? p : b)).relative
-  // 흡수가 끝난 뒤에는 반감기(120h)마다 절반 가까이
-  expect(at(480) / at(360)).toBeCloseTo(0.5, 1)
+  const one = amountCurve([{ t: t0, doseMg: 2.5 }], 120, t0, t0 + 30 * 24 * H, 1, 40)
+  expect(Math.max(...one.map((p) => p.relative))).toBeCloseTo(2.5, 1)
+  // 맞은 순간은 0 (서서히 오름)
+  expect(one[0].relative).toBeLessThan(0.05)
+  const two = amountCurve([{ t: t0, doseMg: 2.5 }, { t: t0 + 168 * H, doseMg: 2.5 }], 120, t0, t0 + 30 * 24 * H, 1, 40)
+  const peak2 = Math.max(...two.filter((p) => p.t > t0 + 168 * H).map((p) => p.relative))
+  expect(peak2).toBeGreaterThan(3.3)
+  expect(peak2).toBeLessThan(3.7)
   expect(amountCurve([{ t: t0, doseMg: 5 }], null, t0, t0 + H)).toEqual([])
 })
