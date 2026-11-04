@@ -12,7 +12,7 @@ import { draftToBody, type BodyDraft } from './bodyDraft'
 /**
  * 체중 기록 — '작은 방' 화면
  *  벽: 왼쪽 달력(누르면 날짜 시트) · 오른쪽 벽시계(누르면 시간 시트)
- *  바닥: 발을 올린 디지털 체중계. 화면(숫자)을 누르면 키패드로 바로 입력
+ *  바닥: 디지털 체중계. 화면(숫자)을 누르면 키패드로 바로 입력
  *  아래: −0.1 / +0.1 (길게 누르면 계속) · 드래그 눈금(0.1kg 단위로 딱딱 넘어감, 미끄러지지 않음)
  * 색은 앱 디자인 토큰만 쓴다.
  */
@@ -285,56 +285,16 @@ function WallClock({ h, m }: { h: number; m: number }) {
   )
 }
 
-/** 발을 올린 체중계 (위에서 내려다본 모습) */
-/**
- * 발 (위에서 내려다본 오른발 기준, flip 이면 왼발)
- * 엄지가 안쪽, 새끼발가락 쪽으로 갈수록 작아지고 발가락 끝이 둥근 곡선을 이룬다.
- * 발등은 아래로 갈수록 좁아져 바짓단 속으로 들어간다. 엄지엔 발톱, 안쪽엔 아치 그림자.
- */
-function Foot({ x, flip }: { x: number; flip?: boolean }) {
-  const toes: [number, number, number, number][] = [
-    // cx, cy, rx, ry
-    [-14, 6, 10.5, 12.5],
-    [1.5, 0.5, 7.2, 8.6],
-    [12.5, 3.5, 6.2, 7.4],
-    [21, 9.5, 5.2, 6.2],
-    [27.5, 17.5, 4.3, 5.2],
-  ]
-  return (
-    <g transform={`translate(${x} 92) ${flip ? 'scale(-1 1)' : ''}`}>
-      {/* 발등·발바닥 윤곽: 앞꿈치가 가장 넓고 발목 쪽으로 좁아짐 */}
-      <path
-        d="M-22 128 C-23 104 -29 74 -27 42 C-26 24 -20 15 -8 14 L16 16 C26 18 32 26 31 40 C30 66 25 96 22 128 Z"
-        className="fill-surface stroke-text-muted"
-        strokeWidth="2.6"
-        strokeLinejoin="round"
-      />
-      {/* 안쪽 아치·발등 그림자 */}
-      <path d="M-19 112 C-21 92 -23 74 -21 56" fill="none" className="stroke-border" strokeWidth="5" strokeLinecap="round" />
-      <path d="M-4 40 C2 52 6 70 4 96" fill="none" className="stroke-border" strokeWidth="3" strokeLinecap="round" opacity="0.8" />
-      {/* 발가락 (뒤쪽부터 그려서 엄지가 위로) */}
-      {[...toes].reverse().map(([cx, cy, rx, ry], i) => (
-        <ellipse key={i} cx={cx} cy={cy} rx={rx} ry={ry} className="fill-surface stroke-text-muted" strokeWidth="2.6" />
-      ))}
-      {/* 발톱 */}
-      <rect x="-19.5" y="-1.5" width="11" height="8" rx="4" className="fill-surface-muted stroke-text-subtle" strokeWidth="1.4" />
-      <rect x="-1.2" y="-4.5" width="5.4" height="4.6" rx="2.2" className="fill-surface-muted" />
-      <rect x="10.2" y="-1" width="4.6" height="4" rx="2" className="fill-surface-muted" />
-    </g>
-  )
-}
-
+/** 체중계 (위에서 내려다본 모습) */
 function ScaleArt() {
   return (
     <svg viewBox="0 0 260 250" className="absolute inset-0 h-full w-full" aria-hidden>
       {/* 체중계 판 */}
       <rect x="18" y="8" width="224" height="236" rx="44" className="fill-surface stroke-border" strokeWidth="4" />
       <rect x="30" y="20" width="200" height="212" rx="34" fill="none" className="stroke-border" strokeWidth="2" />
-      <Foot x={92} flip />
-      <Foot x={168} />
-      {/* 바지 (발목 위) */}
-      <path d="M60 196 C70 182 114 180 124 196 L128 252 L56 252 Z" className="fill-primary-soft stroke-primary" strokeWidth="2.5" strokeOpacity="0.5" />
-      <path d="M136 196 C146 180 190 182 200 196 L204 252 L132 252 Z" className="fill-primary-soft stroke-primary" strokeWidth="2.5" strokeOpacity="0.5" />
+      {/* 발판 (금속 패드) */}
+      <rect x="56" y="96" width="62" height="118" rx="26" className="fill-surface-muted stroke-border" strokeWidth="2" />
+      <rect x="142" y="96" width="62" height="118" rx="26" className="fill-surface-muted stroke-border" strokeWidth="2" />
     </svg>
   )
 }
