@@ -775,7 +775,7 @@ test.describe('식단 기록', () => {
   const kcalTotal = (page: import('@playwright/test').Page) => page.getByText('총 섭취 열량').locator('..')
   const saveBtn = (page: import('@playwright/test').Page) => page.getByRole('button', { name: /식단 (저장|수정)하기/ })
 
-  test('1. 사진 1장 → 멀티라벨 인식(목업) → 확인 필요 고르기·수정·제외 → 저장', async ({ page }) => {
+  test('1. 사진 1장 → 음식 인식(목업) → 확인 필요 고르기·수정·제외 → 저장', async ({ page }) => {
     await page.goto('/record/meal/new')
     await page.getByRole('button', { name: '예시 사진' }).click()
     // 영역 그리기 UI는 없다
@@ -786,7 +786,10 @@ test.describe('식단 기록', () => {
     await expect(page).toHaveURL('/record/meal/review')
     await expect(page.getByText('5개 음식')).toBeVisible()
     await expect(page.getByText('목업 인식 결과')).toBeVisible()
-    await expect(page.getByText('인식 결과', { exact: true })).toHaveCount(3)
+    // 신뢰도는 높음/보통/확인 필요로만 표시
+    await expect(page.getByText('신뢰도 높음', { exact: true })).toHaveCount(2)
+    await expect(page.getByText('신뢰도 보통', { exact: true })).toHaveCount(1)
+    await expect(page.getByText('참고용 추정값', { exact: false })).toBeVisible()
     await expect(page.getByText('확인 필요', { exact: true })).toHaveCount(2)
     // 신뢰도 % 는 보여주지 않는다
     await expect(page.getByText(/\d+(\.\d+)?\s?%/)).toHaveCount(0)

@@ -15,9 +15,12 @@ router = APIRouter()
 
 @router.get("/health")
 def health():
-    from ..main import recognizer
+    """AI 엔진 종류만 알려준다 (키 값은 절대 내보내지 않음)"""
+    from ..ai import provider_of
+    from ..config import Settings
 
-    return {"status": "ok", "model_status": recognizer().status}
+    p = provider_of(Settings())
+    return {"status": "ok", "ai_provider": p, "model_status": "ready" if p != "mock" else "mock"}
 
 
 def _ms(iso: str) -> int:

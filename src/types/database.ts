@@ -43,6 +43,26 @@ isOneToOne: false
       referencedColumns: ["user_id"]
     }
                   ]
+                },"ai_requests": {
+                  Row: {
+                    "created_at": string,"error_code": string | null,"input_tokens": number | null,"latency_ms": number | null,"model": string,"ok": boolean,"output_tokens": number | null,"provider": string,"req_id": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"error_code"?: string | null,"input_tokens"?: number | null,"latency_ms"?: number | null,"model": string,"ok": boolean,"output_tokens"?: number | null,"provider": string,"req_id"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"error_code"?: string | null,"input_tokens"?: number | null,"latency_ms"?: number | null,"model"?: string,"ok"?: boolean,"output_tokens"?: number | null,"provider"?: string,"req_id"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_requests_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "users"
+      referencedColumns: ["user_id"]
+    }
+                  ]
                 },"body_log_sources": {
                   Row: {
                     "created_at": string,"external_ref": string | null,"ocr_confidence": number | null,"parser_version": string | null,"source_id": string,"source_type": string,"template_id": string | null,"user_id": string
@@ -395,14 +415,14 @@ isOneToOne: false
                   ]
                 },"predictions": {
                   Row: {
-                    "candidates": (string)[],"corrected_food_id": string | null,"created_at": string,"feedback_at": string | null,"meal_id": string,"meal_item_id": string | null,"mode": string,"model_ver_id": string,"pred_id": string,"predicted_food_id": string,"score": number | null,"status": string,"threshold": number | null,"user_action": string | null,"user_id": string
+                    "candidates": (string)[],"confidence": string | null,"corrected_food_id": string | null,"created_at": string,"feedback_at": string | null,"meal_id": string,"meal_item_id": string | null,"mode": string,"model_ver_id": string,"needs_review": boolean | null,"portion_text": string | null,"pred_id": string,"predicted_food_id": string | null,"predicted_name": string | null,"score": number | null,"servings": number | null,"status": string,"threshold": number | null,"user_action": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "candidates"?: (string)[],"corrected_food_id"?: string | null,"created_at"?: string,"feedback_at"?: string | null,"meal_id": string,"meal_item_id"?: string | null,"mode": string,"model_ver_id": string,"pred_id"?: string,"predicted_food_id": string,"score"?: number | null,"status": string,"threshold"?: number | null,"user_action"?: string | null,"user_id": string
+                    "candidates"?: (string)[],"confidence"?: string | null,"corrected_food_id"?: string | null,"created_at"?: string,"feedback_at"?: string | null,"meal_id": string,"meal_item_id"?: string | null,"mode": string,"model_ver_id": string,"needs_review"?: boolean | null,"portion_text"?: string | null,"pred_id"?: string,"predicted_food_id"?: string | null,"predicted_name"?: string | null,"score"?: number | null,"servings"?: number | null,"status": string,"threshold"?: number | null,"user_action"?: string | null,"user_id": string
                   }
                   Update: {
-                    "candidates"?: (string)[],"corrected_food_id"?: string | null,"created_at"?: string,"feedback_at"?: string | null,"meal_id"?: string,"meal_item_id"?: string | null,"mode"?: string,"model_ver_id"?: string,"pred_id"?: string,"predicted_food_id"?: string,"score"?: number | null,"status"?: string,"threshold"?: number | null,"user_action"?: string | null,"user_id"?: string
+                    "candidates"?: (string)[],"confidence"?: string | null,"corrected_food_id"?: string | null,"created_at"?: string,"feedback_at"?: string | null,"meal_id"?: string,"meal_item_id"?: string | null,"mode"?: string,"model_ver_id"?: string,"needs_review"?: boolean | null,"portion_text"?: string | null,"pred_id"?: string,"predicted_food_id"?: string | null,"predicted_name"?: string | null,"score"?: number | null,"servings"?: number | null,"status"?: string,"threshold"?: number | null,"user_action"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -536,7 +556,7 @@ isOneToOne: true
           Views: {
             "model_feedback": {
                   Row: {
-                    "candidates": (string)[],"corrected_food_id": string | null,"created_at": string,"mode": string,"model_ver_id": string,"pred_id": string,"predicted_food_id": string,"score": number | null,"status": string,"threshold": number | null,"user_action": string | null
+                    "candidates": (string)[],"corrected_food_id": string | null,"created_at": string,"mode": string,"model_ver_id": string,"pred_id": string,"predicted_food_id": string | null,"score": number | null,"status": string,"threshold": number | null,"user_action": string | null
                   }
                   ComputedFields: never
                   Insert: {

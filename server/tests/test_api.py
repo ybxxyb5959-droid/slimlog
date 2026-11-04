@@ -98,7 +98,7 @@ def test_residual_curve_uses_only_my_doses(client, make_user):
 def test_meal_photo_upload_strip_exif_mock_and_delete(client, make_user):
     a, b = make_user("photo-a"), make_user("photo-b")
     eaten = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
-    r = client.post("/meals/photo", files={"file": ("a.jpg", jpeg_with_gps(), "image/jpeg")}, data={"meal_type": "lunch", "eaten_at": eaten}, headers=a.h)
+    r = client.post("/meals/photo", files={"file": ("a.jpg", jpeg_with_gps(), "image/jpeg")}, data={"meal_type": "lunch", "eaten_at": eaten, "purpose": "meal_photo"}, headers=a.h)
     assert r.status_code == 201, r.text
     j = r.json()
     assert j["mode"] == "mock" and j["photo_path"].startswith(f"{a.id}/") and len(j["labels"]) == 5
@@ -110,9 +110,9 @@ def test_meal_photo_upload_strip_exif_mock_and_delete(client, make_user):
     f = httpx.get(f"{URL}/storage/v1/object/authenticated/meal-photos/{j['photo_path']}", headers=H)
     assert f.status_code == 200 and len(Image.open(io.BytesIO(f.content)).getexif()) == 0
     # 이미지 아님 / 미래 시간 거절
-    assert client.post("/meals/photo", files={"file": ("x.jpg", b"nope", "image/jpeg")}, data={"meal_type": "lunch", "eaten_at": eaten}, headers=a.h).json()["detail"]["code"] == "NOT_IMAGE"
+    assert client.post("/meals/photo", files={"file": ("x.jpg", b"nope", "image/jpeg")}, data={"meal_type": "lunch", "eaten_at": eaten, "purpose": "meal_photo"}, headers=a.h).json()["detail"]["code"] == "NOT_IMAGE"
     future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
-    assert client.post("/meals/photo", files={"file": ("a.jpg", jpeg_with_gps(), "image/jpeg")}, data={"meal_type": "lunch", "eaten_at": future}, headers=a.h).status_code == 400
+    assert client.post("/meals/photo", files={"file": ("a.jpg", jpeg_with_gps(), "image/jpeg")}, data={"meal_type": "lunch", "eaten_at": future, "purpose": "meal_photo"}, headers=a.h).status_code == 400
     # 남의 사진 기록 삭제 불가, 본인 삭제 → 파일·행 모두 삭제
     assert client.delete(f"/meals/{j['meal_id']}", headers=b.h).status_code == 404
     assert client.delete(f"/meals/{j['meal_id']}", headers=a.h).status_code == 204
@@ -123,7 +123,7 @@ def test_meal_photo_upload_strip_exif_mock_and_delete(client, make_user):
 def test_delete_me_removes_files_and_all_rows(client, make_user):
     a = make_user("bye")
     eaten = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
-    j = client.post("/meals/photo", files={"file": ("a.jpg", jpeg_with_gps(), "image/jpeg")}, data={"meal_type": "dinner", "eaten_at": eaten}, headers=a.h).json()
+    j = client.post("/meals/photo", files={"file": ("a.jpg", jpeg_with_gps(), "image/jpeg")}, data={"meal_type": "dinner", "eaten_at": eaten, "purpose": "meal_photo"}, headers=a.h).json()
     a.rest("POST", "doses", json={"med_id": "wegovy", "dose_mg": 0.5, "injected_at": eaten, "site": "abdomen_right"}).raise_for_status()
     assert client.delete("/me", headers=a.h).status_code == 204
     assert admin_rest("GET", "users", params={"user_id": f"eq.{a.id}"}).json() == []

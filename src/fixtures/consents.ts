@@ -1,5 +1,5 @@
 /** 동의 항목 정의 — 가입 동의 화면과 마이 > 동의 관리에서 함께 쓴다 (문구는 초안, 법률 검토 전) */
-export type ConsentId = 'terms' | 'privacy' | 'sensitive' | 'photo_improve' | 'marketing'
+export type ConsentId = 'terms' | 'privacy' | 'sensitive' | 'photo_improve' | 'marketing' | 'food_ai'
 
 export interface ConsentItem {
   id: ConsentId
@@ -46,6 +46,19 @@ export const CONSENT_ITEMS: ConsentItem[] = [
     required: false,
     summary: 'AI가 틀렸을 때 고른 결과로 모델 성능 점검',
     detail: ['식단 사진에서 사용자가 고친 음식명을 모델 정확도 측정에 써요.', '동의하지 않아도 식단 기록은 그대로 쓸 수 있어요.'],
+  },
+  {
+    id: 'food_ai',
+    title: '식단 사진 AI 분석 (외부 전송)',
+    required: false,
+    summary: '음식 사진을 Google Gemini로 보내 음식 이름·분량 추정',
+    detail: [
+      '전송 항목: 식단 기록에서 "음식 인식하기"를 누른 음식 사진 1장 (위치정보 지운 사본)',
+      '받는 곳: Google LLC (Gemini API, 국외) · 목적: 사진 속 음식 이름과 예상 분량 추정',
+      '이름·건강 기록 등 다른 정보는 보내지 않아요. 눈바디 사진은 절대 보내지 않아요.',
+      '칼로리·영양은 AI가 아니라 식약처 영양성분 DB로 계산해요.',
+      '동의하지 않아도 음식을 직접 검색해서 기록할 수 있어요.',
+    ],
   },
   {
     id: 'marketing',

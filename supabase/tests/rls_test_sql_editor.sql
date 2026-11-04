@@ -1,6 +1,6 @@
 -- SlimLog RLS 테스트 (Supabase SQL Editor 용) — 결과가 표로 나온다
 -- 테스트용 사용자·데이터는 끝에서 스스로 지운다. 중간에 에러가 나면 전부 취소된다.
--- 결과: result 칸이 전부 PASS 면 성공 (46줄)
+-- 결과: result 칸이 전부 PASS 면 성공 (51줄)
 create temp table if not exists slimlog_test_result (name text, result text, detail text);
 truncate slimlog_test_result;
 grant insert, select on slimlog_test_result to authenticated, anon;
@@ -113,6 +113,18 @@ select pg_temp.ok('42 철회 → 식단·인식 결과 유지', (select count(*)
 select pg_temp.ok('43 철회 → 동의 이력 남음', (select count(*) from consents where type='sensitive' and withdrawn_at is not null)=1);
 select pg_temp.fails('44 철회 후 투약 기록', $$insert into doses (med_id,dose_mg,injected_at) values ('test-med',2.5,now())$$);
 reset role;
+
+-- ===== 010 식단 사진 AI =====
+insert into ai_requests (user_id, provider, model, ok) values ('bbbbbbbb-0000-0000-0000-000000000002', 'gemini', 'rls-test', true);
+set local role authenticated; set local request.jwt.claim.sub = 'bbbbbbbb-0000-0000-0000-000000000002';
+select pg_temp.fails('46 앱에서 AI 요청 기록 읽기', $$select count(*) from ai_requests$$);
+select pg_temp.fails('47 앱에서 AI 요청 기록 추가(횟수 우회)', $$insert into ai_requests (user_id,provider,model,ok) values (auth.uid(),'gemini','x',true)$$);
+select pg_temp.fails('48 앱에서 AI 요청 기록 지우기(횟수 초기화)', $$delete from ai_requests$$);
+insert into consents (user_id, type, version) values (auth.uid(), 'food_ai', 'v1');
+select pg_temp.ok('49 음식 사진 AI 동의 저장', (select count(*) from consents where type = 'food_ai') = 1);
+reset role;
+select pg_temp.fails('50 음식 이름·food_id 둘 다 없는 인식 결과', $$insert into predictions (meal_id,user_id,model_ver_id,mode,status) select meal_id,user_id,'test-mock','mock','review' from meals limit 1$$);
+delete from ai_requests where model = 'rls-test';
 
 -- ===== 탈퇴 =====
 delete from auth.users where id = 'aaaaaaaa-0000-0000-0000-000000000001';

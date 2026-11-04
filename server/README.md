@@ -30,7 +30,16 @@ python3 -m venv .venv
 SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_JWT_SECRET=... ALLOWED_ORIGINS=http://localhost:5173 .venv/bin/uvicorn app.main:app --port 8000
 ```
 - `SUPABASE_JWT_SECRET`: HS256 프로젝트(로컬 Supabase 등)만 필요. 신형 프로젝트는 JWKS 로 자동 검증
-- `FOOD_MODEL_PATH`: ONNX 모델 경로 (같은 이름의 `.json` 에 classes·thresholds·mean·std). 없으면 목업 모드
+- `FOOD_MODEL_PATH`: (보류) 직접 학습한 ONNX 모델 경로. 지금 식단 사진은 아래 Gemini 설정을 쓴다
+
+### 식단 사진 AI (Gemini) — 사용 범위: 식단 사진의 음식 이름·예상 인분만 (`docs/AI_Gemini_전환계획.md` 0장)
+- `GEMINI_API_KEY`: Google AI Studio 에서 발급. **이 서버 환경변수에만** 넣는다 (브라우저·`VITE_` 변수·저장소 X). 없으면 목업 모드(외부 전송 없음)
+- `GEMINI_MODEL`: 기본 `gemini-3.5-flash-lite` — 키 발급 후 실제 모델 ID 확인해서 맞출 것
+- `AI_PROVIDER`: `gemini`(기본) 또는 `mock`
+- `AI_DAILY_LIMIT_PER_USER`: 사용자당 하루 분석 횟수 (기본 10, 한국 시간 0시 기준)
+- `AI_GLOBAL_DAILY_LIMIT`: 서버 전체 하루 상한 (기본 300, 무료 한도 보호)
+- Gemini 호출 코드는 `app/ai/gemini_food.py` 한 곳, 호출 경로는 `POST /meals/photo`(purpose=meal_photo) 하나뿐. `tests/test_food_ai.py` 가 이를 검사한다
+- 사용량 확인: Supabase SQL Editor → `select date(created_at at time zone 'Asia/Seoul') d, count(*), sum(input_tokens), sum(output_tokens), count(*) filter (where not ok) from ai_requests group by d order by d desc;`
 
 ## 테스트 (로컬 Supabase 필요: `npx supabase start`)
 ```bash

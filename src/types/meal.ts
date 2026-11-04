@@ -50,6 +50,14 @@ export interface AiLabelMeta {
   mode: 'model' | 'mock'
   /** 서버 PREDICTIONS.pred_id — 사용자 피드백(수락·수정·제외)을 이 행에 남긴다 */
   predId?: string
+  /** AI가 말한 음식 이름 그대로 (영양 DB에 없어도 보여주기용) */
+  nameRaw?: string
+  /** AI 확실성 → 화면: 높음 / 보통 / 확인 필요 */
+  confidence?: 'high' | 'medium' | 'low'
+  /** AI 추정 인분 (1회 제공량 = 1). 잰 값이 아님 */
+  servings?: number
+  portionText?: string
+  reason?: string | null
 }
 
 /** 식사 안의 음식 한 개 — 저장 시점의 이름·영양을 스냅숏으로 보관 */

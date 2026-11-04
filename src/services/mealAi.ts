@@ -1,14 +1,13 @@
 /**
- * 음식 사진 인식 — 멀티라벨 분류 계약 (현재는 목업만 동작)
+ * 식단 사진 음식 인식 — 화면 쪽 계약
  *
- * 실제(다음 승인 이후): POST /api/meals/recognize (사진 1장)
- *   → 서버가 EXIF 제거 → EfficientNet-B0 멀티라벨 모델(ONNX) 추론
- *   → 클래스마다 sigmoid 점수 → 클래스별 기준값 이상이면 '인식 결과',
- *     기준값보다 조금 낮은 구간이면 '확인 필요'로 돌려준다.
- * 영역(박스)을 그리지 않는다. 사진 전체를 한 번에 본다.
+ * 실서비스: POST /meals/photo (purpose=meal_photo) → FastAPI 가 EXIF 제거·저장 후
+ *   서버에서만 Gemini 를 불러 음식 이름·예상 인분을 받고, 식약처 영양 DB(foods)와 연결해 돌려준다.
+ *   이 앱(브라우저)은 Gemini 를 직접 부르지 않고 키도 없다.
+ * 칼로리·영양은 AI가 아니라 foods 값으로 계산한다. 분량은 추정값이다.
+ * 사용 범위: 식단 사진만 (docs/AI_Gemini_전환계획.md 0장). 눈바디 사진은 여기로 보내지 않는다.
  *
- * 모델이 준비되지 않았으면(model_status: not_loaded) 목업 결과로 시연한다.
- * 목업 결과는 mode: 'mock' 으로 표시되고, 사진 내용과 상관없는 고정 예시다.
+ * 서버가 없으면(목업) 고정 예시 결과로 시연한다 — mode: 'mock', 사진 내용과 상관없음.
  */
 import { api } from '@/lib/api'
 import type { PhotoRecognition } from '@/services/live/meals'
@@ -17,40 +16,42 @@ import type { AiLabelMeta } from '@/types/meal'
 export type ModelStatus = 'ready' | 'not_loaded' | 'mock'
 
 export interface RecognizedLabel extends Omit<AiLabelMeta, 'modelVersion' | 'mode'> {
-  foodId: string
+  /** 영양 DB와 연결된 음식. 없으면 null → 사용자가 검색·직접 입력 */
+  foodId: string | null
 }
 
 export interface RecognitionResult {
   mode: 'model' | 'mock'
   modelStatus: ModelStatus
   modelVersion: string
-  /** 점수 높은 순 */
   labels: RecognizedLabel[]
+  /** AI 실패·음식 없음 (사진은 저장됨) */
+  aiError?: { code: string; message: string } | null
 }
 
 export const MOCK_MODEL_VERSION = 'mock-0'
 
-/** 목업 결과 — '인식 결과'와 '확인 필요'를 모두 보여주기 위한 고정 예시 (실제 점수 아님) */
+/** 목업 결과 — '인식 결과'와 '확인 필요'를 모두 보여주기 위한 고정 예시 (실제 분석 아님) */
 const MOCK_LABELS: RecognizedLabel[] = [
-  { foodId: 'kimchi-jjigae', status: 'recognized', score: 0.91, threshold: 0.5, candidates: ['kimchi-jjigae', 'sundubu', 'doenjang-jjigae'] },
-  { foodId: 'rice', status: 'recognized', score: 0.88, threshold: 0.5, candidates: ['rice', 'multigrain-rice'] },
-  { foodId: 'kimchi', status: 'recognized', score: 0.74, threshold: 0.55, candidates: ['kimchi', 'kkakdugi'] },
-  { foodId: 'spinach', status: 'review', score: 0.41, threshold: 0.55, candidates: ['spinach', 'kongnamul', 'myeolchi'] },
-  { foodId: 'gyeranmari', status: 'review', score: 0.37, threshold: 0.5, candidates: ['gyeranmari', 'boiled-egg'] },
+  { foodId: 'kimchi-jjigae', nameRaw: '김치찌개', status: 'recognized', confidence: 'high', servings: 1, portionText: '1그릇', score: null, threshold: null, candidates: ['kimchi-jjigae', 'sundubu', 'doenjang-jjigae'] },
+  { foodId: 'rice', nameRaw: '쌀밥', status: 'recognized', confidence: 'high', servings: 1, portionText: '1공기', score: null, threshold: null, candidates: ['rice', 'multigrain-rice'] },
+  { foodId: 'kimchi', nameRaw: '배추김치', status: 'recognized', confidence: 'medium', servings: 1, portionText: '1접시', score: null, threshold: null, candidates: ['kimchi', 'kkakdugi'] },
+  { foodId: 'spinach', nameRaw: '시금치나물', status: 'review', confidence: 'low', servings: 1, portionText: '1접시', reason: '다른 나물과 비슷해 보여요', score: null, threshold: null, candidates: ['spinach', 'kongnamul', 'myeolchi'] },
+  { foodId: 'gyeranmari', nameRaw: '계란말이', status: 'review', confidence: 'medium', servings: 1, portionText: '2조각', reason: '가려져서 일부만 보여요', score: null, threshold: null, candidates: ['gyeranmari', 'boiled-egg'] },
 ]
 
-/** 지금 쓸 수 있는 모델 상태 — 백엔드가 없으므로 항상 mock */
+/** 목업 모드의 모델 상태 — 서버가 없으면 항상 mock */
 export function getModelStatus(): ModelStatus {
   return 'mock'
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 실제 연결 시 사진을 보낸다 (목업은 사진을 쓰지 않음)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 목업은 사진을 쓰지 않는다
 export async function recognizeMeal(_photo: { kind: 'sample' | 'file'; url?: string }): Promise<RecognitionResult> {
   await new Promise((r) => setTimeout(r, 1100))
   return { mode: 'mock', modelStatus: getModelStatus(), modelVersion: MOCK_MODEL_VERSION, labels: MOCK_LABELS.map((l) => ({ ...l, candidates: [...l.candidates] })) }
 }
 
-// ── 실서비스: 서버(FastAPI)가 EXIF 제거·저장·인식 후 초안 식사(draft)를 만든다 ──
+// ── 실서비스: 서버(FastAPI)가 저장·인식 후 초안 식사(draft)를 만든다 ──
 
 export interface LiveRecognition extends RecognitionResult {
   mealId: string
@@ -62,12 +63,29 @@ export async function recognizeMealLive(file: File, mealType: string, eatenAtIso
   form.append('file', file)
   form.append('meal_type', mealType)
   form.append('eaten_at', eatenAtIso)
+  form.append('purpose', 'meal_photo') // 서버가 식단 사진인지 확인
   const r = await api<PhotoRecognition>('/meals/photo', { form })
   return {
     mealId: r.meal_id,
     mode: r.mode,
     modelStatus: r.model_status as ModelStatus,
     modelVersion: r.model_version,
-    labels: r.labels.map((l) => ({ foodId: l.food_id, status: l.status, score: l.score, threshold: l.threshold, candidates: l.candidates, predId: l.pred_id })),
+    aiError: r.ai_error ?? null,
+    labels: r.labels.map((l) => ({
+      foodId: l.food_id,
+      nameRaw: l.name_raw,
+      status: l.status,
+      confidence: l.confidence,
+      servings: l.servings,
+      portionText: l.portion_text,
+      reason: l.reason ?? null,
+      score: l.score,
+      threshold: l.threshold,
+      candidates: l.candidates,
+      predId: l.pred_id,
+    })),
   }
 }
+
+/** 확실성 → 화면 표시 (숫자 % 는 보여주지 않음) */
+export const confidenceLabel = (c?: 'high' | 'medium' | 'low') => (c === 'high' ? '신뢰도 높음' : c === 'medium' ? '신뢰도 보통' : '확인 필요')

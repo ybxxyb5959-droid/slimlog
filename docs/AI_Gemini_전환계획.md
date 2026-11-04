@@ -260,6 +260,24 @@ alter table public.consents add constraint consents_type_check
 
 ---
 
+## 11. 구현 현황 (2026-11-04)
+
+**코드 완료 · 실제 Gemini 연결은 아직 안 함** (키가 없어 목업 엔진으로 검증. Gemini 호출은 가짜 응답으로 테스트)
+
+| 영역 | 파일 | 상태 |
+|---|---|---|
+| AI 모듈 (교체 가능) | `server/app/ai/` — `base.py`(규격), `gemini_food.py`(Gemini 전용), `mock_food.py`, `matching.py`(영양 DB 연결), `usage.py`(횟수·사용량), `food_aliases.json` | ✅ |
+| 사진 경로 | `server/app/routers/meals.py` `POST /meals/photo` — purpose 확인, 동의, 하루 10회, 실패 시 직접 입력 | ✅ |
+| DB 010 | `supabase/migrations/20261105000010_food_ai_gemini.sql` / SQL Editor용 `supabase/sql_editor_적용용_010.sql` / 되돌리기 `supabase/rollback/20261105_010_down.sql` | ✅ 로컬 적용 확인 · ⏳ 👤 클라우드 실행 |
+| 화면 | 사진 화면(외부 전송 안내·첫 동의·실패 시 직접 입력), 검토 화면(신뢰도 높음/보통/확인 필요, DB 없는 음식, 추정값 안내), 동의 관리에 '식단 사진 AI 분석' 추가 | ✅ |
+| 테스트 | 서버 44 (새 30: 범위 지키기·Gemini 오류·횟수 제한 등) · DB RLS 51 · HTTP 30 · 화면 E2E 307 · 실서비스 E2E 18 | ✅ 전부 통과 |
+
+**👤 남은 일**
+1. 클라우드 Supabase SQL Editor 에서 `sql_editor_적용용_010.sql` 실행 → `supabase/tests/rls_test_sql_editor.sql` 실행해 **51줄 PASS** 확인
+2. Google AI Studio 에서 API 키 발급 → 서버 환경변수 `GEMINI_API_KEY` (채팅에 붙이지 말 것)
+3. 식약처 「전국통합식품영양성분정보(음식)표준데이터」 CSV → `scripts/foods/import_foods.py` 로 `foods` 채우기 (없으면 모든 음식이 '확인 필요')
+4. 서버 배포 후 실제 음식 사진 몇 장으로 확인 → 모델 ID·응답 품질 점검
+
 ## 10. 결정 현황
 
 | 항목 | 상태 |
@@ -268,6 +286,6 @@ alter table public.consents add constraint consents_type_check
 | 모델: Gemini 3.5 Flash-Lite | ✅ 확정 (ID는 키 발급 후 확인) |
 | 무료 플랜으로 개발 | ✅ 확정 |
 | 사용자당 하루 10회 | ✅ 확정 |
-| 9장 순서대로 구현 시작 | ⏳ 승인 대기 |
-| DB 010 (1)(2) | ⏳ 승인 대기 (SQL·영향 범위는 5장) |
-| 별도 동의 `food_ai` vs 안내만 | ⏳ 결정 대기 (추천: 첫 분석 때 1회 동의) |
+| 9장 순서대로 구현 시작 | ✅ 승인 (2026-11-04) |
+| DB 010 (1)(2)(3) | ✅ 승인 · 파일 작성 완료 (클라우드 실행은 👤) |
+| 별도 동의 `food_ai` | ✅ 첫 분석 때 1회 동의 (마이 > 동의 관리에서 철회) |

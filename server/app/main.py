@@ -29,6 +29,7 @@ app.add_middleware(
 
 @lru_cache
 def recognizer() -> Recognizer:
+    """(보류) 직접 학습한 ONNX 모델용 — 지금 식단 사진은 app/ai 모듈을 쓴다. 코드 보존."""
     return Recognizer(_settings.model_path)
 
 

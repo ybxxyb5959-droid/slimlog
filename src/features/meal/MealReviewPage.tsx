@@ -19,6 +19,7 @@ import { apiReady } from '@/lib/api'
 import { dbErrorMessage, isLive } from '@/lib/supabase'
 import { confirmPhotoMeal } from '@/services/live/meals'
 import { getFood } from '@/services/foodCatalog'
+import { confidenceLabel } from '@/services/mealAi'
 import { makeItem, useMealStore } from '@/stores/mealStore'
 import { isPhotoItem, useMealDraftStore, type DraftItem } from '@/stores/mealDraftStore'
 import type { MealType } from '@/types/domain'
@@ -81,18 +82,22 @@ export function MealReviewPage() {
   const canSave = d.items.length > 0 && unresolved === 0 && !future
   const typeLabel = MEAL_TYPES.find((t) => t.value === d.mealType)!.label
   const photoItems = d.items.filter(isPhotoItem).length
+  // 실서비스에서 서버가 만든 사진 초안 — AI 결과가 없거나 다 빼도 사진 기록으로 확정한다 (사진이 남아 있으므로)
+  const serverPhotoDraft = apiReady && !d.editingId && !!d.photoId
   const mockAi = d.items.some((i) => i.ai?.mode === 'mock')
   const reviewNo = (it: DraftItem) => d.items.filter((x) => x.ai?.status === 'review').indexOf(it) + 1
 
   const choose = (item: DraftItem, food: FoodItem) => {
     const corrected = !!item.ai && item.ai.candidates[0] !== food.id
-    d.replaceItem(item.id, { ...makeItem(food, food.servingGrams, { fromPhoto: isPhotoItem(item), ai: item.ai, corrected }), id: item.id })
+    // 사진 항목은 DB 기본 제공량 × AI 추정 인분으로 시작 (섭취량에서 고칠 수 있음)
+    const grams = isPhotoItem(item) ? Math.round(food.servingGrams * (item.ai?.servings ?? 1)) : food.servingGrams
+    d.replaceItem(item.id, { ...makeItem(food, grams, { fromPhoto: isPhotoItem(item), ai: item.ai, corrected }), id: item.id })
   }
 
   const [saving, setSaving] = useState(false)
   const save = async () => {
     const items = d.items as MealItem[]
-    const base = { mealType: d.mealType, eatenAt: localInputToIso(d.eatenAt), source: (d.photoId && photoItems ? 'photo' : 'manual') as 'photo' | 'manual', photoId: photoItems ? (d.photoId ?? undefined) : undefined, items }
+    const base = { mealType: d.mealType, eatenAt: localInputToIso(d.eatenAt), source: (d.photoId && (photoItems || serverPhotoDraft) ? 'photo' : 'manual') as 'photo' | 'manual', photoId: photoItems || serverPhotoDraft ? (d.photoId ?? undefined) : undefined, items }
     if (apiReady && !d.editingId && base.source === 'photo' && d.photoId) {
       // 실서비스 사진 기록: 서버가 만든 초안(meal_id = photoId)을 확정하고 인식 결과마다 수락·수정·제외를 남긴다
       setSaving(true)
@@ -145,7 +150,7 @@ export function MealReviewPage() {
         </div>
 
         {/* 사진 */}
-        {d.photo && photoItems > 0 && (
+        {d.photo && (photoItems > 0 || serverPhotoDraft) && (
           <div>
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
               {d.photo.kind === 'file' ? <img src={d.photo.url} alt="식사 사진" className="h-full w-full object-cover" /> : <SampleMealArt className="h-full w-full" />}
@@ -187,13 +192,14 @@ export function MealReviewPage() {
                     <div className="min-w-0 flex-1">
                       {ai && (
                         <Badge tone={it.foodId ? 'info' : 'review'} className="mb-1">
-                          {ai.status === 'recognized' ? '인식 결과' : it.foodId ? '확인 완료' : '확인 필요'}
+                          {!it.foodId ? '확인 필요' : ai.status !== 'recognized' ? '확인 완료' : confidenceLabel(ai.confidence ?? 'high')}
                         </Badge>
                       )}
-                      <p className="truncate text-[17px] font-bold">{it.foodId ? it.name : '이 음식이 맞나요?'}</p>
+                      <p className="truncate text-[17px] font-bold">{it.foodId ? it.name : ai?.nameRaw ? `${ai.nameRaw}?` : '이 음식이 맞나요?'}</p>
                       <p className="tabular text-[13px] text-text-muted">
                         {isPhotoItem(it) ? '사진 인식' : '직접 검색'}
                         {it.foodId && ` · ${amountLabel(it.grams, food)} · ${it.kcal}kcal`}
+                        {!it.foodId && ai?.portionText && ` · ${ai.portionText} 추정`}
                         {it.corrected && ' · 직접 고침'}
                       </p>
                     </div>
@@ -212,11 +218,12 @@ export function MealReviewPage() {
                   {/* AI 후보 */}
                   {ai && (ai.candidates.length > 0 || !it.foodId) && (
                     <div className="mt-3">
+                      {!it.foodId && ai.reason && <p className="mb-1 text-[12px] text-text-muted">AI 메모: {ai.reason}</p>}
                       {!it.foodId &&
                         (ai.candidates.some((cid) => getFood(cid)) ? (
                           <p className="mb-2 text-[13px] text-review">사진에 있다면 맞는 음식을 골라 주세요. 없으면 빼면 돼요.</p>
                         ) : (
-                          <p className="mb-2 text-[13px] text-review">후보가 없어요. 검색해서 골라 주세요.</p>
+                          <p className="mb-2 text-[13px] text-review">영양 DB에 없는 음식이에요. 검색해서 고르거나 직접 등록해 주세요.</p>
                         ))}
                       {ai.candidates.some((cid) => getFood(cid)) && (
                         <div role="radiogroup" aria-label={`${it.foodId ? it.name : `확인 필요 ${reviewNo(it)}`} 인식 후보`} className="flex flex-wrap gap-1.5">
@@ -293,6 +300,11 @@ export function MealReviewPage() {
         </section>
 
         <NutritionGrid n={totals} big />
+        {photoItems > 0 && (
+          <p className="-mt-3 text-[12px] leading-relaxed text-text-subtle">
+            AI는 음식 이름과 분량만 추정해요. 사진으로 무게를 잰 값이 아니에요. 칼로리·탄단지는 식약처 영양성분 DB 기준 <b>참고용 추정값</b>이에요.
+          </p>
+        )}
         {unresolved > 0 && <p className="-mt-3 text-[13px] text-review">음식을 고르지 않은 항목 {unresolved}개가 있어요. 골라야 저장할 수 있어요.</p>}
 
         {d.items.length > 0 && (

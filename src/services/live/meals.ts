@@ -186,7 +186,21 @@ export interface PhotoRecognition {
   mode: 'model' | 'mock'
   model_status: string
   model_version: string
-  labels: { pred_id: string; food_id: string; status: 'recognized' | 'review'; score: number | null; threshold: number | null; candidates: string[] }[]
+  labels: {
+    pred_id: string
+    food_id: string | null
+    name_raw?: string
+    status: 'recognized' | 'review'
+    score: number | null
+    threshold: number | null
+    candidates: string[]
+    confidence?: 'high' | 'medium' | 'low'
+    servings?: number
+    portion_text?: string
+    reason?: string | null
+  }[]
+  /** AI 분석 실패·음식 없음 — 사진·초안은 저장됐으니 직접 입력으로 이어간다 */
+  ai_error?: { code: string; message: string } | null
 }
 
 /** 사진 기록 확정: 끼니·시간·확정 상태 저장 + 음식 저장 + 인식 결과마다 사용자 행동(수락·수정·제외) 기록 */

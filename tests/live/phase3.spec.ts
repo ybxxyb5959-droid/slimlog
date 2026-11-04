@@ -4,12 +4,12 @@ import { acceptRequiredConsents, adminDelete, adminInsert, adminSelect, devLogin
 
 /** Phase 3 — 서버(FastAPI) 연결: 사진 식단(EXIF 제거·인식·확정·삭제), 탈퇴 */
 
-// 목업 인식기의 food id 와 같은 id 로 테스트용 공용 음식 (실제 영양값 아님)
+// 목업 인식기가 말하는 음식 이름과 같은 이름의 테스트용 공용 음식 (서버가 이름으로 영양 DB 와 연결, 실제 영양값 아님)
 const FOODS = [
-  { food_id: 'kimchi-jjigae', name: 'E2E김치찌개' },
-  { food_id: 'rice', name: 'E2E쌀밥' },
-  { food_id: 'kimchi', name: 'E2E배추김치' },
-  { food_id: 'spinach', name: 'E2E시금치나물' },
+  { food_id: 'kimchi-jjigae', name: '김치찌개' },
+  { food_id: 'rice', name: '쌀밥' },
+  { food_id: 'kimchi', name: '배추김치' },
+  { food_id: 'spinach', name: '시금치나물' },
 ].map((f) => ({ ...f, category: '반찬', basis_grams: 100, basis_label: '100g당', serving_g: 100, kcal: 100, data_source: 'E2E 테스트용' }))
 
 test.beforeAll(async () => {
@@ -55,21 +55,22 @@ test('사진 식단: 업로드 → 서버 인식(목업 모드 표시) → 고�
   const [draft] = await adminSelect('meals', `user_id=eq.${uid}&select=meal_id,status,photo_exif_stripped,photo_path`)
   expect(draft).toMatchObject({ status: 'draft', photo_exif_stripped: true })
 
-  // 확인 필요 1(시금치): 후보에서 고르기 / 확인 필요 2(계란말이, DB 에 없음): 빼기 / 배추김치: 빼기
-  await page.getByRole('radiogroup', { name: '확인 필요 1 인식 후보' }).getByRole('radio', { name: 'E2E시금치나물' }).click()
-  await page.getByRole('button', { name: '확인 필요 2 제외' }).click()
-  await page.getByRole('button', { name: 'E2E배추김치 제외' }).click()
+  // 확인 필요 1(배추김치, 신뢰도 보통): 빼기 / 2(시금치, 낮음): 후보에서 고르기 / 3(계란말이, DB 에 없음): 빼기
+  await page.getByRole('radiogroup', { name: '확인 필요 2 인식 후보' }).getByRole('radio', { name: '시금치나물' }).click()
+  await page.getByRole('button', { name: '확인 필요 3 제외' }).click()
+  await page.getByRole('button', { name: '확인 필요 1 제외' }).click()
   await expect(page.getByText('3개 음식')).toBeVisible()
   await page.getByRole('button', { name: /식단 저장하기/ }).click()
   await expect(page).toHaveURL('/record/meal')
 
   await expect.poll(async () => (await adminSelect('meals', `meal_id=eq.${draft.meal_id}&select=status`))[0]?.status).toBe('confirmed')
   const items = await adminSelect('meal_items', `meal_id=eq.${draft.meal_id}&select=name,from_photo&order=sort_order`)
-  expect(items.map((i) => i.name)).toEqual(['E2E김치찌개', 'E2E쌀밥', 'E2E시금치나물'])
+  expect(items.map((i) => i.name)).toEqual(['김치찌개', '쌀밥', '시금치나물'])
   expect(items.every((i) => i.from_photo)).toBe(true)
-  const preds = await adminSelect('predictions', `meal_id=eq.${draft.meal_id}&select=predicted_food_id,user_action,mode`)
-  const act = Object.fromEntries(preds.map((p) => [p.predicted_food_id, p.user_action]))
-  expect(act).toEqual({ 'kimchi-jjigae': 'accepted', rice: 'accepted', kimchi: 'excluded', spinach: 'accepted', gyeranmari: 'excluded' })
+  const preds = await adminSelect('predictions', `meal_id=eq.${draft.meal_id}&select=predicted_name,predicted_food_id,user_action,mode`)
+  const act = Object.fromEntries(preds.map((p) => [p.predicted_name, p.user_action]))
+  expect(act).toEqual({ 김치찌개: 'accepted', 쌀밥: 'accepted', 배추김치: 'excluded', 시금치나물: 'accepted', 계란말이: 'excluded' })
+  expect(preds.find((p) => p.predicted_name === '계란말이')?.predicted_food_id).toBeNull() // DB 에 없는 음식은 이름만
   expect(new Set(preds.map((p) => p.mode))).toEqual(new Set(['mock']))
 
   // 새로고침 후 목록 유지 → 삭제(서버 API) → 행·파일 삭제
