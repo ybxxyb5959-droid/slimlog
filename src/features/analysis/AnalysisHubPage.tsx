@@ -16,11 +16,14 @@ import { addDays } from '@/lib/date'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/utils'
 import { useDoses } from '@/services/doses'
+import { useMyProfile } from '@/services/profile'
 import { getBodyLogs } from '@/services/records'
 import { isNewUser } from '@/services/session'
+import type { MedicationId } from '@/types/domain'
 
 import { ResidualPreviewCard } from '../record/medication/ResidualPreviewCard'
 import { AnalysisNoticeButton } from './AnalysisSection'
+import { DoseConditionSummary } from './DoseConditionSummary'
 import { InbodyTab } from './InbodyTab'
 
 type Tab = 'dose' | 'weight' | 'inbody'
@@ -36,6 +39,8 @@ export function AnalysisHubPage() {
   const [period, setPeriod] = useState<Period>(30)
   const { data: logs, loading, error, reload } = useAsync(getBodyLogs)
   const doses = useDoses()
+  const profile = useMyProfile()
+  const myMed: MedicationId = profile.medicationId ?? doses[0]?.medicationId ?? 'mounjaro'
   const from = addDays(new Date(), -period).getTime()
   const inRange = logs?.filter((l) => new Date(l.measuredAt).getTime() >= from) ?? []
   const first = inRange[0]
@@ -71,10 +76,9 @@ export function AnalysisHubPage() {
       <div id="analysis-panel" role="tabpanel" aria-labelledby={`analysis-tab-${tab}`} className="md:max-w-3xl">
         {tab === 'dose' && (
           <div className="min-w-0">
-            <ResidualPreviewCard medication={MEDICATIONS.mounjaro} doses={doses} height={220} />
-            <Link to="/analysis/medication" className="mt-2 flex h-11 items-center justify-center gap-1 text-[13px] font-medium text-text-muted hover:text-text">
-              약 바꿔 보기 · 증상 겹쳐 보기 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-            </Link>
+            {/* 내가 쓰는 약: 프로필 → 없으면 가장 최근 투약한 약 */}
+            <ResidualPreviewCard key={myMed} medication={MEDICATIONS[myMed]} doses={doses} height={220} />
+            <DoseConditionSummary />
           </div>
         )}
 
